@@ -1,7 +1,8 @@
 ---
+
 name: Shiny Component Shorts
-description: Create tiny Shiny Python or R mini-apps and 30-second "Did you know?" video concepts for Shiny components. Use when the user provides a Shiny component, component docs URL, or asks for a short video/demo around a Shiny UI feature.
----
+description: Create tiny Shiny Python or R mini-apps, 30-second "Did you know?" video concepts, Gemini TTS narration scripts, storyboards, and recording notes for Shiny components. Use when the user provides a Shiny component name, Shiny docs URL, or asks for a short demo/video around a Shiny UI feature.
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 # Shiny Component Micro-App Video Factory
 
@@ -19,12 +20,12 @@ Each output should feel like:
 
 The user may provide:
 
-- A Shiny component name
-- A Shiny docs URL
-- A language: Python, R, or both
-- A target audience
-- A desired number of video ideas
-- Whether they want storyboard only, code only, or both
+* A Shiny component name
+* A Shiny component docs URL
+* A language: Python, R, or both
+* A target audience
+* A desired number of video ideas
+* Whether they want storyboard only, code only, narration only, or everything
 
 If the user gives no language, default to Python Shiny Express for short demos unless the component is only available or clearer in R.
 
@@ -36,12 +37,14 @@ Do not create a full tutorial. Do not list every parameter. Pick one visual beha
 
 Good tricks include:
 
-- A component that looks decorative but behaves reactively
-- A compact UI feature that replaces a messier layout
-- A component that stores user state
-- A component that prevents a common app bug
-- A component that can be updated from the server
-- A tiny parameter that changes the whole user experience
+* A component that looks decorative but behaves reactively
+* A compact UI feature that replaces a messier layout
+* A component that stores user state
+* A component that prevents a common app bug
+* A component that can be updated from the server
+* A tiny parameter that changes the whole user experience
+* A small UI placement trick that makes an app feel cleaner
+* A hidden reactive behavior that is easy to miss in the docs
 
 ## Research process
 
@@ -49,88 +52,262 @@ For each component:
 
 1. Inspect the official Shiny docs URL if provided.
 2. Identify:
-   - The function name
-   - The basic purpose
-   - The most visual variation
-   - Any update function
-   - Any reactive value exposed to the server
-   - Any surprising layout behavior
+
+   * The function name
+   * The basic purpose
+   * The most visual variation
+   * Any update function
+   * Any reactive value exposed to the server
+   * Any surprising layout behavior
+   * Any useful accessibility or UX detail
 3. Ignore anything that cannot be shown clearly on screen.
 4. Choose the strongest "I didn't know Shiny could do that" feature.
 5. Build a tiny app around that feature.
 
 ## Output format
 
-For every component, produce:
+For every component, produce the following sections.
 
-### Component
+## Component
 
 Name and language.
 
-### Best video angle
+Example:
+
+```text
+Toolbar Select — Python Shiny Express
+```
+
+## Best video angle
 
 One sentence describing the hidden feature.
 
-### Hook
+Example:
+
+```text
+A select input can live inside a card header toolbar, so the card controls itself instead of relying on a separate sidebar.
+```
+
+## Hook
 
 A short opening line for the video.
 
-### Mini-app concept
+Example:
+
+```text
+Did you know your Shiny filter does not have to live in the sidebar?
+```
+
+## Mini-app concept
 
 A tiny app idea that makes the feature obvious.
 
-### Variations
+Keep it small. The app should be understandable from one screen recording.
 
-Provide 3 to 5 variations:
+Example:
 
-| Variation | What changes | Why it is video-worthy |
-|---|---|---|
+```text
+A sales dashboard card with a toolbar dropdown in the header. Changing the dropdown switches the card body between revenue, orders, and customers.
+```
 
-### 30-second storyboard
+## Variations
 
-| Time | Visual | Narration |
-|---:|---|---|
-| 0-3 sec | Show the boring/default pattern | Short pain-point line |
-| 3-8 sec | Reveal the feature | "Did you know..." line |
-| 8-20 sec | Interact with the mini-app | Show the feature changing state |
-| 20-27 sec | Highlight the key code line | Explain only the important line |
-| 27-30 sec | End on result | Memorable takeaway |
+Provide 3 to 5 variations.
 
-### Code
+| Variation       | What changes                           | Why it is video-worthy                   |
+| --------------- | -------------------------------------- | ---------------------------------------- |
+| Minimal         | The smallest possible version          | Shows the trick clearly                  |
+| Dashboard       | More realistic app layout              | Shows where people would use it          |
+| Weird demo      | Funny or memorable example             | Makes the behavior stick                 |
+| Server-reactive | Server logic responds to the component | Shows it is not just decorative          |
+| UX polish       | Cleaner placement or labels            | Shows why the component improves the app |
+
+## 30-second storyboard
+
+Use this structure:
+
+|      Time | Visual                          | Narration                       |
+| --------: | ------------------------------- | ------------------------------- |
+|   0-3 sec | Show the boring/default pattern | Short pain-point line           |
+|   3-8 sec | Reveal the feature              | "Did you know..." line          |
+|  8-20 sec | Interact with the mini-app      | Show the feature changing state |
+| 20-27 sec | Highlight the key code line     | Explain only the important line |
+| 27-30 sec | End on result                   | Memorable takeaway              |
+
+The storyboard should be visual and recordable. Avoid abstract explanation.
+
+## Narration Script
+
+Create one narration script only: a Gemini TTS-ready script for the 30-second video.
+
+The narration must match the storyboard timing. It should sound like a short vertical video, not a lecture, podcast, or tutorial.
+
+## Gemini TTS narration rules
+
+Use light inline audio tags to guide delivery.
+
+Preferred tags for this series:
+
+* `[curious]`
+* `[amazed]`
+* `[serious]`
+* `[whispers]`
+* `[laughs]`
+* `[very fast]`
+* `[very slow]`
+
+You may use other natural tags when they clearly improve the performance, but do not rely on obscure tags. Audio tags are performance hints, not guaranteed controls.
+
+Rules:
+
+* Keep the transcript around 60 to 85 spoken words.
+* Use 3 to 6 audio tags total.
+* Do not tag every sentence.
+* Keep the pacing brisk.
+* The first line should hook the viewer in under 3 seconds.
+* Match the video structure:
+
+  * 0-3 sec: surprising hook
+  * 3-8 sec: reveal the hidden component behavior
+  * 8-20 sec: describe what the viewer is seeing
+  * 20-27 sec: call out the key code line
+  * 27-30 sec: memorable takeaway
+* Use punctuation or a short blank line before reveals instead of overusing pause tags.
+* Use `[very fast]` only for setup that should feel compressed.
+* Use `[very slow]` only for the final takeaway or code reveal.
+* Avoid theatrical tags unless the video concept is intentionally funny.
+* Do not write visual stage directions inside the transcript.
+* Do not include timestamps inside the transcript.
+* Do not make the narration explain every parameter.
+* The narration should be tightly connected to what appears on screen.
+
+## Required Gemini TTS format
+
+```text
+Synthesize this as a natural, curious tech explainer for a 30-second vertical video.
+
+Audio profile:
+A clear developer voice. Brisk, precise, lightly amused, and not salesy.
+
+Scene:
+A short screen-recorded demo of a Shiny component. The viewer is seeing the UI change live.
+
+Director's notes:
+Keep the pace fast enough for a short video. Use small pauses before reveals. Emphasize the surprising behavior. Do not sound like a corporate tutorial. Read only the transcript below.
+
+Transcript:
+[Gemini-tagged narration here]
+```
+
+## Gemini TTS example
+
+```text
+Synthesize this as a natural, curious tech explainer for a 30-second vertical video.
+
+Audio profile:
+A clear developer voice. Brisk, precise, lightly amused, and not salesy.
+
+Scene:
+A short screen-recorded demo of a Shiny card with a dropdown in the card header.
+
+Director's notes:
+Keep the pace fast enough for a short video. Use small pauses before reveals. Emphasize the surprising behavior. Do not sound like a corporate tutorial. Read only the transcript below.
+
+Transcript:
+[curious] Did you know this tiny dropdown can control the whole card?
+
+[very fast] Instead of sending every filter to a giant sidebar, Shiny lets the control live right inside the card header.
+
+Now watch the card change itself when I pick a new view.
+
+The trick is this one line: `ui.toolbar_input_select()`.
+
+[very slow] A filter does not have to live beside the chart. Sometimes it belongs in the chart's own roof.
+```
+
+After generating the narration, continue with the Code section.
+
+## Code
 
 Generate a runnable Shiny mini-app.
 
 For Python:
-- Prefer Shiny Express for short demos.
-- Use Shiny Core only when the layout needs clearer structure.
-- Keep dependencies minimal.
+
+* Prefer Shiny Express for short demos.
+* Use Shiny Core only when the layout needs clearer structure.
+* Keep dependencies minimal.
+* Prefer built-in datasets or tiny inline data.
+* Avoid complicated setup.
+* The app should be small enough to understand from one screen.
 
 For R:
-- Use shiny and bslib.
-- Add packages only when needed.
-- Keep the app small enough to understand from one screen.
 
-### Recording notes
+* Use `shiny` and `bslib`.
+* Add packages only when needed.
+* Prefer built-in datasets or tiny inline data.
+* Keep the app small enough to understand from one screen.
+
+The code should directly support the video idea. Do not add unrelated features.
+
+## Recording notes
 
 Include:
 
-- What to click
-- What changes on screen
-- Where to zoom
-- Which line of code to highlight
-- What the final visual should look like
+* What to click
+* What changes on screen
+* Where to zoom
+* Which line of code to highlight
+* What the final visual should look like
+
+Example:
+
+```text
+Recording notes:
+- Start with the card visible and the dropdown closed.
+- Click the dropdown and switch from Revenue to Orders.
+- Zoom into the card header to show that the control lives inside the card.
+- Highlight `ui.toolbar_input_select()`.
+- End with the card showing the updated value.
+```
 
 ## Style rules
 
 Use a recurring "Did you know?" framing, but avoid generic titles.
 
 Bad:
-- "Did you know Shiny has tooltips?"
+
+* "Did you know Shiny has tooltips?"
+* "Introduction to Shiny data grids"
+* "How to use action buttons"
 
 Good:
-- "Did you know a tooltip can trigger server logic?"
-- "Did you know a table can become an input?"
-- "Did you know a notification can update itself instead of stacking?"
+
+* "Did you know a tooltip can trigger server logic?"
+* "Did you know a table can become an input?"
+* "Did you know a notification can update itself instead of stacking?"
+* "Did you know a card can carry its own filter?"
+* "Did you know a button can protect your app from impatient clicking?"
+
+## Writing style
+
+Write like a sharp, curious developer explaining a small trick to another developer.
+
+Use:
+
+* Plain English
+* Short sentences
+* Specific visual examples
+* One memorable line
+* A tiny bit of humor when it fits
+
+Avoid:
+
+* Textbook phrasing
+* Generic summaries
+* Long parameter tours
+* Fake excitement
+* Explaining every caveat
+* Turning the video into documentation
 
 ## Quality checks
 
@@ -140,13 +317,93 @@ Before finalizing, verify:
 2. It is specific to this component.
 3. There is one code line worth zooming into.
 4. It reveals behavior, not just appearance.
-5. A Shiny user would say, "Oh, I could use that."
+5. The mini-app is runnable.
+6. The narration matches the storyboard.
+7. The Gemini TTS transcript is around 60 to 85 spoken words.
+8. A Shiny user would say, "Oh, I could use that."
 
 ## Avoid
 
-- Full component tutorials
-- Long parameter tours
-- Apps that require too much data setup
-- Purely cosmetic changes unless the visual result is dramatic
-- Multiple tricks in one video
-- Abstract reactivity explanations without visible interaction
+* Full component tutorials
+* Long parameter tours
+* Apps that require too much data setup
+* Purely cosmetic changes unless the visual result is dramatic
+* Multiple tricks in one video
+* Abstract reactivity explanations without visible interaction
+* Long explanations before showing the demo
+* Narration that sounds like API documentation
+* Narration that does not match what appears on screen
+
+## Final response template
+
+Use this structure when generating an idea.
+
+````markdown
+# Component: [Component name]
+
+## Best Video Angle
+
+[One-sentence hidden feature]
+
+## Hook
+
+[Opening spoken line]
+
+## Mini-App Concept
+
+[Short description]
+
+## Variations
+
+| Variation | What changes | Why it is video-worthy |
+|---|---|---|
+| [Variation] | [Change] | [Reason] |
+
+## 30-Second Storyboard
+
+| Time | Visual | Narration |
+|---:|---|---|
+| 0-3 sec | [Visual] | [Narration] |
+| 3-8 sec | [Visual] | [Narration] |
+| 8-20 sec | [Visual] | [Narration] |
+| 20-27 sec | [Visual] | [Narration] |
+| 27-30 sec | [Visual] | [Narration] |
+
+## Gemini TTS Narration
+
+```text
+Synthesize this as a natural, curious tech explainer for a 30-second vertical video.
+
+Audio profile:
+A clear developer voice. Brisk, precise, lightly amused, and not salesy.
+
+Scene:
+[Describe the screen-recorded Shiny demo in one sentence.]
+
+Director's notes:
+Keep the pace fast enough for a short video. Use small pauses before reveals. Emphasize the surprising behavior. Do not sound like a corporate tutorial. Read only the transcript below.
+
+Transcript:
+[Gemini-tagged narration]
+````
+
+## Code
+
+```python
+# Runnable Shiny app here
+```
+
+## Recording Notes
+
+* Click:
+* Watch for:
+* Zoom into:
+* Highlight this code line:
+* End on:
+
+## Takeaway
+
+[One memorable sentence]
+
+```
+```
