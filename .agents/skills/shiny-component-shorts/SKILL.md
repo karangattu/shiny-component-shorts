@@ -321,6 +321,10 @@ Before finalizing, verify:
 6. The narration matches the storyboard.
 7. The Gemini TTS transcript is around 60 to 85 spoken words.
 8. A Shiny user would say, "Oh, I could use that."
+9. If recording is requested, the app has stable selectors.
+10. If recording is requested, the action script matches the storyboard.
+11. If recording is requested, the recorder starts and stops the Shiny server cleanly.
+12. Do not claim a video was recorded unless an output file exists.
 
 ## Avoid
 
@@ -400,6 +404,249 @@ Transcript:
 * Zoom into:
 * Highlight this code line:
 * End on:
+
+## Browser Recording Automation
+
+When the user asks to record the demo, generate a runnable browser recording workflow in addition to the Shiny app.
+
+The workflow should:
+
+1. Write the Shiny app to disk.
+2. Start the app on a fixed local port.
+3. Wait until the app is reachable.
+4. Open the app in a browser using Playwright.
+5. Perform the exact UI actions from the storyboard.
+6. Record the browser video.
+7. Save the video to an `artifacts/` directory.
+8. Stop the Shiny server cleanly.
+
+## Recording output files
+
+When recording is requested, create this structure:
+
+```text
+demo-name/
+├── app.py                  # Python Shiny app, if Python
+├── app.R                   # R Shiny app, if R
+├── actions.yaml            # Browser action script
+├── scripts/
+│   └── record_demo.py      # Playwright recorder
+└── artifacts/
+    └── demo.webm           # Recorded browser video
+```
+
+## Stable selector rule
+
+The app must include stable selectors for recording.
+
+Prefer:
+
+* Explicit input IDs
+* Buttons with predictable labels
+* `data-testid` attributes when useful
+* Simple DOM structure
+
+Avoid selectors based only on visual position, generated classes, or fragile nested markup.
+
+Good:
+
+```python
+ui.input_select("view", "View", choices=["Revenue", "Orders", "Customers"])
+```
+
+Good Playwright selector:
+
+```text
+#view
+```
+
+Bad:
+
+```text
+div:nth-child(3) > button:nth-child(2)
+```
+
+## Stable selectors for bslib components
+
+bslib components (accordion, navset tabs, etc.) generate **random internal IDs** for Bootstrap collapse targets (e.g. `bslib_accordion_panel_cef967`). Never use those IDs in selectors.
+
+For `ui.accordion(id="acc")`, each panel is rendered as `.accordion-item[data-value="..."]`. The `data-value` maps directly to the `value=` argument in Python.
+
+Click a panel header with:
+
+```css
+#acc [data-value="reactivity"] .accordion-button
+```
+
+Full DOM structure for reference:
+
+```html
+<div id="acc" class="accordion">
+  <div class="accordion-item" data-value="reactivity">
+    <span class="accordion-header">
+      <button class="accordion-button collapsed">Reactivity</button>
+    </span>
+    <div id="bslib_accordion_panel_RANDOM" class="accordion-collapse collapse">
+      ...
+    </div>
+  </div>
+</div>
+```
+
+## Action script format
+
+Generate an `actions.yaml` file that mirrors the 30-second storyboard.
+
+Supported actions:
+
+```yaml
+url: "http://127.0.0.1:8000"
+video_name: "demo.webm"
+
+actions:
+  - wait_for: "#view"
+
+  - wait: 1000
+
+  - click: "#view"
+
+  - select_option:
+      selector: "#view"
+      value: "orders"
+
+  - hover: ".card"
+
+  - fill:
+      selector: "#search"
+      value: "penguin"
+
+  - press:
+      selector: "body"
+      key: "Escape"
+
+  - screenshot:
+      path: "artifacts/final.png"
+```
+
+Rules:
+
+* Every action should connect to the storyboard.
+* Keep the total action sequence close to 30 seconds.
+* Add short waits after visible state changes.
+* Do not over-click.
+* Use selectors that exist in the generated app.
+* If the component needs a hover, use `hover`.
+* If the component needs a select input, use `select_option`.
+* If the component needs typing, use `fill`.
+* If the component needs a button, use `click`.
+
+## Python Shiny start command
+
+For Python apps, use a fixed port:
+
+```bash
+shiny run --host 127.0.0.1 --port 8000 app.py
+```
+
+## R Shiny start command
+
+For R apps, use a fixed port:
+
+```bash
+Rscript -e 'shiny::runApp(".", host="127.0.0.1", port=8000, launch.browser=FALSE)'
+```
+
+## Playwright recorder
+
+Generate `scripts/record_demo.py`.
+
+The recorder should:
+
+* Start the Shiny app as a subprocess.
+* Wait for `http://127.0.0.1:8000`.
+* Launch Chromium with Playwright.
+* Create a browser context with video recording enabled.
+* Execute `actions.yaml`.
+* Close the browser context so the video is saved.
+* Stop the Shiny process.
+
+Use Playwright video recording, not OS-level screen recording.
+
+## Recording command
+
+Add a command the user can run:
+
+```bash
+python scripts/record_demo.py --app-type python --actions actions.yaml
+```
+
+or:
+
+```bash
+python scripts/record_demo.py --app-type r --actions actions.yaml
+```
+
+## Recorder known issues and fixes
+
+### Shiny session readiness
+
+After `page.wait_for_load_state("networkidle")`, Shiny's WebSocket session may still be initializing. Add a fixed 3-second wait before running actions.
+
+**Do not** poll for `document.body.classList.contains('shiny-connected')` — Shiny for Python does not add this class.
+
+```python
+page.wait_for_load_state("networkidle")
+page.wait_for_timeout(3000)  # let Shiny WebSocket session initialize
+```
+
+### Port conflict
+
+Before starting the recorder, verify the target port is free. A stale Shiny process on port 8000 from a previous run causes `wait_for_server` to succeed immediately (the old server answers), and Playwright will then record the wrong page.
+
+Check and clear before recording:
+
+```bash
+lsof -ti :8000 | xargs kill -9 2>/dev/null
+```
+
+### Playwright video file naming
+
+Playwright saves videos as UUID-named `.webm` files inside `record_video_dir`. After closing the browser context, rename the most recently modified `.webm` to the configured `video_name`:
+
+```python
+videos = sorted(artifacts_dir.glob("*.webm"), key=lambda p: p.stat().st_mtime)
+if videos:
+    videos[-1].rename(artifacts_dir / video_name)
+```
+
+### wait_for_selector and collapsed panels
+
+Collapsed accordion panels (and other hidden bslib elements) are in the DOM but not visible. Use `state="attached"` when waiting for them — the default `state="visible"` will time out.
+
+```python
+page.wait_for_selector("#acc", state="attached", timeout=15000)
+```
+
+## Recording constraints
+
+If the environment cannot run browsers, Playwright, Shiny, R, Python, or local servers, explain the missing dependency and still generate the app, action script, and recorder file.
+
+Do not claim a video was recorded unless the file exists in `artifacts/`.
+
+## Optional audio step
+
+The browser recording should produce silent video.
+
+The Gemini TTS narration should remain a separate text artifact unless the user asks to synthesize audio and combine it with the video.
+
+If audio merging is requested, generate a separate step using `ffmpeg` after the TTS audio file exists.
+
+Example:
+
+```bash
+ffmpeg -i artifacts/demo.webm -i artifacts/narration.wav -c:v copy -c:a aac -shortest artifacts/final.mp4
+```
+
 
 ## Takeaway
 
