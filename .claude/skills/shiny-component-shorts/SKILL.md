@@ -1,8 +1,7 @@
 ---
-
-name: Shiny Component Shorts
-description: Create tiny Shiny Python or R mini-apps, 30-second "Did you know?" video concepts, Gemini TTS narration scripts, storyboards, and recording notes for Shiny components. Use when the user provides a Shiny component name, Shiny docs URL, or asks for a short demo/video around a Shiny UI feature.
------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+name: shiny-component-shorts
+description: Create interactive Shiny Python or R mini-apps, 30-second "Did you know?" video concepts, Gemini 3.1 TTS narration and audio, storyboards, recording automation, and editing notes. Use when the user provides a Shiny component name or docs URL, or asks for a short demo or video around a Shiny UI feature.
+---
 
 # Shiny Component Micro-App Video Factory
 
@@ -34,6 +33,30 @@ If the user gives no language, default to Python Shiny Express for short demos u
 One video = one trick.
 
 Do not create a full tutorial. Do not list every parameter. Pick one visual behavior that can be demonstrated in under 30 seconds.
+
+## Interaction and motion budget
+
+Make the component do something visible throughout the recording. One trick does not mean one click.
+
+Use this interaction arc:
+
+1. Show the starting state for no more than 2 seconds.
+2. Trigger the hidden behavior immediately.
+3. Change the input or state again to prove the result is reactive rather than a one-off animation.
+4. Add one contrast, reversal, or reset that makes the behavior unmistakable.
+5. End on the strongest result, not an idle screen.
+
+Require at least three meaningful user actions and three clearly visible state changes in a 30-second recording. A meaningful action changes content, selection, layout, focus, validation, or server state; moving the pointer or clicking an inert element does not count.
+
+Avoid static shots longer than 3 seconds. If narration needs more time, continue interacting with the same feature, compare two states, or replay the reveal. Keep code overlays to 3–4 seconds and show them over the live app when possible.
+
+Choose interactions native to the component: select, type, sort, filter, expand, drag, hover, dismiss, update, validate, or reset. Do not bolt on unrelated buttons or decorative motion just to satisfy the budget.
+
+## Short-form retention layer
+
+When creating a recorded or edited short, read [references/short-form-pacing.md](references/short-form-pacing.md) and apply its hook, caption, state-label, progress-rail, vertical-layout, and editing guidance.
+
+Keep the Shiny app as the hero. Use the reference patterns as a visual grammar, not as permission to copy another creator's wording, branding, footage, or exact design.
 
 Good tricks include:
 
@@ -92,6 +115,8 @@ A select input can live inside a card header toolbar, so the card controls itsel
 
 A short opening line for the video.
 
+Lead with the viewer's precise frustration or desired result, then reveal the component. Avoid opening with the component name when a problem-led hook is available.
+
 Example:
 
 ```text
@@ -128,13 +153,24 @@ Use this structure:
 
 |      Time | Visual                          | Narration                       |
 | --------: | ------------------------------- | ------------------------------- |
-|   0-3 sec | Show the boring/default pattern | Short pain-point line           |
-|   3-8 sec | Reveal the feature              | "Did you know..." line          |
-|  8-20 sec | Interact with the mini-app      | Show the feature changing state |
-| 20-27 sec | Highlight the key code line     | Explain only the important line |
-| 27-30 sec | End on result                   | Memorable takeaway              |
+|   0-3 sec | Show the initial state, then start the first action | Short pain-point line |
+|   3-8 sec | Complete the first reveal | "Did you know..." line |
+|  8-14 sec | Trigger a second state | Describe the visible response |
+| 14-20 sec | Reverse, reset, or contrast it | Prove the behavior is reactive |
+| 20-24 sec | Overlay the key code on the live result | Explain only the important line |
+| 24-30 sec | Perform the strongest final interaction and end on its result | Memorable takeaway |
 
 The storyboard should be visual and recordable. Avoid abstract explanation.
+
+## Interaction plan
+
+After the storyboard, list the exact action → reaction beats. Include at least three rows.
+
+| Beat | User action | Visible reaction | Why it earns screen time |
+| ---: | --- | --- | --- |
+| 1 | [Exact action] | [Specific UI change] | [What this proves] |
+
+Reject the concept and choose another angle if the table cannot contain three meaningful beats without adding unrelated controls.
 
 ## Narration Script
 
@@ -321,10 +357,19 @@ Before finalizing, verify:
 6. The narration matches the storyboard.
 7. The Gemini TTS transcript is around 60 to 85 spoken words.
 8. A Shiny user would say, "Oh, I could use that."
-9. If recording is requested, the app has stable selectors.
-10. If recording is requested, the action script matches the storyboard.
-11. If recording is requested, the recorder starts and stops the Shiny server cleanly.
-12. Do not claim a video was recorded unless an output file exists.
+9. The interaction plan contains at least three meaningful action → visible reaction beats.
+10. No planned idle shot or full-screen code shot lasts longer than 3–4 seconds.
+11. The video is composed and verified in 9:16, not cropped from a desktop-wide layout as an afterthought.
+12. The hook names a viewer problem or outcome rather than merely announcing the component.
+13. The edit has a visible change every 1.5–3 seconds without decorative noise.
+14. If recording is requested, the app has stable selectors.
+15. If recording is requested, the action script matches the storyboard.
+16. If recording is requested, the recorder starts and stops the Shiny server cleanly.
+17. If recording is requested, the action script's total duration is at least as long as the estimated narration duration.
+18. If TTS is requested and an API key is available, `artifacts/narration.wav` exists.
+19. If recording is requested, the final delivered file is `artifacts/demo.mp4`, not `.webm`.
+20. Do not claim a video or narration was generated unless its output file exists.
+21. End every completed generation workflow with a cost report for Gemini and the active agent harness.
 
 ## Avoid
 
@@ -334,6 +379,9 @@ Before finalizing, verify:
 * Purely cosmetic changes unless the visual result is dramatic
 * Multiple tricks in one video
 * Abstract reactivity explanations without visible interaction
+* A single click followed by long waits
+* Cursor movement presented as interaction
+* Seven-second full-screen code cards
 * Long explanations before showing the demo
 * Narration that sounds like API documentation
 * Narration that does not match what appears on screen
@@ -367,11 +415,20 @@ Use this structure when generating an idea.
 
 | Time | Visual | Narration |
 |---:|---|---|
-| 0-3 sec | [Visual] | [Narration] |
-| 3-8 sec | [Visual] | [Narration] |
-| 8-20 sec | [Visual] | [Narration] |
-| 20-27 sec | [Visual] | [Narration] |
-| 27-30 sec | [Visual] | [Narration] |
+| 0-3 sec | [Initial state and first action] | [Narration] |
+| 3-8 sec | [First reveal] | [Narration] |
+| 8-14 sec | [Second state] | [Narration] |
+| 14-20 sec | [Reverse, reset, or contrast] | [Narration] |
+| 20-24 sec | [Short code overlay on live app] | [Narration] |
+| 24-30 sec | [Strongest final interaction and result] | [Narration] |
+
+## Interaction Plan
+
+| Beat | User action | Visible reaction | Why it earns screen time |
+|---:|---|---|---|
+| 1 | [Action] | [Reaction] | [Reason] |
+| 2 | [Action] | [Reaction] | [Reason] |
+| 3 | [Action] | [Reaction] | [Reason] |
 
 ## Gemini TTS Narration
 
@@ -419,6 +476,7 @@ The workflow should:
 6. Record the browser video.
 7. Save the video to an `artifacts/` directory.
 8. Stop the Shiny server cleanly.
+9. If silent editing is requested, run a separate FFmpeg edit step after recording.
 
 ## Recording output files
 
@@ -429,11 +487,22 @@ demo-name/
 ├── app.py                  # Python Shiny app, if Python
 ├── app.R                   # R Shiny app, if R
 ├── actions.yaml            # Browser action script
+├── edit.yaml               # Timed edit overlays, if editing requested
 ├── scripts/
-│   └── record_demo.py      # Playwright recorder
+│   ├── record_demo.py      # Playwright recorder
+│   ├── edit_video.py       # FFmpeg silent editor, if editing requested
+│   └── generate_tts.py     # Gemini narration generator, if audio requested
 └── artifacts/
-    └── demo.webm           # Recorded browser video
+    ├── demo.webm           # Raw Playwright recording (intermediate)
+    ├── demo.mp4            # Clean browser recording
+    ├── final.mp4           # Edited silent video, if editing requested
+    ├── narration.txt       # Gemini prompt, if audio requested
+    ├── narration.wav       # Gemini TTS audio, if audio requested
+    ├── narration.usage.json # Gemini tokens and cost estimate
+    └── cost-report.md      # End-of-run cost ledger
 ```
+
+The `.webm` file is an intermediate artifact only. If editing is not requested, the final deliverable is `demo.mp4`. If editing is requested, keep `demo.mp4` as the clean input and deliver `final.mp4`.
 
 ## Stable selector rule
 
@@ -524,6 +593,13 @@ actions:
       selector: "body"
       key: "Escape"
 
+  - code:
+      title: "Key code"
+      text: |
+        ui.toolbar_input_select()
+        input.view()
+      duration: 3500
+
   - screenshot:
       path: "artifacts/final.png"
 ```
@@ -532,13 +608,33 @@ Rules:
 
 * Every action should connect to the storyboard.
 * Keep the total action sequence close to 30 seconds.
-* Add short waits after visible state changes.
-* Do not over-click.
+* The recorded video must be long enough to cover the full narration script — see "Video duration must match the narration" below.
+* Include at least three meaningful actions that produce at least three visible state changes.
+* Keep ordinary waits between 500 and 2500 ms. Never pad the recording with one long idle wait.
+* When more duration is needed, replay, reverse, or contrast the same feature with additional meaningful actions.
+* Add short waits after visible state changes so viewers can register the result.
+* Do not over-click or count opening a control as a meaningful action unless it reveals the component behavior.
 * Use selectors that exist in the generated app.
+* For recorder-only output, include one `code` action around the 20-27 second storyboard slot.
+* For edited output, keep the recording clean and put hook, code, and takeaway overlays in `edit.yaml`.
 * If the component needs a hover, use `hover`.
 * If the component needs a select input, use `select_option`.
 * If the component needs typing, use `fill`.
 * If the component needs a button, use `click`.
+* For `code`, inline the exact snippet in `text`; `title` defaults to `Key code` and `duration` should be 3000–4000 ms.
+
+## Video duration must match the narration
+
+The recorded browser video must be at least as long as the narration script takes to speak. If the video is shorter, the final audio+video mix gets cut off before the narration finishes.
+
+To enforce this:
+
+1. Estimate spoken duration from the Gemini TTS transcript: word count ÷ 2.5 words per second (about 150 words per minute), plus 1 second per audio tag (e.g. `[curious]`, `[very slow]`) for the pause it implies.
+2. Add a 2-second buffer to that estimate.
+3. Sum the duration of `actions.yaml`: every `wait` value, plus roughly 1 second for each `click`, `select_option`, `hover`, `fill`, and `press` action (the time it takes Playwright to settle).
+4. If the action sequence is shorter than the narration estimate, add another contrast/reversal action or distribute 500–1500 ms waits after visible changes. Do not add one long idle wait.
+
+Do not shrink the narration to fit a fixed 30-second action script — extend the action script to shadow the narration.
 
 ## Python Shiny start command
 
@@ -567,10 +663,25 @@ The recorder should:
 * Launch Chromium with Playwright.
 * Create a browser context with video recording enabled.
 * Execute `actions.yaml`.
-* Close the browser context so the video is saved.
+* Close the browser context so the `.webm` video is saved.
 * Stop the Shiny process.
+* Convert the saved `.webm` to `.mp4` with `ffmpeg` and write it to `artifacts/demo.mp4`.
+
+Default to a vertical viewport and recording size:
+
+```python
+context = browser.new_context(
+    viewport={"width": 720, "height": 1280},
+    record_video_dir=str(artifacts_dir),
+    record_video_size={"width": 720, "height": 1280},
+)
+```
+
+Build the Shiny layout for this viewport: one main panel, short labels, phone-readable controls, and reserved overlay space above and below the app.
 
 Use Playwright video recording, not OS-level screen recording.
+
+The recorder's job is not done until `artifacts/demo.mp4` exists. The `.webm` is a working file, not the deliverable.
 
 ## Recording command
 
@@ -585,6 +696,8 @@ or:
 ```bash
 python scripts/record_demo.py --app-type r --actions actions.yaml
 ```
+
+This produces `artifacts/demo.mp4` as the final deliverable.
 
 ## Recorder known issues and fixes
 
@@ -619,6 +732,19 @@ if videos:
     videos[-1].rename(artifacts_dir / video_name)
 ```
 
+### Convert the final video to mp4
+
+`.webm` is only the raw Playwright output. After renaming it, convert it to `.mp4` with `ffmpeg` so the deliverable is mp4, not webm:
+
+```python
+subprocess.run(
+    ["ffmpeg", "-y", "-i", str(artifacts_dir / video_name), str(artifacts_dir / video_name.replace(".webm", ".mp4"))],
+    check=True,
+)
+```
+
+This requires `ffmpeg` to be installed and on `PATH`. If it is missing, report the missing dependency rather than claiming `demo.mp4` was produced.
+
 ### wait_for_selector and collapsed panels
 
 Collapsed accordion panels (and other hidden bslib elements) are in the DOM but not visible. Use `state="attached"` when waiting for them — the default `state="visible"` will time out.
@@ -631,20 +757,155 @@ page.wait_for_selector("#acc", state="attached", timeout=15000)
 
 If the environment cannot run browsers, Playwright, Shiny, R, Python, or local servers, explain the missing dependency and still generate the app, action script, and recorder file.
 
-Do not claim a video was recorded unless the file exists in `artifacts/`.
+If `ffmpeg` is unavailable, explain that the webm-to-mp4 conversion could not run and that only `demo.webm` exists.
 
-## Optional audio step
+Do not claim a video was recorded unless `artifacts/demo.mp4` exists.
 
-The browser recording should produce silent video.
+## Silent video editing
 
-The Gemini TTS narration should remain a separate text artifact unless the user asks to synthesize audio and combine it with the video.
+When the user asks for complete video editing without audio tracks, generate `edit.yaml` and `scripts/edit_video.py` in addition to the recorder.
 
-If audio merging is requested, generate a separate step using `ffmpeg` after the TTS audio file exists.
+Use FFmpeg directly for burned-in overlays. Do not add LosslessCut as a dependency for this workflow; it is useful for manual lossless cuts/remuxing, but FFmpeg is the scriptable editing engine.
+
+Example `edit.yaml`:
+
+```yaml
+input: "artifacts/demo.mp4"
+output: "artifacts/final.mp4"
+canvas:
+  width: 1080
+  height: 1920
+
+headline:
+  start: 0
+  end: 7
+  text: "Still stacking the same alert?"
+
+beats:
+  labels: ["Reveal", "Proof", "Code", "Payoff"]
+  cues:
+    - {start: 0, end: 7, active: "Reveal"}
+    - {start: 7, end: 19, active: "Proof"}
+    - {start: 19, end: 23, active: "Code"}
+    - {start: 23, end: 30, active: "Payoff"}
+
+captions:
+  - {start: 0, end: 2.5, text: "This gets noisy fast."}
+  - {start: 2.5, end: 6, text: "Update it instead."}
+
+state_labels:
+  - {start: 2, end: 7, text: "#1 REVEAL"}
+  - {start: 7, end: 14, text: "#2 PROOF"}
+
+overlays:
+  - start: 1
+    end: 5
+    title: "Did you know?"
+    text: "One short hook."
+
+  - start: 20
+    end: 27
+    title: "Key code"
+    text: |
+      important_code_line()
+
+  - start: 28
+    end: 30
+    title: "Takeaway"
+    text: "One memorable sentence."
+```
+
+Rules:
+
+* Keep `actions.yaml` focused on app interactions and waits; do not burn overlays into the recording when `edit.yaml` will add them.
+* `edit_video.py` should read `edit.yaml`, render the 9:16 canvas, headline, captions, state labels, beat rail, and short code card with FFmpeg, strip audio with `-an`, and write `artifacts/final.mp4`.
+* Keep the persistent headline to 5–9 words and each caption card to one or two short lines.
+* Advance the beat rail at actual story transitions; do not animate it continuously.
+* Use one accent color sampled from the app and keep the live UI visible behind code overlays.
+* Add punch-ins only on the UI region that visibly reacts, then return to the full composition.
+* Verify at least one extracted frame from each overlay window before claiming the edit is complete.
+
+## Gemini 3.1 TTS audio generation
+
+When the user asks for narration audio, voiceover, TTS, or a finished video with audio:
+
+1. Write the complete required Gemini TTS prompt to `artifacts/narration.txt`.
+2. Check whether `GEMINI_API_KEY` or `GOOGLE_API_KEY` is set. Never print, persist, or request the key value in chat.
+3. If a key is set, run the bundled `scripts/generate_tts.py` with the narration and output paths.
+4. Verify `artifacts/narration.wav` exists and is non-empty before reporting success.
+5. If neither key is set, keep `artifacts/narration.txt` and give the user the setup command; do not claim audio was generated.
+
+Install the official SDK once:
+
+```bash
+python3 -m pip install google-genai
+```
+
+Set a key in the shell that launches Codex or Claude:
+
+```bash
+export GEMINI_API_KEY="your-key"
+```
+
+Generate speech with Gemini 3.1 Flash TTS Preview:
+
+```bash
+python3 .agents/skills/shiny-component-shorts/scripts/generate_tts.py \
+  --input demo-name/artifacts/narration.txt \
+  --output demo-name/artifacts/narration.wav \
+  --usage-output demo-name/artifacts/narration.usage.json
+```
+
+Claude Code may use the identical script under `.claude/skills/shiny-component-shorts/scripts/generate_tts.py`.
+
+The script defaults to model `gemini-3.1-flash-tts-preview` and voice `Kore`. Allow `--voice` or `--model` overrides when the user requests them. Treat the model as a preview API that may change.
+
+The usage JSON records the API token counts, audio duration, pricing snapshot, and paid-tier list-price estimate. The default pricing snapshot is $1 per million text input tokens and $20 per million audio output tokens; audio output corresponds to 25 tokens per second. Verify the current official Gemini pricing page when the model or pricing changes. Do not describe the estimate as the actual invoice amount because free-tier and account-specific billing may differ.
+
+The browser recording (`artifacts/demo.mp4`) and edited video (`artifacts/final.mp4`, if present) remain silent until audio is merged.
+
+If audio merging is requested, run FFmpeg after `artifacts/narration.wav` exists. Because the action script was padded to be at least as long as the narration, `-shortest` trims only a silent tail.
 
 Example:
 
 ```bash
-ffmpeg -i artifacts/demo.webm -i artifacts/narration.wav -c:v copy -c:a aac -shortest artifacts/final.mp4
+ffmpeg -i artifacts/final.mp4 -i artifacts/narration.wav -c:v copy -c:a aac -shortest artifacts/final_with_audio.mp4
+```
+
+Write the merged result as `artifacts/final_with_audio.mp4`, never `.webm`.
+
+## End-of-run cost report
+
+End every workflow that generates artifacts with a `Cost report` section in the final response. When writing a demo directory, also write the information available before handoff to `artifacts/cost-report.md`.
+
+Use this table:
+
+| Service | Usage | Cost | Status |
+| --- | ---: | ---: | --- |
+| Gemini 3.1 Flash TTS | [input + audio output tokens, duration] | [$ estimate] | Paid-tier list-price estimate or free-tier actual |
+| Claude Code or Codex | [tokens, credits, or turns] | [$ or credits] | Exact, included in plan, estimate, or unavailable |
+| Local tools | FFmpeg, Playwright, Shiny | $0 API cost | Local compute not priced |
+
+Apply these reporting rules:
+
+1. Read Gemini usage and estimated cost from `artifacts/narration.usage.json`. Report exact token counts but label the dollar value as a paid-tier list-price estimate unless billing data confirms the actual charge.
+2. For Claude Code invoked with `claude -p --output-format json`, use the returned `total_cost_usd` after the process exits. This value is available to the caller or wrapper, so it may need to be appended outside Claude's own generated response.
+3. For Claude Pro/Max subscription sessions, report `Included in subscription; per-task dollar charge unavailable` unless the harness exposes a monetary value. Never apply Anthropic API list prices to subscription usage.
+4. For Codex, use token or credit consumption surfaced by the harness or Codex Usage panel. Convert credits to dollars only when the account exposes the applicable credit price. For subscription-included usage, state that the marginal task charge may be $0 while allowance or credits were consumed.
+5. If harness usage is unavailable, write `Unavailable from this harness` and tell the user exactly where to retrieve it. Do not estimate hidden reasoning, cached input, tool, or context tokens from visible text.
+6. Show a `Known API subtotal` containing only dollar amounts that are actually known or defensible list-price estimates. Do not present a partial subtotal as a complete total.
+7. State the pricing date and currency. Costs change; prefer provider-reported totals over locally calculated totals.
+
+Example:
+
+```text
+Cost report — USD, pricing checked 2026-07-13
+
+Gemini TTS: 210 input tokens + 750 audio tokens (30.0 sec)
+Paid-tier list-price estimate: $0.015210
+
+Codex: 6.2 credits consumed; dollar conversion unavailable for this account
+Known API subtotal: $0.015210, excluding Codex subscription/credit value
 ```
 
 
