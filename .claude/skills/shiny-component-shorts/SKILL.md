@@ -48,7 +48,7 @@ Use this interaction arc:
 
 Require at least three meaningful user actions and three clearly visible state changes in a 30-second recording. A meaningful action changes content, selection, layout, focus, validation, or server state; moving the pointer or clicking an inert element does not count.
 
-Avoid static shots longer than 3 seconds. If narration needs more time, continue interacting with the same feature, compare two states, or replay the reveal. Keep code overlays to 3–4 seconds and show them over the live app when possible.
+Avoid static shots longer than 3 seconds. If narration needs more time, continue interacting with the same feature, compare two states, or replay the reveal. Size code overlays by reading time (the recorder computes the hold from the character count) and show them over the live app when possible; the typewriter animation counts as motion.
 
 Choose interactions native to the component: select, type, sort, filter, expand, drag, hover, dismiss, update, validate, or reset. Do not bolt on unrelated buttons or decorative motion just to satisfy the budget.
 
@@ -157,8 +157,8 @@ Use this structure:
 |   3-8 sec | Complete the first reveal | "Did you know..." line |
 |  8-14 sec | Trigger a second state | Describe the visible response |
 | 14-20 sec | Reverse, reset, or contrast it | Prove the behavior is reactive |
-| 20-24 sec | Overlay the key code on the live result | Explain only the important line |
-| 24-30 sec | Perform the strongest final interaction and end on its result | Memorable takeaway |
+| 20-26 sec | Overlay the key code on the live result (typewriter + reading-time hold) | Explain only the important line |
+| 26-30 sec | Perform the strongest final interaction and end on its result | Concrete takeaway (an aphorism is allowed, not required) |
 
 The storyboard should be visual and recordable. Avoid abstract explanation.
 
@@ -250,16 +250,18 @@ Director's notes:
 Keep the pace fast enough for a short video. Use small pauses before reveals. Emphasize the surprising behavior. Do not sound like a corporate tutorial. Read only the transcript below.
 
 Transcript:
-[curious] Did you know this tiny dropdown can control the whole card?
+[curious] Why is this card's filter all the way over in a sidebar?
 
-[very fast] Instead of sending every filter to a giant sidebar, Shiny lets the control live right inside the card header.
+Watch — I'll pick a new view from the card's own header, and the whole body switches.
 
-Now watch the card change itself when I pick a new view.
+Orders. Customers. Back to revenue. [amazed] The card runs itself.
 
-The trick is this one line: `ui.toolbar_input_select()`.
+One line does this: ui.toolbar_input_select, dropped inside the card header.
 
-[very slow] A filter does not have to live beside the chart. Sometimes it belongs in the chart's own roof.
+[very slow] That's it. The filter just lives on the card now.
 ```
+
+Note how this example ends plain rather than on a punchline, keeps contractions, and names what is literally on screen. Vary your own endings and rhythm from video to video — reusing this example's cadence verbatim recreates the pattern it exists to avoid.
 
 After generating the narration, continue with the Code section.
 
@@ -345,6 +347,28 @@ Avoid:
 * Explaining every caveat
 * Turning the video into documentation
 
+## Make it feel human, not generated
+
+Viewers pattern-match AI narration and robotic demos fast. Run this pass on every script and action script before recording.
+
+Narration realness rules:
+
+* Do the read-aloud test: if a sentence sounds like documentation or a keynote, rewrite it as something you would say to a coworker at their desk.
+* Use contractions everywhere they fit. "It doesn't" not "it does not".
+* Ban stock AI vocabulary: game-changer, seamless, powerful, unlock, elevate, dive in, let's explore, effortlessly, supercharge.
+* Avoid the negative-parallelism template ("It's not just X, it's Y") and rule-of-three lists; both are strong LLM tells.
+* At most one metaphor or aphorism per script — and not necessarily at the end. Ending every video on a tidy punchline is itself a pattern; sometimes end on a plain, concrete observation ("that's the whole change").
+* Vary sentence rhythm within and across scripts. Mix a three-word sentence with a longer one. Do not reuse the previous video's cadence.
+* Reference only what is literally on screen, with the real numbers shown ("nine lines", "three toasts"), not rounded idealizations.
+* Allow one small conversational imperfection — a "honestly", "okay, watch", or mid-sentence correction — where it fits naturally. One, not three.
+
+Demo realness rules:
+
+* Type on camera at human speed with the `type` action; never paste whole paragraphs with `fill` unless pasting is the realistic gesture.
+* Use content a person would actually have: real-sounding notes, names, uneven numbers (141, not 100). Never "Item 1 / Item 2", "line1", lorem ipsum, or "foo".
+* Vary wait durations (900, 1400, 2100 ms) instead of uniform round numbers; humans do not act on a metronome.
+* Let one beat breathe slightly longer after the biggest reveal, the way a person pauses when something works.
+
 ## Quality checks
 
 Before finalizing, verify:
@@ -358,7 +382,7 @@ Before finalizing, verify:
 7. The Gemini TTS transcript is around 60 to 85 spoken words.
 8. A Shiny user would say, "Oh, I could use that."
 9. The interaction plan contains at least three meaningful action → visible reaction beats.
-10. No planned idle shot or full-screen code shot lasts longer than 3–4 seconds.
+10. No planned idle shot lasts longer than 3–4 seconds. Code overlays may run longer because the typewriter animation provides motion, but keep computed typing + hold under ~9 seconds.
 11. The video is composed and verified in its chosen orientation (9:16 vertical by default, or 16:9 when horizontal is requested), not cropped from a mismatched layout as an afterthought.
 12. The hook names a viewer problem or outcome rather than merely announcing the component.
 13. The edit has a visible change every 1.5–3 seconds without decorative noise.
@@ -370,6 +394,9 @@ Before finalizing, verify:
 19. If recording is requested, the final delivered file is `artifacts/demo.mp4`, not `.webm`.
 20. Do not claim a video or narration was generated unless its output file exists.
 21. End every completed generation workflow with a cost report for Gemini and the active agent harness.
+22. The narration passes the "Make it feel human, not generated" rules: it survives the read-aloud test, contains no stock AI vocabulary, avoids negative-parallelism and rule-of-three templates, and has at most one aphorism (not required to be the ending).
+23. Any text the viewer watches being written uses the `type` action at human speed, waits are varied rather than uniform round numbers, and demo content looks like something a real person would have on screen.
+24. The code overlay uses the animated editor card with a reading-time hold computed from character count (or a narration-justified override), and the snippet matches the app code verbatim.
 
 ## Avoid
 
@@ -419,8 +446,8 @@ Use this structure when generating an idea.
 | 3-8 sec | [First reveal] | [Narration] |
 | 8-14 sec | [Second state] | [Narration] |
 | 14-20 sec | [Reverse, reset, or contrast] | [Narration] |
-| 20-24 sec | [Short code overlay on live app] | [Narration] |
-| 24-30 sec | [Strongest final interaction and result] | [Narration] |
+| 20-26 sec | [Code overlay on live app, typewriter + reading-time hold] | [Narration] |
+| 26-30 sec | [Strongest final interaction and result] | [Narration] |
 
 ## Interaction Plan
 
@@ -589,16 +616,20 @@ actions:
       selector: "#search"
       value: "penguin"
 
+  - type:
+      selector: "#notes"
+      value: "Reads like a person wrote it"
+      delay: 45
+
   - press:
       selector: "body"
       key: "Escape"
 
   - code:
-      title: "Key code"
+      title: "app.py"
       text: |
         ui.toolbar_input_select()
         input.view()
-      duration: 3500
 
   - screenshot:
       path: "artifacts/final.png"
@@ -619,9 +650,10 @@ Rules:
 * For edited output, keep the recording clean and put hook, code, and takeaway overlays in `edit.yaml`.
 * If the component needs a hover, use `hover`.
 * If the component needs a select input, use `select_option`.
-* If the component needs typing, use `fill`.
+* If the component needs typing the viewer watches, use `type`; use `fill` only for paste-like bulk input or clearing.
 * If the component needs a button, use `click`.
-* For `code`, inline the exact snippet in `text`; `title` defaults to `Key code` and `duration` should be 3000–4000 ms.
+* For `code`, inline the exact snippet in `text`; `title` defaults to `app.py`. Omit `duration` so the recorder computes the hold from reading time (~55 ms per character + 1.2 s, clamped 3.5–8 s); only set it when narration timing demands.
+* Use `type` (not `fill`) for any text a human would visibly write on camera — it types character by character with a per-key delay. Reserve `fill` for paste-like bulk text and for clearing a field with an empty value.
 
 ## Video duration must match the narration
 
@@ -696,41 +728,99 @@ Use Playwright video recording, not OS-level screen recording.
 
 The recorder's job is not done until `artifacts/demo.mp4` exists. The `.webm` is a working file, not the deliverable.
 
-### Render the `code` action as a visible on-page overlay
+### Implement the `type` action with human typing speed
 
-In recorder-only output, the `code` action must actually appear on screen — waiting silently is not enough. The recorder injects a small code card into the live page, holds it for `duration`, then removes it so the app stays the hero.
-
-Inject and remove the overlay with `page.evaluate`. Build the card with DOM nodes and `textContent` (never string-concatenated `innerHTML`) so quotes, `f"..."`, and other code characters render literally:
+Instant `fill` makes demos look machine-generated. For any text the viewer watches being written, type it with a per-character delay (35–70 ms reads as human). Move the caret to the end first so repeated `type` actions append instead of inserting mid-string:
 
 ```python
-elif "code" in action:
-    cfg = action["code"]
-    page.evaluate(
-        """(cfg) => {
-            const el = document.createElement('div');
-            el.id = '__code_overlay__';
-            el.style.cssText = 'position:fixed;left:5%;right:5%;top:36%;z-index:99999;'
-                + 'background:rgba(17,24,39,0.97);border-left:6px solid var(--accent,#0d6efd);'
-                + 'border-radius:12px;padding:16px 18px;box-shadow:0 12px 40px rgba(0,0,0,0.45);'
-                + 'font-family:ui-monospace,SFMono-Regular,Menlo,monospace;';
-            const title = document.createElement('div');
-            title.textContent = cfg.title || 'Key code';
-            title.style.cssText = 'color:#9ca3af;font-size:12px;letter-spacing:.08em;'
-                + 'text-transform:uppercase;margin-bottom:8px;';
-            const pre = document.createElement('pre');
-            pre.textContent = cfg.text;
-            pre.style.cssText = 'margin:0;color:#f9fafb;font-size:15px;line-height:1.5;white-space:pre-wrap;';
-            el.appendChild(title);
-            el.appendChild(pre);
-            document.body.appendChild(el);
-        }""",
-        {"title": cfg.get("title", "Key code"), "text": cfg["text"]},
+elif "type" in action:
+    t = action["type"]
+    page.eval_on_selector(
+        t["selector"],
+        "el => { el.focus(); if (el.setSelectionRange) el.setSelectionRange(el.value.length, el.value.length); }",
     )
-    page.wait_for_timeout(cfg.get("duration", 3500))
-    page.evaluate("() => document.getElementById('__code_overlay__')?.remove()")
+    page.locator(t["selector"]).press_sequentially(t["value"], delay=t.get("delay", 45))
 ```
 
-Place the card so it does not cover the UI region that is reacting (for a bottom-right toast, float the card in the upper-middle). Keep `duration` to 3500–5000 ms.
+Newlines in `value` are pressed as Enter, so multi-line notes type naturally into a textarea. Budget its duration as `len(value) × delay` when summing the action script against the narration length.
+
+### Render the `code` action as an animated editor card
+
+In recorder-only output, the `code` action must actually appear on screen — waiting silently is not enough. The recorder injects an editor-style code card into the live page, types the snippet character by character with a blinking cursor, holds it long enough to read, then removes it so the app stays the hero.
+
+Style the card like a small code editor, not a chat bubble: macOS-style window dots, a filename in the title bar (`app.py`), a coding font stack (`'JetBrains Mono','Fira Code','SF Mono',ui-monospace,Menlo`), dark background, generous line height.
+
+Hold the finished snippet long enough for an average viewer to read it. Compute the hold from the character count — about 55 ms per character (≈220 words per minute, slowed for code) plus 1.2 s of orientation, clamped to 3.5–8 s:
+
+```python
+hold_ms = cfg.get("duration") or max(3500, min(8000, 1200 + 55 * len(text)))
+```
+
+The typewriter animation runs before the hold, so total screen time is typing + hold. Omit `duration` in `actions.yaml` and let the recorder compute it; only hardcode a value when narration timing demands it.
+
+Build the card with DOM nodes and `textContent` (never string-concatenated `innerHTML`) so quotes, `f"..."`, and other code characters render literally:
+
+```python
+CODE_OVERLAY_JS = """async (cfg) => {
+    const style = document.createElement('style');
+    style.id = '__code_overlay_style__';
+    style.textContent = '@keyframes __blink {0%,55%{opacity:1}56%,100%{opacity:0}}'
+        + '#__code_overlay__ .cursor{animation:__blink 1s step-end infinite;}';
+    document.head.appendChild(style);
+    const el = document.createElement('div');
+    el.id = '__code_overlay__';
+    el.style.cssText = 'position:fixed;left:5%;right:5%;top:34%;z-index:99999;'
+        + 'background:#0b1020;border:1px solid rgba(255,255,255,.08);'
+        + 'border-radius:14px;box-shadow:0 18px 60px rgba(0,0,0,.55);overflow:hidden;';
+    const bar = document.createElement('div');
+    bar.style.cssText = 'display:flex;align-items:center;gap:8px;padding:10px 14px;'
+        + 'background:rgba(255,255,255,.05);border-bottom:1px solid rgba(255,255,255,.06);';
+    for (const c of ['#ff5f57', '#febc2e', '#28c840']) {
+        const dot = document.createElement('span');
+        dot.style.cssText = 'width:11px;height:11px;border-radius:50%;background:' + c + ';';
+        bar.appendChild(dot);
+    }
+    const title = document.createElement('span');
+    title.textContent = cfg.title;
+    title.style.cssText = 'margin-left:8px;color:#8b93a7;font-size:12.5px;'
+        + "font-family:ui-monospace,'SF Mono',Menlo,monospace;";
+    bar.appendChild(title);
+    const body = document.createElement('div');
+    body.style.cssText = 'padding:16px 18px;white-space:pre-wrap;color:#e8ecf4;'
+        + "font-family:'JetBrains Mono','Fira Code','SF Mono',ui-monospace,Menlo,monospace;"
+        + 'font-size:16px;line-height:1.65;';
+    const textSpan = document.createElement('span');
+    const cursor = document.createElement('span');
+    cursor.className = 'cursor';
+    cursor.textContent = '\\u258B';
+    cursor.style.color = '#7aa2ff';
+    body.appendChild(textSpan);
+    body.appendChild(cursor);
+    el.appendChild(bar);
+    el.appendChild(body);
+    document.body.appendChild(el);
+    for (let i = 1; i <= cfg.text.length; i++) {
+        textSpan.textContent = cfg.text.slice(0, i);
+        await new Promise(r => setTimeout(r, cfg.typeMs));
+    }
+}"""
+
+elif "code" in action:
+    cfg = action["code"]
+    text = cfg["text"].rstrip("\n")
+    hold_ms = cfg.get("duration") or max(3500, min(8000, 1200 + 55 * len(text)))
+    page.evaluate(
+        CODE_OVERLAY_JS,
+        {"title": cfg.get("title", "app.py"), "text": text, "typeMs": cfg.get("type_ms", 22)},
+    )
+    page.wait_for_timeout(hold_ms)
+    page.evaluate(
+        "() => { document.getElementById('__code_overlay__')?.remove();"
+        " document.getElementById('__code_overlay_style__')?.remove(); }"
+    )
+```
+
+Place the card so it does not cover the UI region that is reacting (for a bottom-right toast, float the card in the upper-middle). Account for typing time plus hold time when summing the action script's duration.
 
 ### Time the code overlay to the narration's code line
 
@@ -949,11 +1039,20 @@ Apply these reporting rules:
 
 1. Read Gemini usage and estimated cost from `artifacts/narration.usage.json`. Report exact token counts but label the dollar value as a paid-tier list-price estimate unless billing data confirms the actual charge.
 2. For Claude Code invoked with `claude -p --output-format json`, use the returned `total_cost_usd` after the process exits. This value is available to the caller or wrapper, so it may need to be appended outside Claude's own generated response.
-3. For Claude Pro/Max subscription sessions, report `Included in subscription; per-task dollar charge unavailable` unless the harness exposes a monetary value. Never apply Anthropic API list prices to subscription usage.
-4. For Codex, use token or credit consumption surfaced by the harness or Codex Usage panel. Convert credits to dollars only when the account exposes the applicable credit price. For subscription-included usage, state that the marginal task charge may be $0 while allowance or credits were consumed.
-5. If harness usage is unavailable, write `Unavailable from this harness` and tell the user exactly where to retrieve it. Do not estimate hidden reasoning, cached input, tool, or context tokens from visible text.
-6. Show a `Known API subtotal` containing only dollar amounts that are actually known or defensible list-price estimates. Do not present a partial subtotal as a complete total.
-7. State the pricing date and currency. Costs change; prefer provider-reported totals over locally calculated totals.
+3. For interactive Claude Code sessions, estimate the session cost with the bundled `scripts/claude_session_cost.py`. It parses the session transcript JSONL, dedupes messages, sums tokens per model, and applies list prices (including cache write at 1.25x and cache read at 0.1x input):
+
+   ```bash
+   python3 .claude/skills/shiny-component-shorts/scripts/claude_session_cost.py \
+     --project-dir ~/.claude/projects/<project-slug> \
+     --session <session-uuid>   # omit to use the most recent transcript
+   ```
+
+   The project slug is the working directory path with `/` replaced by `-` (e.g. `-Users-name-repos-project`). The session UUID appears in the scratchpad path the harness provides. Label the result `List-price estimate from session transcript` — it measures the whole session so far, not just one video; for a per-video figure, run it before and after and report the delta, or note that the figure covers the session. Suggest the user run `/cost` for the harness-reported value.
+4. Match the label to the billing model. Usage-billed accounts (Enterprise per-usage, API): the rule-3 estimate approximates the actual charge, subject to negotiated rates — cite the Console usage dashboard as authoritative. Pro/Max subscription: the marginal charge may be $0 — report it as `what this would cost at API list prices`, never as the invoice amount.
+5. For Codex, use token or credit consumption surfaced by the harness or Codex Usage panel. Convert credits to dollars only when the account exposes the applicable credit price. For subscription-included usage, state that the marginal task charge may be $0 while allowance or credits were consumed.
+6. If harness usage is unavailable, write `Unavailable from this harness` and tell the user exactly where to retrieve it. Do not estimate hidden reasoning, cached input, tool, or context tokens from visible text.
+7. Show a `Known API subtotal` containing only dollar amounts that are actually known or defensible list-price estimates, and — when a Claude session estimate exists — an `Estimated E2E total` that adds the Gemini estimate and the Claude list-price estimate. Label both as estimates; do not present them as an invoice.
+8. State the pricing date and currency. Costs change; prefer provider-reported totals over locally calculated totals.
 
 Example:
 

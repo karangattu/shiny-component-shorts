@@ -33,7 +33,7 @@ Use a stable composition with frequent information changes:
 - Keep the Shiny app as the hero in the center 65–75% of the frame.
 - Change a state label whenever the app changes state.
 - Cut or punch in on the affected UI region after a meaningful action.
-- Use a compact corner code card for 3–4 seconds; keep the live app visible.
+- Use a compact editor-style code card sized by reading time (typewriter animation + a hold computed from character count); keep the live app visible.
 - Return to the full app for the payoff.
 - Make one visual change every 1.5–3 seconds: interaction, reaction, label, crop, caption, or beat-rail advance.
 
