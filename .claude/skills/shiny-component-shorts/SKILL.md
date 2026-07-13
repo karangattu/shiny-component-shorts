@@ -368,6 +368,8 @@ Demo realness rules:
 * Use content a person would actually have: real-sounding notes, names, uneven numbers (141, not 100). Never "Item 1 / Item 2", "line1", lorem ipsum, or "foo".
 * Vary wait durations (900, 1400, 2100 ms) instead of uniform round numbers; humans do not act on a metronome.
 * Let one beat breathe slightly longer after the biggest reveal, the way a person pauses when something works.
+* Show a standard arrow cursor in every browser recording. Move it visibly to a target before clicking, selecting, hovering, or focusing a field.
+* Vary cursor landing points and movement steps slightly. Do not add aimless cursor loops, exaggerated trails, or fake mistakes; the pointer should explain intent, not become decoration.
 
 ## Quality checks
 
@@ -397,6 +399,7 @@ Before finalizing, verify:
 22. The narration passes the "Make it feel human, not generated" rules: it survives the read-aloud test, contains no stock AI vocabulary, avoids negative-parallelism and rule-of-three templates, and has at most one aphorism (not required to be the ending).
 23. Any text the viewer watches being written uses the `type` action at human speed, waits are varied rather than uniform round numbers, and demo content looks like something a real person would have on screen.
 24. The code overlay uses the animated editor card with a reading-time hold computed from character count (or a narration-justified override), and the snippet matches the app code verbatim.
+25. Every browser recording visibly shows the cursor moving to interactive targets, with a subtle press indicator on clicks.
 
 ## Avoid
 
@@ -694,6 +697,7 @@ The recorder should:
 * Wait for `http://127.0.0.1:8000`.
 * Launch Chromium with Playwright.
 * Create a browser context with video recording enabled.
+* Inject a visible in-page cursor before the app loads, because Playwright video does not include the operating-system cursor reliably.
 * Execute `actions.yaml`.
 * Close the browser context so the `.webm` video is saved.
 * Stop the Shiny process.
@@ -728,6 +732,122 @@ Use Playwright video recording, not OS-level screen recording.
 
 The recorder's job is not done until `artifacts/demo.mp4` exists. The `.webm` is a working file, not the deliverable.
 
+### Show a human-style cursor
+
+Render a lightweight cursor inside the page so it is captured in Playwright's video frames. Use a familiar arrow, a small click pulse, and `pointer-events: none` so the overlay never blocks the app. Install it with `context.add_init_script(CURSOR_OVERLAY_JS)` before creating the page so it survives navigations.
+
+```python
+import random
+
+CURSOR_OVERLAY_JS = r"""(() => {
+    const install = () => {
+        if (document.getElementById('__demo_cursor__')) return;
+
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes __demo_cursor_ripple__ {
+                from { opacity: .45; transform: translate(-50%, -50%) scale(.35); }
+                to { opacity: 0; transform: translate(-50%, -50%) scale(1.35); }
+            }
+            .__demo_cursor_ripple__ {
+                position: fixed; z-index: 2147483646; width: 28px; height: 28px;
+                border: 2px solid rgba(66, 133, 244, .75); border-radius: 50%;
+                pointer-events: none; animation: __demo_cursor_ripple__ 420ms ease-out forwards;
+            }
+        `;
+        document.head.appendChild(style);
+
+        const ns = 'http://www.w3.org/2000/svg';
+        const cursor = document.createElementNS(ns, 'svg');
+        cursor.id = '__demo_cursor__';
+        cursor.setAttribute('viewBox', '0 0 24 30');
+        cursor.style.cssText = 'position:fixed;left:0;top:0;width:22px;height:28px;'
+            + 'z-index:2147483647;pointer-events:none;opacity:0;'
+            + 'filter:drop-shadow(0 1px 1px rgba(0,0,0,.55));transform-origin:2px 2px;';
+        const arrow = document.createElementNS(ns, 'path');
+        arrow.setAttribute('d', 'M2 2 L2 23 L7.5 17.5 L12.5 28 L16.5 26 L11.5 16 L21 16 Z');
+        arrow.setAttribute('fill', '#fff');
+        arrow.setAttribute('stroke', '#171717');
+        arrow.setAttribute('stroke-width', '1.4');
+        arrow.setAttribute('stroke-linejoin', 'round');
+        cursor.appendChild(arrow);
+        document.documentElement.appendChild(cursor);
+
+        let x = -30, y = -30, pressed = false;
+        const render = () => {
+            cursor.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${pressed ? .88 : 1})`;
+        };
+        window.addEventListener('mousemove', event => {
+            x = event.clientX; y = event.clientY;
+            cursor.style.opacity = '1';
+            render();
+        }, true);
+        window.addEventListener('mousedown', () => {
+            pressed = true;
+            render();
+            const ripple = document.createElement('span');
+            ripple.className = '__demo_cursor_ripple__';
+            ripple.style.left = `${x}px`;
+            ripple.style.top = `${y}px`;
+            document.documentElement.appendChild(ripple);
+            ripple.addEventListener('animationend', () => ripple.remove(), {once: true});
+        }, true);
+        window.addEventListener('mouseup', () => {
+            pressed = false;
+            render();
+        }, true);
+    };
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', install, {once: true});
+    } else {
+        install();
+    }
+})();"""
+
+
+def move_cursor_to(page, selector: str) -> tuple[float, float]:
+    locator = page.locator(selector).first
+    locator.scroll_into_view_if_needed()
+    box = locator.bounding_box()
+    if box is None:
+        raise RuntimeError(f"Cursor target is not visible: {selector}")
+    x = box["x"] + box["width"] * random.uniform(0.42, 0.58)
+    y = box["y"] + box["height"] * random.uniform(0.42, 0.58)
+    page.mouse.move(x, y, steps=random.randint(14, 22))
+    page.wait_for_timeout(random.randint(90, 180))
+    return x, y
+
+
+def human_click(page, selector: str) -> None:
+    move_cursor_to(page, selector)
+    page.mouse.down()
+    page.wait_for_timeout(random.randint(70, 135))
+    page.mouse.up()
+```
+
+Wire the overlay and helpers into the recorder:
+
+```python
+context = browser.new_context(...)
+context.add_init_script(CURSOR_OVERLAY_JS)
+page = context.new_page()
+
+if "click" in action:
+    human_click(page, action["click"])
+elif "select_option" in action:
+    sel = action["select_option"]
+    move_cursor_to(page, sel["selector"])
+    page.locator(sel["selector"]).select_option(sel["value"])
+elif "hover" in action:
+    move_cursor_to(page, action["hover"])
+elif "fill" in action:
+    cfg = action["fill"]
+    human_click(page, cfg["selector"])
+    page.locator(cfg["selector"]).fill(cfg["value"])
+```
+
+Call `human_click` before the existing `type` implementation so the cursor visibly enters and focuses the field. Keep the cursor parked during waits and code overlays; do not wiggle it merely to create motion. Cursor travel supports an interaction but never counts as one of the three meaningful state-changing actions.
+
 ### Implement the `type` action with human typing speed
 
 Instant `fill` makes demos look machine-generated. For any text the viewer watches being written, type it with a per-character delay (35–70 ms reads as human). Move the caret to the end first so repeated `type` actions append instead of inserting mid-string:
@@ -735,6 +855,7 @@ Instant `fill` makes demos look machine-generated. For any text the viewer watch
 ```python
 elif "type" in action:
     t = action["type"]
+    human_click(page, t["selector"])
     page.eval_on_selector(
         t["selector"],
         "el => { el.focus(); if (el.setSelectionRange) el.setSelectionRange(el.value.length, el.value.length); }",
