@@ -7,12 +7,13 @@ import argparse
 import base64
 import json
 import os
+import secrets
 import sys
 import wave
 from pathlib import Path
 
 DEFAULT_MODEL = "gemini-3.1-flash-tts-preview"
-DEFAULT_VOICE = "Kore"
+DEFAULT_VOICES = ("Kore", "Erinome", "Charon", "Achird")
 INPUT_USD_PER_MILLION_TOKENS = 1.0
 OUTPUT_USD_PER_MILLION_TOKENS = 20.0
 PRICING_URL = "https://ai.google.dev/gemini-api/docs/pricing"
@@ -33,7 +34,10 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--input", required=True, type=Path, help="TTS prompt text file")
     parser.add_argument("--output", required=True, type=Path, help="Output .wav file")
-    parser.add_argument("--voice", default=DEFAULT_VOICE, help="Gemini prebuilt voice")
+    parser.add_argument(
+        "--voice",
+        help="Gemini prebuilt voice (default: random voice from the curated pool)",
+    )
     parser.add_argument("--model", default=DEFAULT_MODEL, help="Gemini TTS model ID")
     parser.add_argument(
         "--usage-output",
@@ -92,6 +96,7 @@ def write_usage_report(
 
 def main() -> int:
     args = parse_args()
+    voice = args.voice or secrets.choice(DEFAULT_VOICES)
 
     if not (os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")):
         print(
@@ -125,7 +130,7 @@ def main() -> int:
             model=args.model,
             input=prompt,
             response_format={"type": "audio"},
-            generation_config={"speech_config": [{"voice": args.voice}]},
+            generation_config={"speech_config": [{"voice": voice}]},
         )
         audio = interaction.output_audio
         if audio is None or not audio.data:
@@ -145,7 +150,7 @@ def main() -> int:
         estimated_cost = write_usage_report(
             usage_output,
             model=args.model,
-            voice=args.voice,
+            voice=voice,
             input_tokens=input_tokens,
             output_tokens=output_tokens,
             duration_seconds=duration_seconds,
@@ -160,6 +165,7 @@ def main() -> int:
         return 1
 
     print(f"Generated narration: {args.output}")
+    print(f"Voice: {voice}")
     if estimated_cost is None:
         print("Gemini cost estimate unavailable for the overridden model.")
     else:

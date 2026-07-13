@@ -1007,7 +1007,16 @@ python3 .agents/skills/shiny-component-shorts/scripts/generate_tts.py \
 
 Claude Code may use the identical script under `.claude/skills/shiny-component-shorts/scripts/generate_tts.py`.
 
-The script defaults to model `gemini-3.1-flash-tts-preview` and voice `Kore`. Allow `--voice` or `--model` overrides when the user requests them. Treat the model as a preview API that may change.
+The script defaults to model `gemini-3.1-flash-tts-preview`. When `--voice` is omitted, randomly choose one voice per generation from this curated four-voice pool:
+
+| Voice | Gender | Delivery | Why it fits |
+| --- | --- | --- | --- |
+| `Kore` | Female | Firm | Crisp code and takeaway lines |
+| `Erinome` | Female | Clear | Precise UI explanations |
+| `Charon` | Male | Informative | Natural technical narration |
+| `Achird` | Male | Friendly | Approachable short-form delivery |
+
+Keep the pool limited to these four voices so the series varies without losing its developer-explainer character. Allow `--voice` to override the pool or `--model` to override the model when the user requests it. The selected voice must be recorded in the usage JSON. Treat the model as a preview API that may change.
 
 The usage JSON records the API token counts, audio duration, pricing snapshot, and paid-tier list-price estimate. The default pricing snapshot is $1 per million text input tokens and $20 per million audio output tokens; audio output corresponds to 25 tokens per second. Verify the current official Gemini pricing page when the model or pricing changes. Do not describe the estimate as the actual invoice amount because free-tier and account-specific billing may differ.
 
