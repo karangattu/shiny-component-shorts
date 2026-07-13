@@ -359,7 +359,7 @@ Before finalizing, verify:
 8. A Shiny user would say, "Oh, I could use that."
 9. The interaction plan contains at least three meaningful action → visible reaction beats.
 10. No planned idle shot or full-screen code shot lasts longer than 3–4 seconds.
-11. The video is composed and verified in 9:16, not cropped from a desktop-wide layout as an afterthought.
+11. The video is composed and verified in its chosen orientation (9:16 vertical by default, or 16:9 when horizontal is requested), not cropped from a mismatched layout as an afterthought.
 12. The hook names a viewer problem or outcome rather than merely announcing the component.
 13. The edit has a visible change every 1.5–3 seconds without decorative noise.
 14. If recording is requested, the app has stable selectors.
@@ -667,21 +667,74 @@ The recorder should:
 * Stop the Shiny process.
 * Convert the saved `.webm` to `.mp4` with `ffmpeg` and write it to `artifacts/demo.mp4`.
 
-Default to a vertical viewport and recording size:
+Support both a vertical and a horizontal recording size, selected with an `--orientation` flag (default `vertical`). Vertical is the short-form default; horizontal suits landscape/desktop-style demos.
 
 ```python
+if orientation == "horizontal":
+    size = {"width": 1280, "height": 720}  # 16:9
+else:
+    size = {"width": 720, "height": 1280}  # 9:16
+
 context = browser.new_context(
-    viewport={"width": 720, "height": 1280},
+    viewport=size,
     record_video_dir=str(artifacts_dir),
-    record_video_size={"width": 720, "height": 1280},
+    record_video_size=size,
 )
 ```
 
-Build the Shiny layout for this viewport: one main panel, short labels, phone-readable controls, and reserved overlay space above and below the app.
+Resolve orientation as: CLI `--orientation` flag first, then an optional `orientation:` key in `actions.yaml`, then `vertical`. Add the flag with `default=None` so the actions-file value is not shadowed:
+
+```python
+parser.add_argument("--orientation", choices=["vertical", "horizontal"], default=None)
+...
+orientation = args.orientation or config.get("orientation", "vertical")
+```
+
+Build the Shiny layout for the chosen viewport: one main panel, short labels, readable controls, and reserved overlay space around the app. For vertical, keep phone-readable sizing and reserve space above and below; for horizontal, reserve space along the sides. When narration and 9:16 delivery are the goal, keep vertical; only switch to horizontal when the user asks for a landscape recording.
 
 Use Playwright video recording, not OS-level screen recording.
 
 The recorder's job is not done until `artifacts/demo.mp4` exists. The `.webm` is a working file, not the deliverable.
+
+### Render the `code` action as a visible on-page overlay
+
+In recorder-only output, the `code` action must actually appear on screen — waiting silently is not enough. The recorder injects a small code card into the live page, holds it for `duration`, then removes it so the app stays the hero.
+
+Inject and remove the overlay with `page.evaluate`. Build the card with DOM nodes and `textContent` (never string-concatenated `innerHTML`) so quotes, `f"..."`, and other code characters render literally:
+
+```python
+elif "code" in action:
+    cfg = action["code"]
+    page.evaluate(
+        """(cfg) => {
+            const el = document.createElement('div');
+            el.id = '__code_overlay__';
+            el.style.cssText = 'position:fixed;left:5%;right:5%;top:36%;z-index:99999;'
+                + 'background:rgba(17,24,39,0.97);border-left:6px solid var(--accent,#0d6efd);'
+                + 'border-radius:12px;padding:16px 18px;box-shadow:0 12px 40px rgba(0,0,0,0.45);'
+                + 'font-family:ui-monospace,SFMono-Regular,Menlo,monospace;';
+            const title = document.createElement('div');
+            title.textContent = cfg.title || 'Key code';
+            title.style.cssText = 'color:#9ca3af;font-size:12px;letter-spacing:.08em;'
+                + 'text-transform:uppercase;margin-bottom:8px;';
+            const pre = document.createElement('pre');
+            pre.textContent = cfg.text;
+            pre.style.cssText = 'margin:0;color:#f9fafb;font-size:15px;line-height:1.5;white-space:pre-wrap;';
+            el.appendChild(title);
+            el.appendChild(pre);
+            document.body.appendChild(el);
+        }""",
+        {"title": cfg.get("title", "Key code"), "text": cfg["text"]},
+    )
+    page.wait_for_timeout(cfg.get("duration", 3500))
+    page.evaluate("() => document.getElementById('__code_overlay__')?.remove()")
+```
+
+Place the card so it does not cover the UI region that is reacting (for a bottom-right toast, float the card in the upper-middle). Keep `duration` to 3500–5000 ms.
+
+### Time the code overlay to the narration's code line
+
+When narration audio exists, the `code` action must be on screen while the narrator speaks the code sentence, or the overlay and voice drift apart. Estimate where the code sentence falls in the transcript (words-so-far ÷ 2.5 words/sec, plus ~1 sec per audio tag before it) and schedule the `code` action's start near that time by summing the preceding `actions.yaml` waits and interaction settle time. Extend the reveal beats before it if the overlay would otherwise fire too early.
 
 ## Recording command
 
@@ -695,6 +748,12 @@ or:
 
 ```bash
 python scripts/record_demo.py --app-type r --actions actions.yaml
+```
+
+Add `--orientation horizontal` for a 16:9 landscape recording (default is `vertical`, 9:16):
+
+```bash
+python scripts/record_demo.py --app-type python --actions actions.yaml --orientation horizontal
 ```
 
 This produces `artifacts/demo.mp4` as the final deliverable.
