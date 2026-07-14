@@ -1,0 +1,4 @@
+interface:
+  display_name: "Shiny Component Shorts"
+  short_description: "Build focused Shiny component demo videos"
+  default_prompt: "Use $shiny-component-shorts to create a focused 30-second Shiny component demo."
