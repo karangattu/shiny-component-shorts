@@ -31,8 +31,14 @@ SUPPORTED_ACTIONS = frozenset(
         "press",
         "code",
         "screenshot",
+        "caption",
+        "beat",
+        "label",
     }
 )
+
+DEFAULT_BEATS = ("Reveal", "Proof", "Code", "Payoff")
+DEFAULT_ACCENT = "#4285f4"
 
 CURSOR_OVERLAY_JS = r"""(() => {
     const install = () => {
@@ -143,6 +149,112 @@ CODE_OVERLAY_JS = """async (cfg) => {
 }"""
 
 
+RETENTION_OVERLAY_JS = r"""(cfg) => {
+    const install = () => {
+        if (document.getElementById('__demo_hook__')) return;
+        const font = "-apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif";
+
+        const hook = document.createElement('div');
+        hook.id = '__demo_hook__';
+        hook.textContent = cfg.hook;
+        hook.style.cssText = 'position:fixed;top:4%;left:6%;right:6%;z-index:2147483645;'
+            + 'pointer-events:none;background:rgba(11,16,32,.92);color:#f4f7ff;'
+            + 'border-radius:16px;padding:14px 18px;text-align:center;'
+            + `font:800 32px/1.25 ${font};letter-spacing:-.01em;`
+            + 'box-shadow:0 10px 34px rgba(0,0,0,.45);';
+        document.documentElement.appendChild(hook);
+
+        const label = document.createElement('div');
+        label.id = '__demo_state_label__';
+        label.style.cssText = 'position:fixed;top:15%;left:6%;z-index:2147483645;'
+            + 'pointer-events:none;display:none;background:' + cfg.accent + ';color:#fff;'
+            + 'border-radius:8px;padding:5px 12px;text-transform:uppercase;'
+            + `font:700 15px/1.3 ${font};letter-spacing:.08em;`
+            + 'box-shadow:0 4px 16px rgba(0,0,0,.35);';
+        document.documentElement.appendChild(label);
+
+        const caption = document.createElement('div');
+        caption.id = '__demo_caption__';
+        caption.style.cssText = 'position:fixed;bottom:15%;left:8%;right:8%;z-index:2147483645;'
+            + 'pointer-events:none;opacity:0;transition:opacity 150ms ease;'
+            + 'color:#fff;text-align:center;'
+            + `font:700 27px/1.3 ${font};`
+            + 'text-shadow:0 2px 10px rgba(0,0,0,.85),0 0 2px rgba(0,0,0,.9);';
+        document.documentElement.appendChild(caption);
+
+        const rail = document.createElement('div');
+        rail.id = '__demo_beat_rail__';
+        rail.style.cssText = 'position:fixed;bottom:4%;left:0;right:0;z-index:2147483645;'
+            + 'pointer-events:none;display:flex;justify-content:center;gap:8px;';
+        const pills = cfg.beats.map(name => {
+            const pill = document.createElement('span');
+            pill.textContent = name;
+            pill.style.cssText = 'background:rgba(11,16,32,.85);color:rgba(255,255,255,.35);'
+                + 'border-radius:999px;padding:5px 13px;'
+                + `font:700 13px/1.3 ${font};letter-spacing:.04em;`
+                + 'transition:background 150ms ease,color 150ms ease;';
+            rail.appendChild(pill);
+            return pill;
+        });
+        document.documentElement.appendChild(rail);
+
+        window.__demo_overlays__ = {
+            setCaption(text) {
+                caption.textContent = text;
+                caption.style.opacity = text ? '1' : '0';
+            },
+            setBeat(index) {
+                pills.forEach((pill, i) => {
+                    pill.style.background = i === index ? cfg.accent : 'rgba(11,16,32,.85)';
+                    pill.style.color = i === index ? '#fff' : 'rgba(255,255,255,.35)';
+                });
+                this.setLabel('#' + (index + 1) + ' ' + cfg.beats[index].toUpperCase());
+            },
+            setLabel(text) {
+                label.textContent = text;
+                label.style.display = text ? 'block' : 'none';
+            },
+        };
+    };
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', install, {once: true});
+    } else {
+        install();
+    }
+}"""
+
+
+def normalize_overlays(config: dict) -> dict | None:
+    overlays = config.get("overlays")
+    if overlays is None:
+        return None
+    if not isinstance(overlays, dict) or not str(overlays.get("hook", "")).strip():
+        raise ValueError("The overlays block must define a non-empty `hook`")
+    beats = overlays.get("beats", list(DEFAULT_BEATS))
+    if not isinstance(beats, list) or not beats:
+        raise ValueError("overlays.beats must be a non-empty list of beat names")
+    return {
+        "hook": str(overlays["hook"]).strip(),
+        "beats": [str(beat) for beat in beats],
+        "accent": str(overlays.get("accent", DEFAULT_ACCENT)),
+    }
+
+
+def resolve_beat_index(value: object, beats: list[str]) -> int:
+    if isinstance(value, bool) or not isinstance(value, (int, str)):
+        raise ValueError(f"beat must be a 1-based index or a beat name: {value!r}")
+    if isinstance(value, int):
+        index = value - 1
+    else:
+        lowered = [beat.lower() for beat in beats]
+        if value.lower() not in lowered:
+            raise ValueError(f"Unknown beat {value!r}; overlays.beats = {beats}")
+        index = lowered.index(value.lower())
+    if not 0 <= index < len(beats):
+        raise ValueError(f"beat {value!r} is out of range for {len(beats)} beats")
+    return index
+
+
 def resolve_orientation(cli_value: str | None, config: dict) -> str:
     orientation = cli_value or config.get("orientation", "vertical")
     if orientation not in {"vertical", "horizontal"}:
@@ -197,6 +309,60 @@ def start_app(project_dir: Path, app_type: str, host: str, port: int) -> subproc
     return subprocess.Popen(cmd, cwd=project_dir)
 
 
+def start_app_with_retry(
+    project_dir: Path,
+    app_type: str,
+    host: str,
+    port: int,
+    url: str,
+    attempts: int = 3,
+) -> subprocess.Popen:
+    last_error: Exception | None = None
+    for attempt in range(1, attempts + 1):
+        proc = start_app(project_dir, app_type, host, port)
+        try:
+            wait_for_server(url, timeout=20.0)
+            return proc
+        except RuntimeError as exc:
+            last_error = exc
+            terminate_process(proc)
+            if attempt < attempts:
+                time.sleep(2 * attempt)
+                if not port_is_available(host, port):
+                    raise RuntimeError(
+                        f"Port {port} became occupied between startup attempts; "
+                        "the recorder will not kill an unknown process."
+                    ) from exc
+    raise RuntimeError(
+        f"Shiny app failed to start after {attempts} attempts: {last_error}"
+    ) from last_error
+
+
+def collect_selectors(actions: list[dict]) -> list[str]:
+    """Selectors to pre-check on the loaded page.
+
+    Targets of any `wait_for` action are exempt: naming them there declares
+    they appear asynchronously after an interaction.
+    """
+    exempt: set[str] = set()
+    ordered: list[str] = []
+    for action in actions:
+        name = validate_action_shape(action)
+        value = action[name]
+        if name == "wait_for":
+            exempt.add(value)
+            continue
+        if name in {"click", "hover"}:
+            selector = value
+        elif name in {"drag", "select_option", "fill", "type", "press"}:
+            selector = value["selector"]
+        else:
+            continue
+        if selector not in ordered:
+            ordered.append(selector)
+    return [selector for selector in ordered if selector not in exempt]
+
+
 def move_cursor_to(page, selector: str) -> tuple[float, float]:
     locator = page.locator(selector).first
     locator.scroll_into_view_if_needed()
@@ -239,10 +405,16 @@ def validate_action_shape(action: object) -> str:
     return name
 
 
-def run_actions(page, actions: list[dict], project_dir: Path) -> None:
+def run_actions(
+    page, actions: list[dict], project_dir: Path, overlays: dict | None = None
+) -> None:
     for action in actions:
         name = validate_action_shape(action)
         value = action[name]
+        if name in {"caption", "beat", "label"} and overlays is None:
+            raise ValueError(
+                f"The {name!r} action requires an `overlays` block in actions.yaml"
+            )
         if name == "wait_for":
             page.wait_for_selector(value, state="attached", timeout=15000)
         elif name == "wait":
@@ -290,6 +462,21 @@ def run_actions(page, actions: list[dict], project_dir: Path) -> None:
             target = project_dir / value["path"]
             target.parent.mkdir(parents=True, exist_ok=True)
             page.screenshot(path=str(target), full_page=True)
+        elif name == "caption":
+            page.evaluate(
+                "text => window.__demo_overlays__?.setCaption(text)", str(value or "")
+            )
+            page.wait_for_timeout(300)
+        elif name == "beat":
+            assert overlays is not None
+            index = resolve_beat_index(value, overlays["beats"])
+            page.evaluate("index => window.__demo_overlays__?.setBeat(index)", index)
+            page.wait_for_timeout(300)
+        elif name == "label":
+            page.evaluate(
+                "text => window.__demo_overlays__?.setLabel(text)", str(value or "")
+            )
+            page.wait_for_timeout(300)
 
 
 def terminate_process(proc: subprocess.Popen) -> None:
@@ -330,15 +517,15 @@ def record_project(
         )
 
     orientation = resolve_orientation(orientation_override, config)
+    overlays = normalize_overlays(config)
     size = {"width": 720, "height": 1280}
     if orientation == "horizontal":
         size = {"width": 1280, "height": 720}
 
     artifacts = project_dir / "artifacts"
     artifacts.mkdir(parents=True, exist_ok=True)
-    proc = start_app(project_dir, app_type, bind_host, port)
+    proc = start_app_with_retry(project_dir, app_type, bind_host, port, url)
     try:
-        wait_for_server(url)
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch()
             context = browser.new_context(
@@ -347,12 +534,25 @@ def record_project(
                 record_video_size=size,
             )
             context.add_init_script(CURSOR_OVERLAY_JS)
+            if overlays is not None:
+                context.add_init_script(
+                    f"({RETENTION_OVERLAY_JS})({json.dumps(overlays)})"
+                )
             page = context.new_page()
             video = page.video
             page.goto(url)
             page.wait_for_load_state("networkidle")
             page.wait_for_timeout(3000)
-            run_actions(page, config["actions"], project_dir)
+            missing = [
+                selector
+                for selector in collect_selectors(config["actions"])
+                if page.locator(selector).count() == 0
+            ]
+            if missing:
+                raise RuntimeError(
+                    "Selectors not found on initial page: " + ", ".join(missing)
+                )
+            run_actions(page, config["actions"], project_dir, overlays)
             context.close()
             video_source = Path(video.path())
             browser.close()
@@ -393,6 +593,7 @@ def record_project(
             json.dumps(
                 {
                     "orientation": orientation,
+                    "overlays": overlays,
                     "width": size["width"],
                     "height": size["height"],
                     "video": mp4_path.name,

@@ -26,8 +26,12 @@ SUPPORTED_ACTIONS = frozenset(
         "press",
         "code",
         "screenshot",
+        "caption",
+        "beat",
+        "label",
     }
 )
+OVERLAY_ACTIONS = frozenset({"caption", "beat", "label"})
 MEANINGFUL_ACTIONS = frozenset(
     {"click", "drag", "select_option", "hover", "fill", "type", "press"}
 )
@@ -51,6 +55,8 @@ def estimate_action_seconds(actions: list[dict]) -> float:
             total_ms += 1000
         elif name == "drag":
             total_ms += 1500
+        elif name in OVERLAY_ACTIONS:
+            total_ms += 300
         elif name == "type" and isinstance(value, dict):
             total_ms += len(str(value.get("value", ""))) * int(value.get("delay", 45)) + 1000
         elif name == "code" and isinstance(value, dict):
@@ -81,7 +87,7 @@ def probe_video(path: Path) -> dict:
             "-select_streams",
             "v:0",
             "-show_entries",
-            "stream=width,height:format=duration",
+            "stream=width,height:format=duration,bit_rate",
             "-of",
             "json",
             str(path),
@@ -92,10 +98,12 @@ def probe_video(path: Path) -> dict:
     )
     payload = json.loads(result.stdout)
     stream = payload["streams"][0]
+    raw_bit_rate = payload["format"].get("bit_rate")
     return {
         "width": int(stream["width"]),
         "height": int(stream["height"]),
         "duration": float(payload["format"]["duration"]),
+        "bit_rate": int(raw_bit_rate) if str(raw_bit_rate).isdigit() else None,
     }
 
 
@@ -109,7 +117,8 @@ def require_nonempty(path: Path, errors: list[str]) -> bool:
 def validate_project(project_dir: Path, require_audio: bool = False) -> tuple[list[str], dict]:
     project_dir = project_dir.resolve()
     errors: list[str] = []
-    report: dict = {}
+    warnings: list[str] = []
+    report: dict = {"warnings": warnings}
 
     if not (project_dir / "app.py").is_file() and not (project_dir / "app.R").is_file():
         errors.append("Demo must contain app.py or app.R")
@@ -137,6 +146,8 @@ def validate_project(project_dir: Path, require_audio: bool = False) -> tuple[li
 
     meaningful = 0
     screenshot_actions = 0
+    caption_actions = 0
+    beat_actions = 0
     for index, action in enumerate(actions, start=1):
         if not isinstance(action, dict) or len(action) != 1:
             errors.append(f"Action {index} must contain exactly one key")
@@ -147,6 +158,10 @@ def validate_project(project_dir: Path, require_audio: bool = False) -> tuple[li
             continue
         if name in MEANINGFUL_ACTIONS:
             meaningful += 1
+        if name == "caption":
+            caption_actions += 1
+        if name == "beat":
+            beat_actions += 1
         if name == "wait" and (not isinstance(value, (int, float)) or value < 0):
             errors.append(f"Action {index} has an invalid wait")
         elif name == "wait" and value > 3000:
@@ -160,6 +175,16 @@ def validate_project(project_dir: Path, require_audio: bool = False) -> tuple[li
         errors.append(f"Need at least 3 meaningful actions; found {meaningful}")
     if screenshot_actions != 1:
         errors.append(f"Need exactly one final screenshot action; found {screenshot_actions}")
+
+    overlays = config.get("overlays")
+    if not isinstance(overlays, dict) or not str(overlays.get("hook", "")).strip():
+        warnings.append(
+            "No retention hook: add an `overlays` block with a 5–9 word `hook`"
+        )
+    if actions and caption_actions == 0:
+        warnings.append("No caption actions: viewers get no readable beat-by-beat text")
+    if actions and beat_actions == 0:
+        warnings.append("No beat actions: the progress rail never advances")
 
     action_seconds = estimate_action_seconds(actions)
     report["meaningful_actions"] = meaningful
@@ -210,6 +235,11 @@ def validate_project(project_dir: Path, require_audio: bool = False) -> tuple[li
                     f"Video is {video['width']}x{video['height']}; expected "
                     f"{expected[0]}x{expected[1]} for {orientation}"
                 )
+            if video.get("bit_rate") is not None and video["bit_rate"] < 50_000:
+                warnings.append(
+                    f"Video bitrate is only {video['bit_rate'] / 1000:.0f} kbps; "
+                    "screen recordings this sparse usually indicate a broken encode"
+                )
             if narration_seconds and video["duration"] + 0.25 < narration_seconds:
                 errors.append(
                     f"Video ({video['duration']:.2f}s) is shorter than narration "
@@ -238,6 +268,8 @@ def main() -> int:
     args = parse_args()
     errors, report = validate_project(args.project_dir, args.require_audio)
     print(json.dumps(report, indent=2, sort_keys=True))
+    for warning in report.get("warnings", []):
+        print(f"WARNING: {warning}")
     if errors:
         for error in errors:
             print(f"ERROR: {error}")

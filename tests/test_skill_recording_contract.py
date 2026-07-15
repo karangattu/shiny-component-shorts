@@ -1,6 +1,7 @@
 import importlib.util
 import socket
 import tempfile
+from types import SimpleNamespace
 import unittest
 from pathlib import Path
 
@@ -11,6 +12,7 @@ CODEX_SKILL = SKILL / "SKILL.md"
 CLAUDE_SKILL = ROOT / ".claude/skills/shiny-component-shorts/SKILL.md"
 RECORDER_PATH = SKILL / "scripts/record_demo.py"
 VALIDATOR_PATH = SKILL / "scripts/validate_demo.py"
+TTS_PATH = SKILL / "scripts/generate_tts.py"
 
 
 def load_module(name: str, path: Path):
@@ -23,6 +25,7 @@ def load_module(name: str, path: Path):
 
 recorder = load_module("skill_record_demo", RECORDER_PATH)
 validator = load_module("skill_validate_demo", VALIDATOR_PATH)
+tts = load_module("skill_generate_tts", TTS_PATH)
 
 
 class CodexSkillContractTest(unittest.TestCase):
@@ -80,6 +83,7 @@ class SharedRecorderContractTest(unittest.TestCase):
                 "wait_for",
                 "wait",
                 "click",
+                "drag",
                 "select_option",
                 "hover",
                 "fill",
@@ -116,6 +120,7 @@ class SharedRecorderContractTest(unittest.TestCase):
             "CODE_OVERLAY_JS",
             "context.add_init_script(CURSOR_OVERLAY_JS)",
             "press_sequentially",
+            "human_drag",
             "video.path()",
             "libx264",
             "terminate_process(proc)",
@@ -184,6 +189,68 @@ class DemoValidatorContractTest(unittest.TestCase):
                 self.assertGreaterEqual(report["meaningful_actions"], 3)
                 self.assertEqual(report["video"]["width"], 720)
                 self.assertEqual(report["video"]["height"], 1280)
+
+
+class GeminiTTSContractTest(unittest.TestCase):
+    def test_generate_content_fallback_extracts_audio_and_usage(self) -> None:
+        response = SimpleNamespace(
+            candidates=[
+                SimpleNamespace(
+                    content=SimpleNamespace(
+                        parts=[SimpleNamespace(inline_data=SimpleNamespace(data=b"pcm"))]
+                    )
+                )
+            ],
+            usage_metadata=SimpleNamespace(
+                prompt_token_count=123,
+                candidates_token_count=456,
+            ),
+        )
+
+        class Models:
+            def generate_content(self, **kwargs):
+                self.kwargs = kwargs
+                return response
+
+        models = Models()
+        client = SimpleNamespace(models=models)
+        pcm, input_tokens, output_tokens, source = tts.generate_pcm(
+            client,
+            model="gemini-3.1-flash-tts-preview",
+            prompt="Read this",
+            voice="Charon",
+        )
+
+        self.assertEqual(pcm, b"pcm")
+        self.assertEqual(input_tokens, 123)
+        self.assertEqual(output_tokens, 456)
+        self.assertEqual(source, "Gemini Generate Content API fallback")
+        self.assertEqual(models.kwargs["contents"], "Read this")
+
+    def test_interactions_api_remains_preferred_when_available(self) -> None:
+        interaction = SimpleNamespace(
+            output_audio=SimpleNamespace(data="cGNt"),
+            usage=SimpleNamespace(total_input_tokens=12, total_output_tokens=34),
+        )
+
+        class Interactions:
+            def create(self, **kwargs):
+                self.kwargs = kwargs
+                return interaction
+
+        interactions = Interactions()
+        client = SimpleNamespace(interactions=interactions)
+        pcm, input_tokens, output_tokens, source = tts.generate_pcm(
+            client,
+            model="gemini-3.1-flash-tts-preview",
+            prompt="Read this",
+            voice="Kore",
+        )
+
+        self.assertEqual(pcm, b"pcm")
+        self.assertEqual((input_tokens, output_tokens), (12, 34))
+        self.assertEqual(source, "Gemini Interactions API")
+        self.assertEqual(interactions.kwargs["input"], "Read this")
 
 
 if __name__ == "__main__":

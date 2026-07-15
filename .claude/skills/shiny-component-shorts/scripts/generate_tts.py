@@ -28,6 +28,64 @@ def write_wave(path: Path, pcm: bytes) -> None:
         wav_file.writeframes(pcm)
 
 
+def decode_audio_data(data: bytes | str) -> bytes:
+    return base64.b64decode(data) if isinstance(data, str) else data
+
+
+def generate_pcm(client, *, model: str, prompt: str, voice: str) -> tuple[bytes, int, int, str]:
+    """Generate PCM with the newest SDK API, falling back to generateContent."""
+    interactions = getattr(client, "interactions", None)
+    if interactions is not None:
+        interaction = interactions.create(
+            model=model,
+            input=prompt,
+            response_format={"type": "audio"},
+            generation_config={"speech_config": [{"voice": voice}]},
+        )
+        audio = interaction.output_audio
+        if audio is None or not audio.data:
+            raise RuntimeError("Gemini returned no audio data")
+        usage = getattr(interaction, "usage", None)
+        input_tokens = int(getattr(usage, "total_input_tokens", 0) or 0)
+        output_tokens = int(getattr(usage, "total_output_tokens", 0) or 0)
+        return (
+            decode_audio_data(audio.data),
+            input_tokens,
+            output_tokens,
+            "Gemini Interactions API",
+        )
+
+    from google.genai import types
+
+    response = client.models.generate_content(
+        model=model,
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            response_modalities=["AUDIO"],
+            speech_config=types.SpeechConfig(
+                voice_config=types.VoiceConfig(
+                    prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=voice)
+                )
+            ),
+        ),
+    )
+    try:
+        data = response.candidates[0].content.parts[0].inline_data.data
+    except (AttributeError, IndexError, TypeError) as exc:
+        raise RuntimeError("Gemini returned no audio data") from exc
+    if not data:
+        raise RuntimeError("Gemini returned no audio data")
+    usage = getattr(response, "usage_metadata", None)
+    input_tokens = int(getattr(usage, "prompt_token_count", 0) or 0)
+    output_tokens = int(getattr(usage, "candidates_token_count", 0) or 0)
+    return (
+        decode_audio_data(data),
+        input_tokens,
+        output_tokens,
+        "Gemini Generate Content API fallback",
+    )
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Synthesize a text file with Gemini 3.1 Flash TTS Preview."
@@ -77,7 +135,7 @@ def write_usage_report(
             "input_usd_per_million_tokens": INPUT_USD_PER_MILLION_TOKENS,
             "output_usd_per_million_audio_tokens": OUTPUT_USD_PER_MILLION_TOKENS,
             "source": PRICING_URL,
-            "checked_on": "2026-07-13",
+            "checked_on": "2026-07-14",
         },
         "estimated_paid_tier_cost_usd": (
             round(estimated_cost, 8) if estimated_cost is not None else None
@@ -126,26 +184,18 @@ def main() -> int:
 
     try:
         client = genai.Client()
-        interaction = client.interactions.create(
+        pcm, input_tokens, output_tokens, usage_source = generate_pcm(
+            client,
             model=args.model,
-            input=prompt,
-            response_format={"type": "audio"},
-            generation_config={"speech_config": [{"voice": voice}]},
+            prompt=prompt,
+            voice=voice,
         )
-        audio = interaction.output_audio
-        if audio is None or not audio.data:
-            raise RuntimeError("Gemini returned no audio data")
-        pcm = base64.b64decode(audio.data) if isinstance(audio.data, str) else audio.data
         write_wave(args.output, pcm)
 
-        usage = getattr(interaction, "usage", None)
-        input_tokens = int(getattr(usage, "total_input_tokens", 0) or 0)
-        output_tokens = int(getattr(usage, "total_output_tokens", 0) or 0)
         duration_seconds = len(pcm) / (24_000 * 2)
-        usage_source = "Gemini Interactions API"
         if output_tokens == 0:
             output_tokens = round(duration_seconds * 25)
-            usage_source = "audio duration fallback (25 tokens/second)"
+            usage_source += "; output tokens from audio duration fallback (25 tokens/second)"
         usage_output = args.usage_output or args.output.with_suffix(".usage.json")
         estimated_cost = write_usage_report(
             usage_output,
