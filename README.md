@@ -74,7 +74,7 @@ Each idea should include:
 
 The skills require at least three meaningful interactions and three visible state changes per 30-second recording. Long idle waits and static code cards are rejected; the recording should reveal, contrast, and replay or reset the same hidden behavior.
 
-Recorded shorts default to a true 9:16 composition. The app remains the hero while a persistent problem-led hook, short narration captions, changing state labels, selective punch-ins, and a `Reveal → Proof → Code → Payoff` beat rail keep the screen active and understandable. The detailed pacing rules live in each skill's `references/short-form-pacing.md` file.
+Recorded shorts default to a true 9:16 composition with the app as the hero. `Problem → Reveal → Proof → Code → Payoff` organizes the storyboard and timing, but those planning labels are not shown in the video. The browser deliverable stays clean: no beat rail, numbered state chips, or planning labels over the app. The detailed pacing rules live in each skill's `references/short-form-pacing.md` file.
 
 ## Gemini 3.1 TTS
 
@@ -98,16 +98,18 @@ Claude Code can use `.claude/skills/shiny-component-shorts/scripts/generate_tts.
 
 The TTS script writes exact Gemini token usage and a paid-tier list-price estimate to `narration.usage.json`. At the end of every artifact-generating workflow, the skill also reports the active Claude Code or Codex usage when the harness exposes it. Subscription usage, unavailable usage, and list-price estimates are labeled separately so a partial estimate is never presented as a complete bill.
 
-## Silent editing
+## Clean recording
 
-For recorded demos, keep `artifacts/demo.mp4` as the clean browser capture and use `edit.yaml` for timed overlays:
+For recorded demos, keep `artifacts/demo.mp4` as the clean browser capture. Put interactions in `actions.yaml`, but keep storyboard beat names out of it and omit the `overlays` block:
 
 ```bash
-python scripts/record_demo.py --app-type python --actions actions.yaml
-python scripts/edit_video.py --spec edit.yaml
+python .agents/skills/shiny-component-shorts/scripts/record_demo.py \
+  --project-dir demo-name \
+  --app-type python \
+  --actions actions.yaml
 ```
 
-The edited silent output is `artifacts/final.mp4`. Audio tracks are intentionally separate.
+The recorder writes `artifacts/demo.mp4`. If edited overlays are requested, create a separate output and preserve this clean recording. Audio tracks are intentionally separate.
 
 ## Default style
 
