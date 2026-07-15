@@ -63,6 +63,24 @@ Strong candidates include:
 - Keep state labels concrete: `5 lines`, `2 selected`, `Mode: dark`, not `Output updated`.
 - End on the state that best communicates the feature, not an empty reset.
 
+## Series visual variety
+
+Build a recognizable series through consistent typography, spacing, pacing, cursor treatment, and code cards—not by repeating the same dark or light canvas in every installment.
+
+Before implementing a series, write a compact visual-direction matrix with one row per video and these columns:
+
+| Video | Backdrop mode | Palette | Composition | Realistic setting |
+| --- | --- | --- | --- | --- |
+
+For a series of three or more:
+
+- Include both light and dark or color-led backdrop treatments.
+- Avoid letting any one backdrop treatment dominate more than about half the series unless the user requests a fixed brand system or the demonstrated behavior needs a specific mode.
+- Vary at least two visual dimensions across adjacent videos: backdrop, palette, component placement, density, or setting.
+- Keep phone readability and the component's proof stronger than the desire for variety.
+
+Do not count a recolor as a distinct hidden behavior. Visual variety supports the selected ideas; it does not replace behavioral variety.
+
 ## Interaction arc
 
 Plan at least three action → reaction beats. These names are internal production labels for the storyboard and timing plan; they must not appear as on-screen labels or progress indicators in the recorded video.

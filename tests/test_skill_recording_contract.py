@@ -55,6 +55,15 @@ class CodexSkillContractTest(unittest.TestCase):
         self.assertIn("three meaningful actions", text)
         self.assertIn("Default to a true 9:16 vertical composition", text)
 
+    def test_multi_video_series_requires_visual_variety(self) -> None:
+        skill = CODEX_SKILL.read_text(encoding="utf-8")
+        playbook = (SKILL / "references/creative-playbook.md").read_text(encoding="utf-8")
+        self.assertIn("one-line visual direction", skill)
+        self.assertIn("both light and dark or color-led treatments", skill)
+        self.assertIn("Series visual variety", playbook)
+        self.assertIn("visual-direction matrix", playbook)
+        self.assertIn("Do not count a recolor as a distinct hidden behavior", playbook)
+
     def test_codex_metadata_is_present(self) -> None:
         metadata = SKILL / "agents/openai.yaml"
         self.assertTrue(metadata.is_file())

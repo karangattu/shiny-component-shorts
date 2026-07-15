@@ -63,6 +63,15 @@ class ClaudeSkillContractTest(unittest.TestCase):
         self.assertIn("claude_session_cost.py", text)
         self.assertTrue((SKILL / "scripts/claude_session_cost.py").is_file())
 
+    def test_multi_video_series_requires_visual_variety(self) -> None:
+        skill = SKILL_MD.read_text(encoding="utf-8")
+        playbook = (SKILL / "references/creative-playbook.md").read_text(encoding="utf-8")
+        self.assertIn("one-line visual direction", skill)
+        self.assertIn("both light and dark or color-led treatments", skill)
+        self.assertIn("Series visual variety", playbook)
+        self.assertIn("visual-direction matrix", playbook)
+        self.assertIn("Do not count a recolor as a distinct hidden behavior", playbook)
+
     def test_skill_mandates_retention_overlays_and_loudness_normalization(self) -> None:
         text = SKILL_MD.read_text(encoding="utf-8")
         self.assertIn("overlays.hook", text)
