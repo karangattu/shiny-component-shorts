@@ -65,7 +65,7 @@ Strong candidates include:
 
 ## Interaction arc
 
-Plan at least three action → reaction beats:
+Plan at least three action → reaction beats. These names are internal production labels for the storyboard and timing plan; they must not appear as on-screen labels or progress indicators in the recorded video.
 
 | Beat | Purpose | Example |
 | ---: | --- | --- |

@@ -33,7 +33,7 @@ Return:
 4. Mini-app concept
 5. Three to five variations
 6. A 30-second storyboard
-7. An exact action → visible reaction plan with at least three beats
+7. An exact action → visible reaction plan with at least three planning beats
 
 Do not create files, recording automation, audio, or cost reports.
 
@@ -114,11 +114,14 @@ Use this sequence:
 | 19–26 s | Code | Show only the decisive code line over the live app |
 | 26–30 s | Payoff | End on the strongest result |
 
+These beat names are planning labels only. They organize the storyboard, action timing, and review frames; do not render them as labels, chips, or a progress rail in the video.
+
 Keep narration around 60–85 spoken words. Make every sentence describe something literally visible. Use contractions and natural developer language; avoid stock AI phrasing, parameter tours, and forced punchlines.
 
 ## Recording rules
 
 - Author `actions.yaml` from the storyboard, not after recording.
+- Keep storyboard beat names out of `actions.yaml`; they are not recorded actions.
 - Use `type` for text visibly entered by a person and `fill` only for clearing or paste-like actions.
 - Keep ordinary waits between 500 and 3000 ms.
 - Use varied waits and allow the biggest reveal to breathe.

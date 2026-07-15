@@ -34,7 +34,7 @@ Return:
 4. Mini-app concept
 5. Three to five variations
 6. A 30-second storyboard
-7. An exact action → visible reaction plan with at least three beats
+7. An exact action → visible reaction plan with at least three planning beats
 
 Do not create files, recording automation, audio, or cost reports.
 
@@ -76,7 +76,7 @@ python .claude/skills/shiny-component-shorts/scripts/validate_demo.py \
   --project-dir demo-name
 ```
 
-Treat validator errors as blocking. Treat warnings (missing hook, captions, or beats) as a quality gap to fix unless the user explicitly asked for a bare recording.
+Treat validator errors as blocking. Missing-overlay warnings are expected for clean recordings and do not need to be fixed.
 
 ### Narrated or finished video
 
@@ -92,17 +92,11 @@ ffmpeg -i artifacts/demo.mp4 -i artifacts/narration.wav \
 
 If edited overlays are requested, preserve `artifacts/demo.mp4` as the clean browser recording and write edited outputs separately. Do not overwrite the clean recording.
 
-## Retention overlays
+## Planning beats and clean recordings
 
-Recorded shorts must carry the retention stack from [references/short-form-pacing.md](references/short-form-pacing.md), rendered by the shared recorder — not added in post:
+Use `Reveal`, `Proof`, `Code`, and `Payoff` to organize the storyboard and time the actions. They are internal production labels and must not appear as on-screen text, numbered state chips, or a progress rail.
 
-- Set `overlays.hook` in `actions.yaml` to a persistent 5–9 word problem-led hook.
-- Advance the bottom beat rail with `beat` actions (`Reveal`, `Proof`, `Code`, `Payoff` by default) as the story progresses.
-- Update the bottom caption with short `caption` actions (2–7 words) so something readable changes every few seconds.
-- Use `label` only when the auto state chip from `beat` needs custom text.
-- Never show a caption and the code card at the same time.
-
-See [references/recording-contract.md](references/recording-contract.md) for the `overlays:` schema and action semantics. Skip overlays only when the user explicitly asks for a bare recording.
+Do not add `beat`, `label`, or `caption` actions to `actions.yaml`, and omit the top-level `overlays` block. The browser deliverable should remain a clean recording of the app, with only the concise `code` action rendered when the storyboard reaches its code section. See [references/recording-contract.md](references/recording-contract.md).
 
 ## Research and concept selection
 
@@ -117,7 +111,7 @@ If the proposed action plan cannot produce three meaningful reactions from the s
 ## App rules
 
 - Prefer one primary card or panel sized for a vertical frame.
-- Leave the top ~16% and bottom ~18% of the frame free of app content; the hook, state chip, captions, and beat rail render there.
+- Leave enough top and bottom breathing room for platform captions or later editing without shrinking the app unnecessarily.
 - Use tiny inline data or built-in data.
 - Use realistic labels and uneven values; avoid lorem ipsum, `Item 1`, `foo`, or synthetic filler.
 - Add stable input IDs and selectors for every recorded target; no random Bootstrap-generated IDs.
@@ -137,11 +131,14 @@ Use this sequence:
 | 19–26 s | Code | Show only the decisive code line over the live app |
 | 26–30 s | Payoff | End on the strongest result |
 
+These beat names are planning labels only; never render them in the video.
+
 Keep narration around 60–85 spoken words. Make every sentence describe something literally visible. Use contractions and natural developer language; avoid stock AI phrasing, parameter tours, and forced punchlines.
 
 ## Recording rules
 
 - Author `actions.yaml` from the storyboard, not after recording.
+- Keep storyboard beat names out of `actions.yaml`; do not add `beat` actions or an `overlays` block.
 - The recorder pre-validates every selector on the loaded page and fails fast listing any that are missing; fix the app or the selector, never loosen a selector to something unstable.
 - Use `type` for text visibly entered by a person and `fill` only for clearing or paste-like actions.
 - Keep ordinary waits between 500 and 3000 ms; vary them and let the biggest reveal breathe.
@@ -162,9 +159,9 @@ For an app:
 
 For a recording:
 
-- Run `validate_demo.py` successfully and resolve warnings when overlays were expected.
+- Run `validate_demo.py` successfully; missing-overlay warnings are expected for clean recordings.
 - Confirm `artifacts/demo.mp4` is 720×1280 unless landscape was explicitly requested.
-- Inspect the first, reveal, code, and final frames at phone size; confirm the hook, beat rail, and captions are legible and never cover the app's key region.
+- Inspect the first, reveal, code, and final frames at phone size; confirm no planning beat names or progress rail appear over the app.
 - Confirm the visible cursor reaches each interactive target.
 - Confirm the narration would finish before the video ends.
 

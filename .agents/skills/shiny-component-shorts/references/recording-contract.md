@@ -62,6 +62,8 @@ actions:
 
 Supported actions are `wait_for`, `wait`, `click`, `drag`, `select_option`, `hover`, `fill`, `type`, `press`, `code`, and `screenshot`. Each list item must contain exactly one action.
 
+Storyboard beats such as `Reveal`, `Proof`, `Code`, and `Payoff` are planning metadata only. Do not add them to `actions.yaml` or render them over the recording.
+
 ## Action semantics
 
 - `wait_for` waits for a selector to be attached, including content inside a collapsed component.

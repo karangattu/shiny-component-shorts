@@ -29,11 +29,6 @@ url: "http://127.0.0.1:8000"
 video_name: "demo.webm"
 orientation: "vertical"
 
-overlays:
-  hook: "Still dragging two sliders for one range?"   # 5–9 words, persistent
-  beats: ["Reveal", "Proof", "Code", "Payoff"]        # optional; this is the default
-  accent: "#4285f4"                                    # optional
-
 actions:
   - wait_for: "#notes"
   - wait: 900
@@ -42,8 +37,6 @@ actions:
       value: "Standup notes:\n- demo the resize"
       delay: 45
   - click: "#reset"
-  - beat: "Reveal"
-  - caption: "Drag either end"
   - drag:
       selector: "#window + .irs .irs-bar"
       delta_x: 120
@@ -67,7 +60,7 @@ actions:
       path: "artifacts/final.png"
 ```
 
-Supported actions are `wait_for`, `wait`, `click`, `drag`, `select_option`, `hover`, `fill`, `type`, `press`, `code`, `screenshot`, `caption`, `beat`, and `label`. Each list item must contain exactly one action.
+Supported actions are `wait_for`, `wait`, `click`, `drag`, `select_option`, `hover`, `fill`, `type`, `press`, `code`, and `screenshot`. Each list item must contain exactly one action. The recorder also accepts the legacy overlay actions `caption`, `beat`, and `label`, but the skill does not use them for clean videos.
 
 ## Action semantics
 
@@ -82,19 +75,11 @@ Supported actions are `wait_for`, `wait`, `click`, `drag`, `select_option`, `hov
 - `press` sends one named key to the selector.
 - `code` types a compact editor card over the live app, holds it by reading time, then removes it.
 - `screenshot` writes a full-page screenshot relative to the demo directory.
-- `caption` sets the bottom caption text (2–7 words); an empty string clears it. Requires an `overlays` block.
-- `beat` advances the bottom beat rail by 1-based index or beat name (`beat: "Proof"`) and auto-sets the state chip to `#N NAME`. Requires an `overlays` block.
-- `label` overrides the state chip with custom text (e.g. `CUSTOMERS`); an empty string hides it. Requires an `overlays` block.
+- Legacy `caption`, `beat`, and `label` actions inject visible overlays and require an `overlays` block. Do not use them in skill-generated recordings. In particular, storyboard beat names such as `Reveal` and `Proof` are planning metadata, not action entries.
 
-## Retention overlays
+## Clean recordings
 
-The optional top-level `overlays` block renders the retention stack from `short-form-pacing.md` directly into the recording:
-
-- `hook` (required inside the block) is a persistent 5–9 word problem-led line pinned to the top of the frame.
-- `beats` defaults to `["Reveal", "Proof", "Code", "Payoff"]` and renders as a dimmed pill rail at the bottom; `beat` actions light the current pill.
-- `accent` sets the highlight color for the rail and state chip.
-
-Rules: advance every beat at least once, pair each beat with a short caption, and never leave a caption visible while the `code` card is on screen (clear it with `caption: ""` first). Omitting the `overlays` block records a bare video with no overlay JS injected; the validator warns but does not fail.
+Omit the top-level `overlays` block. It injects visible hook, caption, state-chip, and beat-rail UI into the browser recording. The clean deliverable should show the app interactions and the concise `code` card only. Keep the hook, captions, and beat names in the narration, storyboard, or later editing plan rather than `actions.yaml`. The validator may warn about missing overlays; for this workflow that warning is expected and is not a quality failure.
 
 ## Reliability
 
@@ -121,7 +106,7 @@ Estimate narration as:
 spoken words ÷ 2.5 + one second per audio tag + two-second buffer
 ```
 
-Estimate action time from waits, typing duration, approximately one second per interaction (1.5 seconds per drag, 300 ms per `caption`/`beat`/`label`), and the code overlay’s typing plus reading hold. If actions are too short, add another proof or reversal and distribute short waits after reactions. Do not pad with a long idle wait.
+Estimate action time from waits, typing duration, approximately one second per interaction (1.5 seconds per drag), and the code overlay’s typing plus reading hold. If actions are too short, add another proof or reversal and distribute short waits after reactions. Do not pad with a long idle wait.
 
 The code hold defaults to `1200 + 55 × characters` milliseconds, clamped between 3500 and 8000 ms. Its typewriter animation runs before that hold.
 
