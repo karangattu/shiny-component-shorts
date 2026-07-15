@@ -48,6 +48,14 @@ Run:
 Use $shiny-component-shorts to create 5 mini-app video ideas for Shiny toolbar-select in Python.
 ```
 
+Requests for multiple videos use the dedicated series workflow. A series contains at most five videos about one component, and every video must demonstrate a distinct hidden behavior. The skill returns fewer ideas when the component does not have enough strong, visual behaviors.
+
+For example:
+
+```text
+Use $shiny-component-shorts to create a multi-video series for Shiny data grid in Python. Create up to 5 videos, each focused on a distinct hidden behavior, and include a runnable mini-app for each one.
+```
+
 ## Video format
 
 Each idea should include:

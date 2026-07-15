@@ -37,6 +37,18 @@ Return:
 
 Do not create files, recording automation, audio, or cost reports.
 
+### Multi-video series
+
+Use this workflow when the user asks for multiple videos about one component. Create no more than five videos for that component, even if the user requests more.
+
+1. Research the component once, then identify up to five genuinely distinct visual behaviors.
+2. Score every behavior with the creative playbook's feature questions. Omit weak ideas rather than padding the series to the requested count.
+3. Give each video its own complete idea-only deliverables: angle, problem-led hook, mini-app concept, variations, 30-second storyboard, and action → visible reaction plan.
+4. Keep one video focused on one hidden behavior. Changes to labels, data, colors, narration, or setting alone do not make a distinct video.
+5. Make the videos independently producible and order them strongest first.
+
+If the user requests runnable apps, recordings, or finished videos, apply the corresponding workflow separately to each selected idea. Use one directory per video and verify every requested output independently.
+
 ### Runnable app
 
 Create the idea deliverables plus a minimal `app.py` or `app.R`. Run the app and verify the chosen behavior. Do not create recording or narration files unless requested.
