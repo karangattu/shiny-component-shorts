@@ -10,6 +10,10 @@ The goal is simple:
 
 ![](assets/process.jpg)
 
+## How we ensure quality
+
+![](assets/quality_gate_loop.jpg)
+
 ## What this repo does
 
 This repo contains agent skills for creating:
@@ -21,26 +25,6 @@ This repo contains agent skills for creating:
 * Python or R examples
 
 The focus is not full tutorials. Each video should reveal one useful, surprising behavior in a component.
-
-## Repo structure
-
-```text
-.
-├── .claude/
-│   └── skills/
-│       └── shiny-component-shorts/
-│           └── SKILL.md
-├── .agents/
-│   └── skills/
-│       └── shiny-component-shorts/
-│           └── SKILL.md
-├── examples/
-│   ├── py/
-│   └── r/
-├── CLAUDE.md
-├── AGENTS.md
-└── README.md
-```
 
 ## Using with Claude Code
 
@@ -101,30 +85,3 @@ python3 .agents/skills/shiny-component-shorts/scripts/generate_tts.py \
 Claude Code can use `.claude/skills/shiny-component-shorts/scripts/generate_tts.py`. `GOOGLE_API_KEY` is also supported; if both variables are set, the Google SDK gives `GOOGLE_API_KEY` precedence. Never commit either key.
 
 The TTS script writes exact Gemini token usage and a paid-tier list-price estimate to `narration.usage.json`. At the end of every artifact-generating workflow, the skill also reports the active Claude Code or Codex usage when the harness exposes it. Subscription usage, unavailable usage, and list-price estimates are labeled separately so a partial estimate is never presented as a complete bill.
-
-## Clean recording
-
-For recorded demos, keep `artifacts/demo.mp4` as the clean browser capture. Put interactions in `actions.yaml`, but keep storyboard beat names out of it and omit the `overlays` block:
-
-```bash
-python .agents/skills/shiny-component-shorts/scripts/record_demo.py \
-  --project-dir demo-name \
-  --app-type python \
-  --actions actions.yaml
-```
-
-The recorder writes `artifacts/demo.mp4`. If edited overlays are requested, create a separate output and preserve this clean recording. Audio tracks are intentionally separate.
-
-## Default style
-
-Good:
-
-> “Did you know a Shiny table can become an input?”
-
-Bad:
-
-> “Introduction to Shiny data grids.”
-
-## Rule of thumb
-
-If the viewer says, “Wait, that component can do that?” then the idea works.
