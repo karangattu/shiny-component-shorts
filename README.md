@@ -56,6 +56,20 @@ For example:
 Use $shiny-component-shorts to create a multi-video series for Shiny data grid in Python. Create up to 5 videos, each focused on a distinct hidden behavior, and include a runnable mini-app for each one.
 ```
 
+## Using with OpenCode
+
+This repo includes the skill in both `.agents` and `.claude`. Disable Claude-compatible skill discovery when launching OpenCode so it loads the `.agents` copy without a duplicate name:
+
+```bash
+OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1 opencode
+```
+
+Then prompt OpenCode:
+
+```text
+Use the shiny-component-shorts skill to create a multi-video series for Shiny data grid in Python. Create up to 5 videos, each focused on a distinct hidden behavior, and include a runnable mini-app for each one.
+```
+
 ## Video format
 
 Each idea should include:
