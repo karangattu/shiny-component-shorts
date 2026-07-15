@@ -6,6 +6,10 @@ The goal is simple:
 
 > One Shiny component. One hidden feature. One tiny app.
 
+## Skill workflow at a glance
+
+![](assets/process.jpg)
+
 ## What this repo does
 
 This repo contains agent skills for creating:
