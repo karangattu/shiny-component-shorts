@@ -12,7 +12,7 @@ A small repo for generating 30-second videos about Shiny components.
 
 ## Example finished short
 
-<video src="assets/modal_demo_video.mp4" controls width="100%"></video>
+https://github.com/user-attachments/assets/71058600-9228-41d7-99f8-a410ae47c643
 
 ## What this repo does
 
