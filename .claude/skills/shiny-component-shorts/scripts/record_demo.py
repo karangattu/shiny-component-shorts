@@ -545,18 +545,21 @@ def record_project(
 
     orientation = resolve_orientation(orientation_override, config)
     overlays = normalize_overlays(config)
-    size = {"width": 720, "height": 1280}
+    viewport = {"width": 720, "height": 1280}
     if orientation == "horizontal":
-        size = {"width": 1280, "height": 720}
+        viewport = {"width": 1280, "height": 720}
+    size = {dimension: pixels * 2 for dimension, pixels in viewport.items()}
 
     artifacts = project_dir / "artifacts"
     artifacts.mkdir(parents=True, exist_ok=True)
     proc = start_app_with_retry(project_dir, app_type, bind_host, port, url)
     try:
         with sync_playwright() as playwright:
-            browser = playwright.chromium.launch()
+            browser = playwright.chromium.launch(
+                args=["--force-device-scale-factor=2", "--high-dpi-support=1"]
+            )
             context = browser.new_context(
-                viewport=size,
+                viewport=viewport,
                 record_video_dir=str(artifacts),
                 record_video_size=size,
             )
@@ -606,6 +609,10 @@ def record_project(
                 str(webm_path),
                 "-c:v",
                 "libx264",
+                "-crf",
+                "18",
+                "-preset",
+                "medium",
                 "-pix_fmt",
                 "yuv420p",
                 "-movflags",
@@ -621,6 +628,7 @@ def record_project(
                 {
                     "orientation": orientation,
                     "overlays": overlays,
+                    "scale_factor": 2,
                     "width": size["width"],
                     "height": size["height"],
                     "video": mp4_path.name,

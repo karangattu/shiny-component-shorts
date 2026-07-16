@@ -158,7 +158,7 @@ For an app:
 For a recording:
 
 - Run `validate_demo.py` successfully.
-- Confirm `artifacts/demo.mp4` is 720×1280 unless landscape was explicitly requested.
+- Confirm `artifacts/demo.mp4` is 1440×2560 unless landscape was explicitly requested.
 - Inspect the first, reveal, code, and final frames at phone size.
 - Confirm the visible cursor reaches each interactive target.
 - Confirm the narration would finish before the video ends.

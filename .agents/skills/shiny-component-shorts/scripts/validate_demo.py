@@ -202,7 +202,7 @@ def validate_project(project_dir: Path, require_audio: bool = False) -> tuple[li
             if recording_path.is_file():
                 recording = json.loads(recording_path.read_text(encoding="utf-8"))
             orientation = recording.get("orientation", config.get("orientation", "vertical"))
-            expected = (720, 1280) if orientation == "vertical" else (1280, 720)
+            expected = (1440, 2560) if orientation == "vertical" else (2560, 1440)
             if orientation not in {"vertical", "horizontal"}:
                 errors.append(f"Unsupported orientation in actions.yaml: {orientation}")
             elif (video["width"], video["height"]) != expected:

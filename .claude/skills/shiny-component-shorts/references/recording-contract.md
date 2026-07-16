@@ -19,6 +19,7 @@ Options:
 - `--actions` is relative to the demo directory unless absolute.
 - `--orientation vertical|horizontal` overrides `orientation:` in the YAML.
 - Vertical is the default. Set horizontal only when the user explicitly requests it.
+- The recorder preserves a 720×1280 or 1280×720 logical layout and launches Chromium in native 2× HiDPI mode, producing true 1440×2560 or 2560×1440 video without changing the composition.
 
 The recorder refuses to start if its port is already occupied. Stop the known process yourself; never kill an unknown listener automatically.
 

@@ -13,7 +13,7 @@ Create one-screen Shiny demos that make one hidden component behavior obvious in
 - Prove the trick on screen through a direct comparison or a two-way proof.
 - Use at least three meaningful actions and three visible state changes in recordings.
 - Prefer Python Shiny Express unless the user requests R or R is materially clearer.
-- Default to a true 9:16 vertical composition (720×1280). Use landscape only on explicit request.
+- Default to a true 9:16 vertical composition (1440×2560). Use landscape only on explicit request.
 - Keep the app small, realistic, and understandable without narration.
 - Use official Shiny documentation as the source of truth.
 - Run the bundled shared scripts; never generate a demo-specific recorder or validator.
@@ -175,7 +175,7 @@ For an app:
 For a recording:
 
 - Run `validate_demo.py` successfully; missing-overlay warnings are expected for clean recordings.
-- Confirm `artifacts/demo.mp4` is 720×1280 unless landscape was explicitly requested.
+- Confirm `artifacts/demo.mp4` is 1440×2560 unless landscape was explicitly requested.
 - Inspect the first, reveal, code, and final frames at phone size; confirm no planning beat names or progress rail appear over the app.
 - Confirm the visible cursor reaches each interactive target.
 - Confirm the narration would finish before the video ends.

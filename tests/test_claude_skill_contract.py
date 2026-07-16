@@ -122,6 +122,9 @@ class ClaudeRecorderContractTest(unittest.TestCase):
             "start_app_with_retry",
             "human_drag",
             "libx264",
+            "--force-device-scale-factor=2",
+            "viewport=viewport",
+            '"-crf"',
         ):
             self.assertIn(marker, source)
         self.assertNotIn("kill -9", source)

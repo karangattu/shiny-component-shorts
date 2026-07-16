@@ -46,8 +46,8 @@ Do not add motion that competes with the component. Pointer movement alone is no
 
 Design for 9:16 from the start.
 
-- Record at 720×1280 or 1080×1920.
-- Keep essential text inside a central safe area with roughly 90 px side margins at 720×1280.
+- Record vertical video at 1440×2560 and horizontal video at 2560×1440.
+- Compose against the logical 720×1280 or 1280×720 viewport; Chromium renders that layout at native 2× HiDPI resolution.
 - Leave the top 12–16% visually quiet for later editing and the bottom 12–16% for captions.
 - Use one primary card or panel; avoid desktop sidebars and wide multi-column dashboards.
 - Make controls large enough for a phone screen and keep labels short.

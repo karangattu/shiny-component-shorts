@@ -142,6 +142,9 @@ class SharedRecorderContractTest(unittest.TestCase):
             "human_drag",
             "video.path()",
             "libx264",
+            "--force-device-scale-factor=2",
+            "viewport=viewport",
+            '"-crf"',
             "terminate_process(proc)",
         ):
             self.assertIn(marker, source)
@@ -206,8 +209,8 @@ class DemoValidatorContractTest(unittest.TestCase):
                 errors, report = validator.validate_project(demo)
                 self.assertEqual(errors, [])
                 self.assertGreaterEqual(report["meaningful_actions"], 3)
-                self.assertEqual(report["video"]["width"], 720)
-                self.assertEqual(report["video"]["height"], 1280)
+                self.assertEqual(report["video"]["width"], 1440)
+                self.assertEqual(report["video"]["height"], 2560)
 
 
 class GeminiTTSContractTest(unittest.TestCase):
