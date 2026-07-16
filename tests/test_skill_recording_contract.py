@@ -289,6 +289,14 @@ class DemoValidatorContractTest(unittest.TestCase):
                 self.assertEqual(report["video"]["width"], 1440)
                 self.assertEqual(report["video"]["height"], 2560)
 
+    def test_new_generated_demos_pass_validation(self) -> None:
+        demos = [ROOT / "modal-shorts", ROOT / "tooltip-shorts"]
+        for demo in demos:
+            with self.subTest(demo=demo.name):
+                errors, report = validator.validate_project(demo, require_audio=True)
+                self.assertEqual(errors, [], f"{demo.name} validation failed: {errors}")
+
+
 
 class GeminiTTSContractTest(unittest.TestCase):
     def test_generate_content_fallback_extracts_audio_and_usage(self) -> None:

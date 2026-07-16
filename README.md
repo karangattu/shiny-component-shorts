@@ -12,7 +12,7 @@ A small repo for generating 30-second videos about Shiny components.
 
 ## Example finished short
 
-<video src="assets/selectize-limit-demo.mp4" controls width="100%"></video>
+<video src="assets/modal_demo_video.mp4" controls width="100%"></video>
 
 ## What this repo does
 
