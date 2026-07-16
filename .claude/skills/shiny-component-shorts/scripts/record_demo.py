@@ -109,6 +109,7 @@ CODE_OVERLAY_JS = """async (cfg) => {
     document.getElementById('__code_overlay_style__')?.remove();
     document.documentElement.classList.remove('__demo_code_side__');
     const sideBySide = cfg.layout === 'side';
+    const uiFont = getComputedStyle(document.body).fontFamily;
     const style = document.createElement('style');
     style.id = '__code_overlay_style__';
     style.textContent = '@keyframes __blink {0%,55%{opacity:1}56%,100%{opacity:0}}'
@@ -133,7 +134,7 @@ CODE_OVERLAY_JS = """async (cfg) => {
     titlebar.textContent = 'Shiny app code';
     titlebar.style.cssText = 'height:28px;display:grid;place-items:center;background:#202020;'
         + 'border-bottom:1px solid #343A46;color:#CDD4DA;'
-        + "font:11px 'Mona Sans',system-ui,sans-serif;";
+        + 'font-size:11px;font-family:' + uiFont + ';';
     const workbench = document.createElement('div');
     workbench.style.cssText = 'display:flex;min-height:146px;flex:1;';
     const activity = document.createElement('div');
@@ -151,12 +152,12 @@ CODE_OVERLAY_JS = """async (cfg) => {
     tab.children[1].textContent = cfg.title;
     tab.style.cssText = 'display:flex;align-items:center;gap:8px;padding:0 12px;background:#1D1F21;'
         + 'border-top:2px solid #007BC2;color:#CDD4DA;'
-        + "font:12px 'Mona Sans',system-ui,sans-serif;";
+        + 'font-size:12px;font-family:' + uiFont + ';';
     tabs.appendChild(tab);
     const breadcrumb = document.createElement('div');
     breadcrumb.textContent = 'src  ›  ' + cfg.title;
     breadcrumb.style.cssText = 'height:25px;padding:5px 12px;color:#8D959E;'
-        + "font:11px 'Mona Sans',system-ui,sans-serif;";
+        + 'font-size:11px;font-family:' + uiFont + ';';
     const codeRow = document.createElement('div');
     codeRow.style.cssText = 'display:flex;padding:10px 14px 15px 0;';
     const gutter = document.createElement('div');

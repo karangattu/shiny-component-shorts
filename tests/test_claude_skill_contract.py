@@ -72,15 +72,25 @@ class ClaudeSkillContractTest(unittest.TestCase):
         self.assertIn("visual-direction matrix", playbook)
         self.assertIn("Do not count a recolor as a distinct hidden behavior", playbook)
 
-    def test_apps_use_mona_sans_and_omit_visible_titles(self) -> None:
+    def test_apps_rotate_four_professional_fonts_and_omit_visible_titles(self) -> None:
         skill = SKILL_MD.read_text(encoding="utf-8")
         playbook = (SKILL / "references/creative-playbook.md").read_text(encoding="utf-8")
+        fonts = {
+            "Mona Sans": "Mona+Sans:wght@400;500;600;700&display=swap",
+            "IBM Plex Sans": "IBM+Plex+Sans:wght@400;500;600;700&display=swap",
+            "Source Sans 3": "Source+Sans+3:wght@400;500;600;700&display=swap",
+            "Manrope": "Manrope:wght@400;500;600;700&display=swap",
+        }
         for source in (skill, playbook):
-            self.assertIn("Mona Sans", source)
-            self.assertIn("Mona+Sans:wght@400;500;600;700&display=swap", source)
+            for family, google_fonts_query in fonts.items():
+                self.assertIn(family, source)
+                self.assertIn(google_fonts_query, source)
+            self.assertIn("Mona Sans → IBM Plex Sans → Source Sans 3 → Manrope", source)
+            self.assertIn("one font family consistently", source)
             self.assertIn("visible app title, page title, eyebrow, kicker, series label", source)
             self.assertIn("problem-led hook", source)
         self.assertIn("--bs-body-font-family", skill)
+        self.assertIn("| Typography |", playbook)
 
     def test_shiny_branding_safe_area_and_horizontal_code_contract(self) -> None:
         skill = SKILL_MD.read_text(encoding="utf-8")
@@ -172,6 +182,11 @@ class ClaudeRecorderContractTest(unittest.TestCase):
         self.assertIn("bottom:20%", recorder.CODE_OVERLAY_JS)
         self.assertNotIn("#4285f4", recorder.CURSOR_OVERLAY_JS + recorder.CODE_OVERLAY_JS)
         self.assertIn("#007bc2", (recorder.CURSOR_OVERLAY_JS + recorder.CODE_OVERLAY_JS).lower())
+        self.assertIn(
+            "const uiFont = getComputedStyle(document.body).fontFamily;",
+            recorder.CODE_OVERLAY_JS,
+        )
+        self.assertNotIn("font:11px 'Mona Sans'", recorder.CODE_OVERLAY_JS)
 
     def test_normalize_overlays_defaults_and_rejections(self) -> None:
         self.assertIsNone(recorder.normalize_overlays({}))
