@@ -14,6 +14,10 @@ The goal is simple:
 
 ![](assets/quality_gate_loop.jpg)
 
+## Example finished short
+
+[Watch the Selectize selection-limit demo](assets/selectize-limit-demo.mp4).
+
 ## What this repo does
 
 This repo contains agent skills for creating:
