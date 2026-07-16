@@ -33,6 +33,10 @@ MEANINGFUL_ACTIONS = frozenset(
 )
 TAG_RE = re.compile(r"\[[^\]]+\]")
 WORD_RE = re.compile(r"\b[\w’'-]+\b")
+FORBIDDEN_VOCALIZATION_RE = re.compile(
+    r"\[[^\]]*\b(?:laugh(?:ing|ter|s)?|giggl(?:e|es|ing)|chuckl(?:e|es|ing))\b[^\]]*\]",
+    re.IGNORECASE,
+)
 
 
 def code_hold_ms(text: str, override: int | None = None) -> int:
@@ -168,6 +172,12 @@ def validate_project(project_dir: Path, require_audio: bool = False) -> tuple[li
     narration_seconds = 0.0
     if require_nonempty(narration_path, errors):
         narration_text = narration_path.read_text(encoding="utf-8")
+        forbidden_cues = FORBIDDEN_VOCALIZATION_RE.findall(narration_text)
+        if forbidden_cues:
+            errors.append(
+                "Narration must not contain laughing or giggling cues: "
+                + ", ".join(forbidden_cues)
+            )
         markers = ("Audio profile:", "Scene:", "Director's notes:", "Transcript:")
         missing_markers = [marker for marker in markers if marker not in narration_text]
         if missing_markers:

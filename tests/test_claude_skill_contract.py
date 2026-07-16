@@ -82,6 +82,25 @@ class ClaudeSkillContractTest(unittest.TestCase):
             self.assertIn("problem-led hook", source)
         self.assertIn("--bs-body-font-family", skill)
 
+    def test_shiny_branding_safe_area_and_horizontal_code_contract(self) -> None:
+        skill = SKILL_MD.read_text(encoding="utf-8")
+        playbook = (SKILL / "references/creative-playbook.md").read_text(encoding="utf-8")
+        pacing = (SKILL / "references/short-form-pacing.md").read_text(encoding="utf-8")
+        recording = (SKILL / "references/recording-contract.md").read_text(encoding="utf-8")
+        tts = (SKILL / "references/tts-and-costs.md").read_text(encoding="utf-8")
+
+        for source in (skill, playbook, pacing):
+            self.assertIn("top 20%", source)
+            self.assertIn("bottom 20%", source)
+            self.assertIn("available horizontal space", source)
+        for source in (skill, playbook, pacing, recording):
+            self.assertIn("#007BC2", source)
+            self.assertIn("#1D1F21", source)
+            self.assertIn("#FFFFFF", source)
+        self.assertIn("side-by-side", pacing)
+        self.assertIn("side-by-side", recording)
+        self.assertIn("Do not laugh, giggle, or chuckle", tts)
+
     def test_skill_mandates_clean_recordings_and_loudness_normalization(self) -> None:
         text = SKILL_MD.read_text(encoding="utf-8")
         self.assertIn("clean browser recording", text)
@@ -137,6 +156,22 @@ class ClaudeRecorderContractTest(unittest.TestCase):
         self.assertEqual(recorder.code_hold_ms("x" * 60), 3200 + 55 * 60)
         self.assertEqual(recorder.code_hold_ms("x" * 500), 10000)
         self.assertEqual(recorder.code_hold_ms("x" * 500, override=4200), 4200)
+
+    def test_horizontal_code_uses_a_side_panel_and_shiny_palette(self) -> None:
+        horizontal = recorder.code_overlay_config(
+            "horizontal", {"title": "app.py", "text": "ui.input_slider(...)"}
+        )
+        vertical = recorder.code_overlay_config(
+            "vertical", {"title": "app.py", "text": "ui.input_slider(...)"}
+        )
+
+        self.assertEqual(horizontal["layout"], "side")
+        self.assertEqual(vertical["layout"], "overlay")
+        self.assertIn("__demo_code_side__", recorder.CODE_OVERLAY_JS)
+        self.assertIn("top:20%", recorder.CODE_OVERLAY_JS)
+        self.assertIn("bottom:20%", recorder.CODE_OVERLAY_JS)
+        self.assertNotIn("#4285f4", recorder.CURSOR_OVERLAY_JS + recorder.CODE_OVERLAY_JS)
+        self.assertIn("#007bc2", (recorder.CURSOR_OVERLAY_JS + recorder.CODE_OVERLAY_JS).lower())
 
     def test_normalize_overlays_defaults_and_rejections(self) -> None:
         self.assertIsNone(recorder.normalize_overlays({}))
@@ -251,6 +286,30 @@ class ClaudeValidatorContractTest(unittest.TestCase):
             self.assertTrue(any("caption" in warning for warning in warnings))
             self.assertTrue(any("beat" in warning for warning in warnings))
             self.assertFalse(any("hook" in error for error in errors))
+
+    def test_validator_rejects_laughing_and_giggling_cues(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project = Path(temp_dir)
+            (project / "artifacts").mkdir()
+            (project / "app.py").write_text("# test app\n", encoding="utf-8")
+            (project / "actions.yaml").write_text(
+                "actions:\n"
+                "  - click: '#one'\n"
+                "  - click: '#two'\n"
+                "  - click: '#three'\n"
+                "  - screenshot: {path: artifacts/final.png}\n",
+                encoding="utf-8",
+            )
+            transcript = " ".join(["word"] * 60)
+            (project / "artifacts/narration.txt").write_text(
+                "Audio profile:\nCalm.\n\nScene:\nA demo.\n\n"
+                "Director's notes:\nRead only the transcript.\n\nTranscript:\n"
+                f"[short pause] {transcript} [laughing] [giggles]",
+                encoding="utf-8",
+            )
+            errors, _ = validator.validate_project(project)
+
+        self.assertTrue(any("laughing or giggling" in error for error in errors))
 
     def test_reference_demos_pass_the_claude_validator(self) -> None:
         for demo in ("slider-range-shorts", "toolbar-button-shorts"):

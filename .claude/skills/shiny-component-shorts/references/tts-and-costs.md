@@ -7,19 +7,19 @@ Read this reference only when narration audio, a finished video with audio, or c
 Write `artifacts/narration.txt` in this form:
 
 ```text
-Synthesize this as a natural, curious tech explainer for a 30-second vertical video.
+Synthesize this as a natural, curious tech explainer for a 30-second Shiny component video.
 
 Audio profile:
-A clear developer voice. Brisk, precise, lightly amused, and not salesy.
+A clear developer voice. Brisk, precise, warm, and not salesy. No non-speech vocalizations.
 
 Scene:
 [One sentence describing the visible demo.]
 
 Director's notes:
-Keep the pace fast enough for a short video. Use small pauses before reveals. Emphasize the surprising behavior. Do not sound like a corporate tutorial. Read only the transcript below.
+Keep the pace fast enough for a short video. Use small pauses before reveals. Emphasize the surprising behavior. Do not laugh, giggle, or chuckle. Do not add sighs, gasps, coughs, filler sounds, or any other non-speech vocalization. Do not sound like a corporate tutorial. Read only the transcript below.
 
 Transcript:
-[60–85 spoken words with 2–5 intentional inline cues.]
+[60–85 spoken words with 3–6 intentional pacing or emphasis cues.]
 ```
 
 Use three aligned controls:
@@ -28,18 +28,17 @@ Use three aligned controls:
 2. Write transcript language that naturally supports that performance.
 3. Use bracketed tags only for a localized change that matches a visible beat.
 
-Useful inline cues include:
+Useful inline cues are limited to pacing and restrained emphasis:
 
-- Reactions and non-speech sounds: `[laughing]`, `[giggles]`, `[sigh]`, `[gasp]`, `[cough]`, or `[uhm]`.
-- Local delivery changes: `[whispering]`, `[shouting]`, `[sarcasm]`, `[robotic]`, or `[extremely fast]`.
 - Pacing: `[short pause]` (about 250 ms), `[medium pause]` (about 500 ms), or `[long pause]` (about one second or more).
-- Creative natural-language cues such as `[sarcastically, one painfully slow word at a time]` when the moment genuinely calls for them.
+- Local delivery changes: `[slightly firmer]`, `[slower]`, or `[quickly]` when they match a visible beat.
+- Do not use reaction or non-speech tags. The validator rejects laugh, laughter, giggle, and chuckle variants.
 
-For a developer short, prefer a restrained arc: conversational hook, a short or medium pause before the reveal, slightly firmer delivery for the decisive code line, and a warm payoff. Use non-verbal sounds only when they would feel natural from a real presenter; most shorts need zero or one. Do not stack tags, repeat the same cue mechanically, or use shouting, panic, crying, coughing, or character voices merely to create variety.
+For a developer short, prefer a restrained arc: conversational hook, a short or medium pause before the reveal, slightly firmer delivery for the decisive code line, and a warm payoff. Do not stack tags, repeat the same cue mechanically, or use shouting, panic, crying, coughing, character voices, or any non-verbal sound.
 
 Treat tags as preview-model hints, not a closed vocabulary or timing guarantee. Prefer the documented named pause tags over invented exact-duration syntax such as `[pause=1.0]` unless that syntax has been tested with the current model. Emotional adjective tags such as `[curious]`, `[scared]`, or `[bored]` can occasionally be vocalized; express the overall emotion in the director's notes and verify any inline adjective tag before keeping it. Do not include timestamps or visual stage directions in the transcript.
 
-For a narrated series, vary the performance direction as deliberately as the visual direction. For example, use one curious discovery, one calm diagnostic explanation, one lightly amused comparison, one focused accessibility demonstration, and one brisk reference-style proof rather than giving every video the same excited delivery.
+For a narrated series, vary the performance direction as deliberately as the visual direction. For example, use one curious discovery, one calm diagnostic explanation, one measured comparison, one focused accessibility demonstration, and one brisk reference-style proof rather than giving every video the same excited delivery.
 
 ## Generate audio
 
@@ -66,14 +65,14 @@ After verifying the WAV is non-empty and the video is long enough:
 ffmpeg -y \
   -i demo-name/artifacts/demo.mp4 \
   -i demo-name/artifacts/narration.wav \
-  -af "loudnorm=I=-14:TP=-1.5:LRA=11" \
+  -af "loudnorm=I=-14:TP=-1.5:LRA=11,apad" \
   -c:v copy -c:a aac -shortest \
   demo-name/artifacts/final_with_audio.mp4
 ```
 
-The `loudnorm` filter normalizes the narration to -14 LUFS, the loudness target short-form platforms use, so videos in a series play at consistent volume regardless of TTS voice.
+The `loudnorm` filter normalizes the narration to -14 LUFS so videos in a series play at consistent volume regardless of TTS voice. `apad` preserves the clean recording through its final payoff when narration ends first; `-shortest` then stops at the video boundary instead of cutting the visuals to the audio duration.
 
-Listen to the final output. Reject truncated narration, audible tag names, unintended vocalizations, awkward tag transitions, mispronounced code that changes meaning, or voiceover that describes a different state from the screen. Regenerate after simplifying or moving unreliable inline direction into `Director's notes`.
+Listen to the final output. Reject truncated narration, audible tag names, laughter, giggling, chuckling, any other unintended vocalization, awkward tag transitions, mispronounced code that changes meaning, or voiceover that describes a different state from the screen. If any laugh-like sound is present, regenerate after simplifying the inline direction; do not mask it with music or leave it in the final video.
 
 ## Cost reporting
 

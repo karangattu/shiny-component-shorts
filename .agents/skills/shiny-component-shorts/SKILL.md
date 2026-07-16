@@ -15,6 +15,8 @@ Create one-screen Shiny demos that make one hidden component behavior obvious in
 - Prefer Python Shiny Express unless the user requests R or R is materially clearer.
 - Default to a true 9:16 vertical composition. Use landscape only when the user explicitly requests it.
 - Keep the app small, realistic, and understandable without narration.
+- Reserve the top 20% and bottom 20% of every frame for later branding; make the app fill the available horizontal space in the middle 60% height band.
+- Use only the Shiny preset palette, led by `#007BC2`, with `#1D1F21` text on light surfaces and `#FFFFFF` text on dark surfaces.
 - Use official Shiny documentation as the source of truth.
 
 Read [references/creative-playbook.md](references/creative-playbook.md) before choosing the feature or writing the app. For recordings or editing, also read [references/short-form-pacing.md](references/short-form-pacing.md) and [references/recording-contract.md](references/recording-contract.md). For narration audio or cost reporting, read [references/tts-and-costs.md](references/tts-and-costs.md).
@@ -110,6 +112,8 @@ If the proposed action plan cannot produce three meaningful reactions from the s
 - Prefer one primary card or panel.
 - Use Mona Sans for all app UI text, including controls. Load weights 400, 500, 600, and 700 from `https://fonts.googleapis.com/css2?family=Mona+Sans:wght@400;500;600;700&display=swap`; set `--bs-body-font-family: "Mona Sans", system-ui, sans-serif` and apply the same `font-family` stack to `body`, `button`, `input`, `select`, and `textarea`.
 - Do not render a visible app title, page title, eyebrow, kicker, series label, or oversized marketing headline. Keep the problem-led hook in the storyboard, narration, or later edit; start the app UI directly with the component or its realistic field/task label.
+- Keep the top 20% and bottom 20% visually empty. In the middle band, use 3–5% side gutters, remove narrow desktop `max-width` constraints, and stretch the primary panel across the available horizontal space.
+- Use the Shiny preset palette consistently: primary `#007BC2`; light surfaces `#FFFFFF`/`#F8F8F8` with `#1D1F21` primary text and `#48505F` secondary text; dark surfaces `#1D1F21`/`#202020` with `#FFFFFF` primary text and `#CDD4DA` secondary text. Use other Shiny semantic colors only when they convey state.
 - Use tiny inline data or built-in data.
 - Use realistic labels and uneven values; avoid lorem ipsum, `Item 1`, `foo`, or synthetic filler.
 - Add stable input IDs and selectors for every recorded target.
@@ -132,7 +136,7 @@ Use this sequence:
 
 These beat names are planning labels only. They organize the storyboard, action timing, and review frames; do not render them as labels, chips, or a progress rail in the video.
 
-Keep narration around 60–85 spoken words. Make every sentence describe something literally visible. Use contractions and natural developer language; avoid stock AI phrasing, parameter tours, and forced punchlines. For audio, use the prompt-and-tag hierarchy and verification rules in [references/tts-and-costs.md](references/tts-and-costs.md); tags must support the visible moment rather than decorate every sentence.
+Keep narration around 60–85 spoken words. Make every sentence describe something literally visible. Use contractions and natural developer language; avoid stock AI phrasing, parameter tours, and forced punchlines. Never use laughter, giggling, chuckling, or other non-speech vocalizations. For audio, use the prompt-and-tag hierarchy and verification rules in [references/tts-and-costs.md](references/tts-and-costs.md); tags must support the visible moment rather than decorate every sentence.
 
 ## Recording rules
 
@@ -142,6 +146,7 @@ Keep narration around 60–85 spoken words. Make every sentence describe somethi
 - Keep ordinary waits between 500 and 3000 ms.
 - Use varied waits and allow the biggest reveal to breathe.
 - Include one concise animated `code` action timed to the narration’s code sentence.
+- In horizontal mode, the `code` action must use the recorder's side-by-side layout so the app remains visible beside the code; do not cover the app with the code panel.
 - Keep the action sequence at least as long as the estimated narration.
 - End with `screenshot: {path: "artifacts/final.png"}`.
 - Let selector, server, browser, FFmpeg, and validation failures stop the workflow.
@@ -167,7 +172,7 @@ For a recording:
 For audio:
 
 - Confirm `artifacts/narration.wav` and `artifacts/final_with_audio.mp4` are non-empty.
-- Listen for truncation, incorrect code pronunciation, or mismatched timing.
+- Listen for truncation, incorrect code pronunciation, mismatched timing, laughing, giggling, chuckling, or any other unintended vocal sound.
 
 Do not claim an artifact was generated if its file does not exist.
 

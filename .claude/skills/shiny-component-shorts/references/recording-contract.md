@@ -21,6 +21,10 @@ Options:
 - Vertical is the default. Set horizontal only when the user explicitly requests it.
 - The recorder preserves a 720×1280 or 1280×720 logical layout and launches Chromium in native 2× HiDPI mode, producing true 1440×2560 or 2560×1440 video without changing the composition.
 
+Author the app with an empty top 20% and bottom 20% for later branding. The app belongs in the middle 60% band and should span the available horizontal space between 3–5% side gutters.
+
+The `code` action is orientation-aware. Vertical recordings use a compact panel over the live app. Horizontal recordings switch to a side-by-side composition: the live app reflows on the left while the code panel occupies the right, so neither is hidden. The code panel uses the Shiny preset palette: `#007BC2` accent, `#1D1F21`/`#202020` dark surfaces, `#FFFFFF` primary text, and `#CDD4DA` secondary text.
+
 The recorder refuses to start if its port is already occupied. Stop the known process yourself; never kill an unknown listener automatically.
 
 ## Action file
@@ -74,7 +78,7 @@ Supported actions are `wait_for`, `wait`, `click`, `drag`, `select_option`, `hov
 - `fill` changes a field instantly; reserve it for clearing or realistic paste actions.
 - `type` clicks, focuses, moves the caret to the end, and types sequentially. Use 35–70 ms per character.
 - `press` sends one named key to the selector.
-- `code` types a compact editor card over the live app, holds it by reading time, then removes it.
+- `code` types a compact Shiny-branded editor card, holds it by reading time, then removes it. In horizontal mode it uses the side-by-side layout instead of overlaying the app.
 - `screenshot` writes a full-page screenshot relative to the demo directory.
 - Legacy `caption`, `beat`, and `label` actions inject visible overlays and require an `overlays` block. Do not use them in skill-generated recordings. In particular, storyboard beat names such as `Reveal` and `Proof` are planning metadata, not action entries.
 

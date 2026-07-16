@@ -45,7 +45,7 @@ CURSOR_OVERLAY_JS = r"""(() => {
             }
             .__demo_cursor_ripple__ {
                 position: fixed; z-index: 2147483646; width: 28px; height: 28px;
-                border: 2px solid rgba(66, 133, 244, .75); border-radius: 50%;
+                border: 2px solid rgba(0, 123, 194, .75); border-radius: 50%;
                 pointer-events: none; animation: __demo_cursor_ripple__ 420ms ease-out forwards;
             }
         `;
@@ -57,11 +57,11 @@ CURSOR_OVERLAY_JS = r"""(() => {
         cursor.setAttribute('viewBox', '0 0 24 30');
         cursor.style.cssText = 'position:fixed;left:0;top:0;width:22px;height:28px;'
             + 'z-index:2147483647;pointer-events:none;opacity:0;'
-            + 'filter:drop-shadow(0 1px 1px rgba(0,0,0,.55));transform-origin:2px 2px;';
+            + 'filter:drop-shadow(0 1px 1px rgba(29,31,33,.55));transform-origin:2px 2px;';
         const arrow = document.createElementNS(ns, 'path');
         arrow.setAttribute('d', 'M2 2 L2 23 L7.5 17.5 L12.5 28 L16.5 26 L11.5 16 L21 16 Z');
-        arrow.setAttribute('fill', '#fff');
-        arrow.setAttribute('stroke', '#171717');
+        arrow.setAttribute('fill', '#FFFFFF');
+        arrow.setAttribute('stroke', '#1D1F21');
         arrow.setAttribute('stroke-width', '1.4');
         arrow.setAttribute('stroke-linejoin', 'round');
         cursor.appendChild(arrow);
@@ -101,59 +101,73 @@ CURSOR_OVERLAY_JS = r"""(() => {
 CODE_OVERLAY_JS = """async (cfg) => {
     document.getElementById('__code_overlay__')?.remove();
     document.getElementById('__code_overlay_style__')?.remove();
+    document.documentElement.classList.remove('__demo_code_side__');
+    const sideBySide = cfg.layout === 'side';
     const style = document.createElement('style');
     style.id = '__code_overlay_style__';
     style.textContent = '@keyframes __blink {0%,55%{opacity:1}56%,100%{opacity:0}}'
         + '#__code_overlay__ .cursor{animation:__blink 1s step-end infinite;}'
-        + '#__code_overlay__ *{box-sizing:border-box;}';
+        + '#__code_overlay__ *{box-sizing:border-box;}'
+        + 'html.__demo_code_side__ body{width:54vw!important;max-width:54vw!important;'
+        + 'margin-left:2vw!important;margin-right:0!important;overflow-x:hidden!important;}'
+        + 'html.__demo_code_side__ body>*:not(#__code_overlay__){max-width:100%!important;}';
     document.head.appendChild(style);
     const el = document.createElement('div');
     el.id = '__code_overlay__';
-    el.style.cssText = 'position:fixed;left:5%;right:5%;top:34%;z-index:99999;'
-        + 'background:#181818;border:1px solid #3c3c3c;border-radius:10px;'
-        + 'box-shadow:0 18px 60px rgba(0,0,0,.55);overflow:hidden;';
+    el.style.cssText = sideBySide
+        ? 'position:fixed;top:20%;bottom:20%;right:3%;width:41%;z-index:99999;'
+            + 'display:flex;flex-direction:column;background:#1D1F21;'
+            + 'border:1px solid #48505F;border-radius:10px;'
+            + 'box-shadow:0 18px 60px rgba(29,31,33,.55);overflow:hidden;'
+        : 'position:fixed;left:4%;right:4%;top:28%;max-height:52%;z-index:99999;'
+            + 'background:#1D1F21;border:1px solid #48505F;border-radius:10px;'
+            + 'box-shadow:0 18px 60px rgba(29,31,33,.55);overflow:hidden;';
+    if (sideBySide) document.documentElement.classList.add('__demo_code_side__');
     const titlebar = document.createElement('div');
-    titlebar.textContent = 'Visual Studio Code';
-    titlebar.style.cssText = 'height:28px;display:grid;place-items:center;background:#181818;'
-        + 'border-bottom:1px solid #2b2b2b;color:#a9a9a9;font:11px -apple-system,sans-serif;';
+    titlebar.textContent = 'Shiny app code';
+    titlebar.style.cssText = 'height:28px;display:grid;place-items:center;background:#202020;'
+        + 'border-bottom:1px solid #343A46;color:#CDD4DA;'
+        + "font:11px 'Mona Sans',system-ui,sans-serif;";
     const workbench = document.createElement('div');
-    workbench.style.cssText = 'display:flex;min-height:146px;';
+    workbench.style.cssText = 'display:flex;min-height:146px;flex:1;';
     const activity = document.createElement('div');
     activity.id = '__code_activity_bar__';
     activity.innerHTML = '<div>▱</div><div>⌕</div><div>⑂</div>';
-    activity.style.cssText = 'width:38px;flex:0 0 38px;background:#181818;color:#8f8f8f;'
-        + 'border-right:1px solid #2b2b2b;text-align:center;font:20px/38px sans-serif;';
+    activity.style.cssText = 'width:38px;flex:0 0 38px;background:#202020;color:#8D959E;'
+        + 'border-right:1px solid #343A46;text-align:center;font:20px/38px sans-serif;';
     const editor = document.createElement('div');
-    editor.style.cssText = 'min-width:0;flex:1;background:#1e1e1e;';
+    editor.style.cssText = 'min-width:0;flex:1;background:#1D1F21;';
     const tabs = document.createElement('div');
-    tabs.style.cssText = 'height:34px;display:flex;background:#181818;border-bottom:1px solid #2b2b2b;';
+    tabs.style.cssText = 'height:34px;display:flex;background:#202020;border-bottom:1px solid #343A46;';
     const tab = document.createElement('div');
     tab.id = '__code_tab__';
-    tab.innerHTML = '<span style="color:#519aba;font-weight:800">PY</span><span></span><span>×</span>';
+    tab.innerHTML = '<span style="color:#007BC2;font-weight:800">PY</span><span></span><span>×</span>';
     tab.children[1].textContent = cfg.title;
-    tab.style.cssText = 'display:flex;align-items:center;gap:8px;padding:0 12px;background:#1e1e1e;'
-        + 'border-top:1px solid #75beff;color:#cccccc;font:12px -apple-system,sans-serif;';
+    tab.style.cssText = 'display:flex;align-items:center;gap:8px;padding:0 12px;background:#1D1F21;'
+        + 'border-top:2px solid #007BC2;color:#CDD4DA;'
+        + "font:12px 'Mona Sans',system-ui,sans-serif;";
     tabs.appendChild(tab);
     const breadcrumb = document.createElement('div');
     breadcrumb.textContent = 'src  ›  ' + cfg.title;
-    breadcrumb.style.cssText = 'height:25px;padding:5px 12px;color:#8f8f8f;'
-        + 'font:11px -apple-system,sans-serif;';
+    breadcrumb.style.cssText = 'height:25px;padding:5px 12px;color:#8D959E;'
+        + "font:11px 'Mona Sans',system-ui,sans-serif;";
     const codeRow = document.createElement('div');
     codeRow.style.cssText = 'display:flex;padding:10px 14px 15px 0;';
     const gutter = document.createElement('div');
     gutter.id = '__code_gutter__';
     gutter.textContent = '1';
     gutter.style.cssText = 'width:42px;flex:0 0 42px;padding-right:12px;text-align:right;'
-        + 'white-space:pre;color:#6e7681;font:15px/1.65 ui-monospace,monospace;user-select:none;';
+        + "white-space:pre;color:#8D959E;font:15px/1.65 'Source Code Pro',ui-monospace,monospace;"
+        + 'user-select:none;';
     const body = document.createElement('div');
-    body.style.cssText = 'min-width:0;white-space:pre-wrap;color:#d4d4d4;'
-        + "font-family:'JetBrains Mono','Fira Code','SF Mono',ui-monospace,Menlo,monospace;"
+    body.style.cssText = 'min-width:0;white-space:pre-wrap;color:#FFFFFF;'
+        + "font-family:'Source Code Pro','SF Mono',ui-monospace,Menlo,monospace;"
         + 'font-size:15px;line-height:1.65;';
     const text = document.createElement('span');
     const cursor = document.createElement('span');
     cursor.className = 'cursor';
     cursor.textContent = '\\u258B';
-    cursor.style.color = '#75beff';
+    cursor.style.color = '#007BC2';
     body.append(text, cursor);
     codeRow.append(gutter, body);
     editor.append(tabs, breadcrumb, codeRow);
@@ -175,6 +189,17 @@ def resolve_orientation(cli_value: str | None, config: dict) -> str:
     if orientation not in {"vertical", "horizontal"}:
         raise ValueError(f"Unsupported orientation: {orientation}")
     return orientation
+
+
+def code_overlay_config(orientation: str, action: dict) -> dict:
+    if orientation not in {"vertical", "horizontal"}:
+        raise ValueError(f"Unsupported orientation: {orientation}")
+    return {
+        "title": action.get("title", "app.py"),
+        "text": str(action["text"]).rstrip("\n"),
+        "typeMs": action.get("type_ms", 22),
+        "layout": "side" if orientation == "horizontal" else "overlay",
+    }
 
 
 def code_hold_ms(text: str, override: int | None = None) -> int:
@@ -266,7 +291,9 @@ def validate_action_shape(action: object) -> str:
     return name
 
 
-def run_actions(page, actions: list[dict], project_dir: Path) -> None:
+def run_actions(
+    page, actions: list[dict], project_dir: Path, orientation: str = "vertical"
+) -> None:
     for action in actions:
         name = validate_action_shape(action)
         value = action[name]
@@ -299,19 +326,14 @@ def run_actions(page, actions: list[dict], project_dir: Path) -> None:
         elif name == "press":
             page.locator(value["selector"]).press(value["key"])
         elif name == "code":
-            text = value["text"].rstrip("\n")
-            page.evaluate(
-                CODE_OVERLAY_JS,
-                {
-                    "title": value.get("title", "app.py"),
-                    "text": text,
-                    "typeMs": value.get("type_ms", 22),
-                },
-            )
+            config = code_overlay_config(orientation, value)
+            text = config["text"]
+            page.evaluate(CODE_OVERLAY_JS, config)
             page.wait_for_timeout(code_hold_ms(text, value.get("duration")))
             page.evaluate(
                 "() => { document.getElementById('__code_overlay__')?.remove();"
-                " document.getElementById('__code_overlay_style__')?.remove(); }"
+                " document.getElementById('__code_overlay_style__')?.remove();"
+                " document.documentElement.classList.remove('__demo_code_side__'); }"
             )
         elif name == "screenshot":
             target = project_dir / value["path"]
@@ -382,7 +404,7 @@ def record_project(
             page.goto(url)
             page.wait_for_load_state("networkidle")
             page.wait_for_timeout(3000)
-            run_actions(page, config["actions"], project_dir)
+            run_actions(page, config["actions"], project_dir, orientation)
             context.close()
             video_source = Path(video.path())
             browser.close()

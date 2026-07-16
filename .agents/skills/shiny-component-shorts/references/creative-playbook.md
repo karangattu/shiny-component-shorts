@@ -60,14 +60,32 @@ Strong candidates include:
 - Use one card unless the comparison requires two adjacent or stacked states.
 - Use Mona Sans throughout the app UI and controls. Load `https://fonts.googleapis.com/css2?family=Mona+Sans:wght@400;500;600;700&display=swap` and retain `system-ui, sans-serif` as the fallback stack.
 - Do not put a visible app title, page title, eyebrow, kicker, series label, or oversized marketing headline above the component. The app should begin directly with the component or a realistic field/task label; keep the problem-led hook in narration, storyboarding, or later editing.
-- Reserve top and bottom space for short-form overlays in vertical recordings.
+- Reserve the top 20% and bottom 20% of the frame for later branding. Center the app in the middle 60% band, use 3–5% side gutters, and stretch its primary card or panel across the available horizontal space; do not use a narrow desktop `max-width` that creates dead space.
 - Use realistic task content: notes, ticket tags, chart colors, filters, or status changes.
 - Keep state labels concrete: `5 lines`, `2 selected`, `Mode: dark`, not `Output updated`.
 - End on the state that best communicates the feature, not an empty reset.
 
+Use this CSS geometry as the baseline, adapting only when the component needs more room:
+
+```css
+html, body { min-height: 100%; }
+body { box-sizing: border-box; margin: 0; padding: 20vh 4vw; }
+.app-shell { width: 100%; max-width: none; }
+```
+
+## Shiny brand system
+
+Use only colors from the official Shiny Bootstrap preset. Keep one consistent treatment within a video instead of mixing unrelated accents.
+
+- Primary brand color: Shiny blue `#007BC2`.
+- Supporting brand and semantic colors: indigo `#4B00C1`, purple `#74149C`, pink `#BF007F`, red `#C10000`, orange `#F45100`, yellow `#F9B928`, green `#00891A`, teal `#00BF7F`, and cyan `#03C7E8`.
+- Light mode: `#FFFFFF` or `#F8F8F8` surfaces, `#1D1F21` primary text, `#48505F` secondary text, and `#007BC2` for interactive emphasis.
+- Dark mode: `#1D1F21` or `#202020` surfaces, `#FFFFFF` primary text, `#CDD4DA` secondary text, and `#007BC2` or another accessible Shiny semantic color for emphasis.
+- Keep normal text at WCAG AA contrast. In particular, do not use cyan, yellow, or orange as small text on a light surface; use them as fills with `#1D1F21` foreground when needed.
+
 ## Series visual variety
 
-Build a recognizable series through consistent typography, spacing, pacing, cursor treatment, and code cards—not by repeating the same dark or light canvas in every installment.
+Build a recognizable series through the same Shiny palette, typography, spacing, pacing, cursor treatment, and code cards—not by repeating the same dark or light canvas in every installment.
 
 Before implementing a series, write a compact visual-direction matrix with one row per video and these columns:
 
@@ -122,19 +140,19 @@ Keep the hook short enough to speak while the first action begins.
 For every recorded workflow, including a silent recording, write `artifacts/narration.txt` with this complete timing envelope:
 
 ```text
-Synthesize this as a natural, curious tech explainer for a 30-second vertical video.
+Synthesize this as a natural, curious tech explainer for a 30-second Shiny component video.
 
 Audio profile:
-A clear developer voice. Brisk, precise, lightly amused, and not salesy.
+A clear developer voice. Brisk, precise, warm, and not salesy.
 
 Scene:
 [One sentence describing the visible demo.]
 
 Director's notes:
-Keep the pace fast enough for a short video. Use small pauses before reveals. Emphasize the surprising behavior. Do not sound like a corporate tutorial. Read only the transcript below.
+Keep the pace fast enough for a short video. Use small pauses before reveals. Emphasize the surprising behavior. Do not laugh, giggle, chuckle, or add any non-speech vocalization. Do not sound like a corporate tutorial. Read only the transcript below.
 
 Transcript:
-[60–85 spoken words with 3–6 light delivery tags.]
+[60–85 spoken words with 3–6 intentional pacing or emphasis cues.]
 ```
 
 The envelope is required even when no TTS call will be made. It makes the timing target explicit and keeps the file ready for later audio generation.
@@ -148,4 +166,4 @@ Choose a different concept when:
 - the code overlay contains setup rather than the decisive line;
 - the final frame looks like an ordinary component with no evidence of the trick;
 - the demo teaches several parameters;
-- the component occupies a small part of a mostly empty canvas.
+- the component occupies a small part of a mostly empty canvas or leaves avoidable horizontal dead space.

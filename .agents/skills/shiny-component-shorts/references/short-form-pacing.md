@@ -33,25 +33,29 @@ Then reveal the component behavior that solves it. The first visible state chang
 
 Use a stable composition with frequent information changes:
 
-- Keep the Shiny app as the hero in the center 65–75% of the frame.
+- Keep the Shiny app as the hero in the center height band and stretch it across the available horizontal space between 3–5% side gutters.
 - Make each app state change visually self-explanatory.
 - Cut or punch in on the affected UI region after a meaningful action.
-- Use a compact editor-style code card sized by reading time (typewriter animation + a hold computed from character count); keep the live app visible.
+- Use a compact Shiny-branded code card sized by reading time (typewriter animation + a hold computed from character count); keep the live app visible.
 - Return to the full app for the payoff.
 - Make one visual change every 1.5–3 seconds: interaction, reaction, crop, or caption.
 
 Do not add motion that competes with the component. Pointer movement alone is not a visual change.
 
-## Vertical composition
+## Frame composition
 
-Design for 9:16 from the start.
+Design for the final orientation from the start.
 
 - Record vertical video at 1440×2560 and horizontal video at 2560×1440.
 - Compose against the logical 720×1280 or 1280×720 viewport; Chromium renders that layout at native 2× HiDPI resolution.
-- Leave the top 12–16% visually quiet for later editing and the bottom 12–16% for captions.
+- Leave the top 20% and bottom 20% visually empty for later branding. Put the app in the middle 60% height band and let it occupy all available horizontal space except 3–5% side gutters.
 - Use one primary card or panel; avoid desktop sidebars and wide multi-column dashboards.
 - Make controls large enough for a phone screen and keep labels short.
 - Verify the first, middle, code, and final frames at actual phone size.
+
+In horizontal mode, show the code and live app side-by-side during the code beat: keep the app on the left and the Shiny-branded code panel on the right. Never place the code panel over the app in horizontal mode. In vertical mode, the compact code card may overlay the live app within the middle safe band.
+
+All framing and editing elements must stay in the Shiny preset palette. Use Shiny blue `#007BC2` for primary emphasis, `#FFFFFF`/`#F8F8F8` with `#1D1F21` text for light treatments, and `#1D1F21`/`#202020` with `#FFFFFF` and `#CDD4DA` text for dark treatments.
 
 ## Suggested 30-second edit rhythm
 
@@ -61,12 +65,12 @@ Design for 9:16 from the start.
 | 2–7 | Reveal | App reacts; first caption supports the change |
 | 7–14 | Proof | Second state; punch in on the changing region |
 | 14–19 | Contrast | Reverse or reset to strengthen the proof |
-| 19–23 | Code | Corner code card over the live app |
+| 19–23 | Code | Vertical: compact card over the app. Horizontal: app and code side-by-side |
 | 23–30 | Payoff | Strongest interaction, full app, short takeaway |
 
 ## Editing restraint
 
-- Use one accent color from the app for labels and progress.
+- Use Shiny blue `#007BC2` as the default accent; introduce another Shiny semantic color only when it communicates state.
 - Use one caption style; do not add a display headline inside the app.
 - Prefer hard cuts or quick 120–220 ms scale moves; avoid novelty transitions.
 - Keep captions and the code card from overlapping.

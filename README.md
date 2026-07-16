@@ -107,6 +107,10 @@ The skills require at least three meaningful interactions and three visible stat
 
 Recorded shorts default to a true 9:16 composition with the app as the hero. `Problem → Reveal → Proof → Code → Payoff` organizes the storyboard and timing, but those planning labels are not shown in the video. The browser deliverable stays clean: no beat rail, numbered state chips, or planning labels over the app. The detailed pacing rules live in each skill's `references/short-form-pacing.md` file.
 
+Every composition reserves the top 20% and bottom 20% for later branding while the app stretches across the available width in the middle band. Horizontal recordings present the live app and code side-by-side during the code beat. App UI, cursor effects, and code cards use the official Shiny preset palette, including Shiny blue `#007BC2`, accessible `#1D1F21` text on light surfaces, and `#FFFFFF` text on dark surfaces.
+
+Narration uses speech only. Laughing, giggling, chuckling, and other non-speech vocalizations are prohibited by the prompt contract and rejected by validation.
+
 ## Gemini 3.1 TTS
 
 Install the official Gemini SDK and expose the key to the shell that launches Codex or Claude:
