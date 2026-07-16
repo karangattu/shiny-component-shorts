@@ -1,22 +1,18 @@
 # Shiny Component Shorts
 
-A small repo for generating 30-second “Did you know?” videos about Shiny components.
-
-The goal is simple:
-
-> One Shiny component. One hidden feature. One tiny app.
+A small repo for generating 30-second videos about Shiny components.
 
 ## Skill workflow at a glance
 
-![](assets/process.jpg)
+![Skill workflow at a glance](assets/process.jpg)
 
 ## How we ensure quality
 
-![](assets/quality_gate_loop.jpg)
+![Quality gate loop](assets/quality_gate_loop.jpg)
 
 ## Example finished short
 
-<video src="assets/selectize-limit-demo.mp4" controls width="360" playsinline></video>
+[Watch the example finished short](assets/selectize-limit-demo.mp4)
 
 ## What this repo does
 
