@@ -104,40 +104,67 @@ CODE_OVERLAY_JS = """async (cfg) => {
     const style = document.createElement('style');
     style.id = '__code_overlay_style__';
     style.textContent = '@keyframes __blink {0%,55%{opacity:1}56%,100%{opacity:0}}'
-        + '#__code_overlay__ .cursor{animation:__blink 1s step-end infinite;}';
+        + '#__code_overlay__ .cursor{animation:__blink 1s step-end infinite;}'
+        + '#__code_overlay__ *{box-sizing:border-box;}';
     document.head.appendChild(style);
     const el = document.createElement('div');
     el.id = '__code_overlay__';
     el.style.cssText = 'position:fixed;left:5%;right:5%;top:34%;z-index:99999;'
-        + 'background:#0b1020;border:1px solid rgba(255,255,255,.08);'
-        + 'border-radius:14px;box-shadow:0 18px 60px rgba(0,0,0,.55);overflow:hidden;';
-    const bar = document.createElement('div');
-    bar.style.cssText = 'display:flex;align-items:center;gap:8px;padding:10px 14px;'
-        + 'background:rgba(255,255,255,.05);border-bottom:1px solid rgba(255,255,255,.06);';
-    for (const color of ['#ff5f57', '#febc2e', '#28c840']) {
-        const dot = document.createElement('span');
-        dot.style.cssText = 'width:11px;height:11px;border-radius:50%;background:' + color + ';';
-        bar.appendChild(dot);
-    }
-    const title = document.createElement('span');
-    title.textContent = cfg.title;
-    title.style.cssText = 'margin-left:8px;color:#8b93a7;font-size:12.5px;'
-        + "font-family:ui-monospace,'SF Mono',Menlo,monospace;";
-    bar.appendChild(title);
+        + 'background:#181818;border:1px solid #3c3c3c;border-radius:10px;'
+        + 'box-shadow:0 18px 60px rgba(0,0,0,.55);overflow:hidden;';
+    const titlebar = document.createElement('div');
+    titlebar.textContent = 'Visual Studio Code';
+    titlebar.style.cssText = 'height:28px;display:grid;place-items:center;background:#181818;'
+        + 'border-bottom:1px solid #2b2b2b;color:#a9a9a9;font:11px -apple-system,sans-serif;';
+    const workbench = document.createElement('div');
+    workbench.style.cssText = 'display:flex;min-height:146px;';
+    const activity = document.createElement('div');
+    activity.id = '__code_activity_bar__';
+    activity.innerHTML = '<div>▱</div><div>⌕</div><div>⑂</div>';
+    activity.style.cssText = 'width:38px;flex:0 0 38px;background:#181818;color:#8f8f8f;'
+        + 'border-right:1px solid #2b2b2b;text-align:center;font:20px/38px sans-serif;';
+    const editor = document.createElement('div');
+    editor.style.cssText = 'min-width:0;flex:1;background:#1e1e1e;';
+    const tabs = document.createElement('div');
+    tabs.style.cssText = 'height:34px;display:flex;background:#181818;border-bottom:1px solid #2b2b2b;';
+    const tab = document.createElement('div');
+    tab.id = '__code_tab__';
+    tab.innerHTML = '<span style="color:#519aba;font-weight:800">PY</span><span></span><span>×</span>';
+    tab.children[1].textContent = cfg.title;
+    tab.style.cssText = 'display:flex;align-items:center;gap:8px;padding:0 12px;background:#1e1e1e;'
+        + 'border-top:1px solid #75beff;color:#cccccc;font:12px -apple-system,sans-serif;';
+    tabs.appendChild(tab);
+    const breadcrumb = document.createElement('div');
+    breadcrumb.textContent = 'src  ›  ' + cfg.title;
+    breadcrumb.style.cssText = 'height:25px;padding:5px 12px;color:#8f8f8f;'
+        + 'font:11px -apple-system,sans-serif;';
+    const codeRow = document.createElement('div');
+    codeRow.style.cssText = 'display:flex;padding:10px 14px 15px 0;';
+    const gutter = document.createElement('div');
+    gutter.id = '__code_gutter__';
+    gutter.textContent = '1';
+    gutter.style.cssText = 'width:42px;flex:0 0 42px;padding-right:12px;text-align:right;'
+        + 'white-space:pre;color:#6e7681;font:15px/1.65 ui-monospace,monospace;user-select:none;';
     const body = document.createElement('div');
-    body.style.cssText = 'padding:16px 18px;white-space:pre-wrap;color:#e8ecf4;'
+    body.style.cssText = 'min-width:0;white-space:pre-wrap;color:#d4d4d4;'
         + "font-family:'JetBrains Mono','Fira Code','SF Mono',ui-monospace,Menlo,monospace;"
-        + 'font-size:16px;line-height:1.65;';
+        + 'font-size:15px;line-height:1.65;';
     const text = document.createElement('span');
     const cursor = document.createElement('span');
     cursor.className = 'cursor';
     cursor.textContent = '\\u258B';
-    cursor.style.color = '#7aa2ff';
+    cursor.style.color = '#75beff';
     body.append(text, cursor);
-    el.append(bar, body);
+    codeRow.append(gutter, body);
+    editor.append(tabs, breadcrumb, codeRow);
+    workbench.append(activity, editor);
+    el.append(titlebar, workbench);
     document.body.appendChild(el);
     for (let i = 1; i <= cfg.text.length; i++) {
         text.textContent = cfg.text.slice(0, i);
+        gutter.textContent = Array.from(
+            {length: text.textContent.split('\\n').length}, (_, index) => index + 1
+        ).join('\\n');
         await new Promise(resolve => setTimeout(resolve, cfg.typeMs));
     }
 }"""

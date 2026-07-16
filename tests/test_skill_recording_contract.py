@@ -127,6 +127,9 @@ class SharedRecorderContractTest(unittest.TestCase):
         for marker in (
             "CURSOR_OVERLAY_JS",
             "CODE_OVERLAY_JS",
+            "__code_activity_bar__",
+            "__code_tab__",
+            "__code_gutter__",
             "context.add_init_script(CURSOR_OVERLAY_JS)",
             "press_sequentially",
             "human_drag",

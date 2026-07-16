@@ -103,6 +103,9 @@ class ClaudeRecorderContractTest(unittest.TestCase):
         for marker in (
             "CURSOR_OVERLAY_JS",
             "RETENTION_OVERLAY_JS",
+            "__code_activity_bar__",
+            "__code_tab__",
+            "__code_gutter__",
             "__demo_hook__",
             "__demo_state_label__",
             "__demo_caption__",
