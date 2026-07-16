@@ -47,6 +47,7 @@ Use this workflow when the user asks for multiple videos about one component. Cr
 4. Keep one video focused on one hidden behavior. Changes to labels, data, colors, narration, or setting alone do not make a distinct video.
 5. Make the videos independently producible and order them strongest first.
 6. Before implementation, assign each video a one-line visual direction covering backdrop mode, palette, composition, and setting. For series of three or more, include both light and dark or color-led treatments, and do not let one backdrop treatment dominate more than about half the series unless the user requests a fixed brand system or the component behavior requires it.
+7. When audio is requested, assign each video a one-line performance direction covering persona, emotional arc, pace, and one or two purposeful inline cues. Vary the delivery across the series without turning every short into a character voice.
 
 If the user requests runnable apps, recordings, or finished videos, apply the corresponding workflow separately to each selected idea. Use one directory per video and verify every requested output independently.
 
@@ -129,7 +130,7 @@ Use this sequence:
 
 These beat names are planning labels only. They organize the storyboard, action timing, and review frames; do not render them as labels, chips, or a progress rail in the video.
 
-Keep narration around 60–85 spoken words. Make every sentence describe something literally visible. Use contractions and natural developer language; avoid stock AI phrasing, parameter tours, and forced punchlines.
+Keep narration around 60–85 spoken words. Make every sentence describe something literally visible. Use contractions and natural developer language; avoid stock AI phrasing, parameter tours, and forced punchlines. For audio, use the prompt-and-tag hierarchy and verification rules in [references/tts-and-costs.md](references/tts-and-costs.md); tags must support the visible moment rather than decorate every sentence.
 
 ## Recording rules
 

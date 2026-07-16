@@ -19,10 +19,27 @@ Director's notes:
 Keep the pace fast enough for a short video. Use small pauses before reveals. Emphasize the surprising behavior. Do not sound like a corporate tutorial. Read only the transcript below.
 
 Transcript:
-[60–85 spoken words with 3–6 light delivery tags.]
+[60–85 spoken words with 2–5 intentional inline cues.]
 ```
 
-Prefer `[curious]`, `[amazed]`, `[serious]`, `[whispers]`, `[laughs]`, `[very fast]`, and `[very slow]`. Tags are hints, not guaranteed controls. Do not include timestamps or visual stage directions in the transcript.
+Use three aligned controls:
+
+1. Put the overall persona, emotional register, and default pace in `Audio profile` and `Director's notes`.
+2. Write transcript language that naturally supports that performance.
+3. Use bracketed tags only for a localized change that matches a visible beat.
+
+Useful inline cues include:
+
+- Reactions and non-speech sounds: `[laughing]`, `[giggles]`, `[sigh]`, `[gasp]`, `[cough]`, or `[uhm]`.
+- Local delivery changes: `[whispering]`, `[shouting]`, `[sarcasm]`, `[robotic]`, or `[extremely fast]`.
+- Pacing: `[short pause]` (about 250 ms), `[medium pause]` (about 500 ms), or `[long pause]` (about one second or more).
+- Creative natural-language cues such as `[sarcastically, one painfully slow word at a time]` when the moment genuinely calls for them.
+
+For a developer short, prefer a restrained arc: conversational hook, a short or medium pause before the reveal, slightly firmer delivery for the decisive code line, and a warm payoff. Use non-verbal sounds only when they would feel natural from a real presenter; most shorts need zero or one. Do not stack tags, repeat the same cue mechanically, or use shouting, panic, crying, coughing, or character voices merely to create variety.
+
+Treat tags as preview-model hints, not a closed vocabulary or timing guarantee. Prefer the documented named pause tags over invented exact-duration syntax such as `[pause=1.0]` unless that syntax has been tested with the current model. Emotional adjective tags such as `[curious]`, `[scared]`, or `[bored]` can occasionally be vocalized; express the overall emotion in the director's notes and verify any inline adjective tag before keeping it. Do not include timestamps or visual stage directions in the transcript.
+
+For a narrated series, vary the performance direction as deliberately as the visual direction. For example, use one curious discovery, one calm diagnostic explanation, one lightly amused comparison, one focused accessibility demonstration, and one brisk reference-style proof rather than giving every video the same excited delivery.
 
 ## Generate audio
 
@@ -56,7 +73,7 @@ ffmpeg -y \
 
 The `loudnorm` filter normalizes the narration to -14 LUFS, the loudness target short-form platforms use, so videos in a series play at consistent volume regardless of TTS voice.
 
-Listen to the final output. Reject truncated narration, mispronounced code that changes meaning, or voiceover that describes a different state from the screen.
+Listen to the final output. Reject truncated narration, audible tag names, unintended vocalizations, awkward tag transitions, mispronounced code that changes meaning, or voiceover that describes a different state from the screen. Regenerate after simplifying or moving unreliable inline direction into `Director's notes`.
 
 ## Cost reporting
 
