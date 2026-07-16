@@ -58,7 +58,8 @@ Strong candidates include:
 
 - Make the component the largest meaningful object on screen.
 - Use one card unless the comparison requires two adjacent or stacked states.
-- Do not put an eyebrow, kicker, series label, or oversized marketing headline above the component. The app should begin with the component or a realistic task label; keep the problem-led hook in narration, storyboarding, or later editing.
+- Use Mona Sans throughout the app UI and controls. Load `https://fonts.googleapis.com/css2?family=Mona+Sans:wght@400;500;600;700&display=swap` and retain `system-ui, sans-serif` as the fallback stack.
+- Do not put a visible app title, page title, eyebrow, kicker, series label, or oversized marketing headline above the component. The app should begin directly with the component or a realistic field/task label; keep the problem-led hook in narration, storyboarding, or later editing.
 - Reserve top and bottom space for short-form overlays in vertical recordings.
 - Use realistic task content: notes, ticket tags, chart colors, filters, or status changes.
 - Keep state labels concrete: `5 lines`, `2 selected`, `Mode: dark`, not `Output updated`.

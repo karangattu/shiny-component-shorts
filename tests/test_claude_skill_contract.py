@@ -72,12 +72,15 @@ class ClaudeSkillContractTest(unittest.TestCase):
         self.assertIn("visual-direction matrix", playbook)
         self.assertIn("Do not count a recolor as a distinct hidden behavior", playbook)
 
-    def test_apps_omit_the_marketing_title_stack(self) -> None:
+    def test_apps_use_mona_sans_and_omit_visible_titles(self) -> None:
         skill = SKILL_MD.read_text(encoding="utf-8")
         playbook = (SKILL / "references/creative-playbook.md").read_text(encoding="utf-8")
         for source in (skill, playbook):
-            self.assertIn("eyebrow, kicker, series label, or oversized marketing headline", source)
+            self.assertIn("Mona Sans", source)
+            self.assertIn("Mona+Sans:wght@400;500;600;700&display=swap", source)
+            self.assertIn("visible app title, page title, eyebrow, kicker, series label", source)
             self.assertIn("problem-led hook", source)
+        self.assertIn("--bs-body-font-family", skill)
 
     def test_skill_mandates_clean_recordings_and_loudness_normalization(self) -> None:
         text = SKILL_MD.read_text(encoding="utf-8")

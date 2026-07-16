@@ -16,7 +16,7 @@ The goal is simple:
 
 ## Example finished short
 
-[Watch the Selectize selection-limit demo](assets/selectize-limit-demo.mp4).
+<video src="assets/selectize-limit-demo.mp4" controls width="360" playsinline></video>
 
 ## What this repo does
 

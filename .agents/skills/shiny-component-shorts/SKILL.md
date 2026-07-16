@@ -108,7 +108,8 @@ If the proposed action plan cannot produce three meaningful reactions from the s
 ## App rules
 
 - Prefer one primary card or panel.
-- Do not add an eyebrow, kicker, series label, or oversized marketing headline to the app. Keep the problem-led hook in the storyboard, narration, or later edit; start the app UI with the component or its realistic task label.
+- Use Mona Sans for all app UI text, including controls. Load weights 400, 500, 600, and 700 from `https://fonts.googleapis.com/css2?family=Mona+Sans:wght@400;500;600;700&display=swap`; set `--bs-body-font-family: "Mona Sans", system-ui, sans-serif` and apply the same `font-family` stack to `body`, `button`, `input`, `select`, and `textarea`.
+- Do not render a visible app title, page title, eyebrow, kicker, series label, or oversized marketing headline. Keep the problem-led hook in the storyboard, narration, or later edit; start the app UI directly with the component or its realistic field/task label.
 - Use tiny inline data or built-in data.
 - Use realistic labels and uneven values; avoid lorem ipsum, `Item 1`, `foo`, or synthetic filler.
 - Add stable input IDs and selectors for every recorded target.
