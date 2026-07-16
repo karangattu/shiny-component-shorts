@@ -358,10 +358,14 @@ def record_project(
     app_type: str,
     actions_path: Path,
     orientation_override: str | None,
+    app_dir: Path | None = None,
 ) -> Path:
     from playwright.sync_api import sync_playwright
 
     project_dir = project_dir.resolve()
+    app_dir = (app_dir or project_dir).resolve()
+    if not app_dir.is_dir():
+        raise FileNotFoundError(f"App directory does not exist: {app_dir}")
     config = yaml.safe_load(actions_path.read_text(encoding="utf-8"))
     if not isinstance(config, dict) or not isinstance(config.get("actions"), list):
         raise ValueError("actions.yaml must contain an `actions` list")
@@ -387,7 +391,7 @@ def record_project(
 
     artifacts = project_dir / "artifacts"
     artifacts.mkdir(parents=True, exist_ok=True)
-    proc = start_app(project_dir, app_type, bind_host, port)
+    proc = start_app(app_dir, app_type, bind_host, port)
     try:
         wait_for_server(url)
         with sync_playwright() as playwright:
@@ -469,6 +473,7 @@ def record_project(
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--project-dir", type=Path, required=True)
+    parser.add_argument("--app-dir", type=Path)
     parser.add_argument("--app-type", choices=["python", "r"], default="python")
     parser.add_argument("--actions", type=Path, default=Path("actions.yaml"))
     parser.add_argument("--orientation", choices=["vertical", "horizontal"], default=None)
@@ -480,10 +485,15 @@ def main() -> int:
     project_dir = args.project_dir.resolve()
     if not project_dir.is_dir():
         raise FileNotFoundError(f"Demo directory does not exist: {project_dir}")
+    app_dir = (args.app_dir or project_dir).resolve()
+    if not app_dir.is_dir():
+        raise FileNotFoundError(f"App directory does not exist: {app_dir}")
     actions_path = args.actions if args.actions.is_absolute() else project_dir / args.actions
     if not actions_path.is_file():
         raise FileNotFoundError(f"Action file does not exist: {actions_path}")
-    mp4_path = record_project(project_dir, args.app_type, actions_path, args.orientation)
+    mp4_path = record_project(
+        project_dir, args.app_type, actions_path, args.orientation, app_dir
+    )
     print(f"Recorded: {mp4_path}")
     return 0
 

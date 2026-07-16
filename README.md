@@ -26,6 +26,8 @@ This repo contains agent skills for creating:
 
 The focus is not full tutorials. Each video should reveal one useful, surprising behavior in a component.
 
+You can also point the skill at an existing R Shiny or Shiny for Python app to find one fascinating behavior and create a video without modifying the original app.
+
 ## Setup
 
 Install the Python dependencies and Playwright's Chromium browser:

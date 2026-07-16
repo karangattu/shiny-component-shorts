@@ -118,14 +118,19 @@ def require_nonempty(path: Path, errors: list[str]) -> bool:
     return True
 
 
-def validate_project(project_dir: Path, require_audio: bool = False) -> tuple[list[str], dict]:
+def validate_project(
+    project_dir: Path,
+    require_audio: bool = False,
+    app_dir: Path | None = None,
+) -> tuple[list[str], dict]:
     project_dir = project_dir.resolve()
+    app_dir = (app_dir or project_dir).resolve()
     errors: list[str] = []
     warnings: list[str] = []
     report: dict = {"warnings": warnings}
 
-    if not (project_dir / "app.py").is_file() and not (project_dir / "app.R").is_file():
-        errors.append("Demo must contain app.py or app.R")
+    if not (app_dir / "app.py").is_file() and not (app_dir / "app.R").is_file():
+        errors.append("App directory must contain app.py or app.R")
 
     actions_path = project_dir / "actions.yaml"
     narration_path = project_dir / "artifacts" / "narration.txt"
@@ -270,13 +275,14 @@ def validate_project(project_dir: Path, require_audio: bool = False) -> tuple[li
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--project-dir", type=Path, required=True)
+    parser.add_argument("--app-dir", type=Path)
     parser.add_argument("--require-audio", action="store_true")
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
-    errors, report = validate_project(args.project_dir, args.require_audio)
+    errors, report = validate_project(args.project_dir, args.require_audio, args.app_dir)
     print(json.dumps(report, indent=2, sort_keys=True))
     for warning in report.get("warnings", []):
         print(f"WARNING: {warning}")

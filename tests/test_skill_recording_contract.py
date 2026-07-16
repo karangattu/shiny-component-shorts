@@ -1,5 +1,6 @@
 import importlib.util
 import socket
+import sys
 import tempfile
 from types import SimpleNamespace
 import unittest
@@ -82,7 +83,27 @@ class CodexSkillContractTest(unittest.TestCase):
             self.assertIn("visible app title, page title, eyebrow, kicker, series label", source)
             self.assertIn("problem-led hook", source)
         self.assertIn("--bs-body-font-family", skill)
+        self.assertIn("tags$head", skill)
+        self.assertIn("ui.tags.head", skill)
         self.assertIn("| Typography |", playbook)
+
+    def test_existing_app_workflow_preserves_source_and_selects_one_behavior(self) -> None:
+        skill = CODEX_SKILL.read_text(encoding="utf-8")
+        recording = (SKILL / "references/recording-contract.md").read_text(
+            encoding="utf-8"
+        )
+        for marker in (
+            "### Existing app",
+            "R Shiny or Shiny for Python",
+            "Do not modify, copy, or restyle the existing app",
+            "three meaningful action → reaction beats",
+            "If no behavior passes the proof rule",
+            "--app-dir",
+            "sidecar",
+        ):
+            self.assertIn(marker, skill)
+        self.assertIn("--app-dir", recording)
+        self.assertIn("existing app remains unchanged", recording)
 
     def test_shiny_branding_safe_area_and_horizontal_code_contract(self) -> None:
         skill = CODEX_SKILL.read_text(encoding="utf-8")
@@ -111,6 +132,37 @@ class CodexSkillContractTest(unittest.TestCase):
 
 
 class SharedRecorderContractTest(unittest.TestCase):
+    def test_main_can_record_an_existing_app_into_a_sidecar_project(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            project = root / "video"
+            app_dir = root / "existing-app"
+            project.mkdir()
+            app_dir.mkdir()
+            (project / "actions.yaml").write_text("actions: []\n", encoding="utf-8")
+            calls = []
+            original_argv = sys.argv
+            original_record_project = recorder.record_project
+            try:
+                sys.argv = [
+                    "record_demo.py",
+                    "--project-dir",
+                    str(project),
+                    "--app-dir",
+                    str(app_dir),
+                    "--app-type",
+                    "r",
+                ]
+                recorder.record_project = lambda *args: calls.append(args) or project / "demo.mp4"
+                self.assertEqual(recorder.main(), 0)
+            finally:
+                sys.argv = original_argv
+                recorder.record_project = original_record_project
+
+        self.assertEqual(calls[0][0], project.resolve())
+        self.assertEqual(calls[0][1], "r")
+        self.assertEqual(calls[0][4], app_dir.resolve())
+
     def test_orientation_precedence_and_default(self) -> None:
         self.assertEqual(recorder.resolve_orientation(None, {}), "vertical")
         self.assertEqual(
@@ -205,6 +257,18 @@ class SharedRecorderContractTest(unittest.TestCase):
 
 
 class DemoValidatorContractTest(unittest.TestCase):
+    def test_sidecar_validation_accepts_an_external_app_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            project = root / "video"
+            app_dir = root / "existing-app"
+            project.mkdir()
+            app_dir.mkdir()
+            (app_dir / "app.R").write_text("shinyApp(ui, server)\n", encoding="utf-8")
+            errors, _ = validator.validate_project(project, app_dir=app_dir)
+
+        self.assertFalse(any("contain app.py or app.R" in error for error in errors))
+
     def test_timing_estimator_includes_typing_and_code_reading(self) -> None:
         actions = [
             {"wait": 1000},

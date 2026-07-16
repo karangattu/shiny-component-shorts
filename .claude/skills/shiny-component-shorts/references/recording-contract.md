@@ -16,6 +16,7 @@ python .claude/skills/shiny-component-shorts/scripts/record_demo.py \
 Options:
 
 - `--app-type python|r` selects the Shiny runtime.
+- `--app-dir` optionally selects a separate source directory containing `app.py` or `app.R`; it defaults to `--project-dir`.
 - `--actions` is relative to the demo directory unless absolute.
 - `--orientation vertical|horizontal` overrides `orientation:` in the YAML.
 - Vertical is the default. Set horizontal only when the user explicitly requests it.
@@ -26,6 +27,26 @@ Author the app with an empty top 20% and bottom 20% for later branding. The app 
 The `code` action is orientation-aware. Vertical recordings use a compact panel over the live app. Horizontal recordings switch to a side-by-side composition: the live app reflows on the left while the code panel occupies the right, so neither is hidden. The code panel uses the Shiny preset palette: `#007BC2` accent, `#1D1F21`/`#202020` dark surfaces, `#FFFFFF` primary text, and `#CDD4DA` secondary text.
 
 The recorder refuses to start if its port is already occupied. Stop the known process yourself; never kill an unknown listener automatically.
+
+For an existing app, create a sidecar production directory and keep the source separate:
+
+```bash
+python .claude/skills/shiny-component-shorts/scripts/record_demo.py \
+  --project-dir videos/interesting-filter \
+  --app-dir /path/to/existing-app \
+  --app-type r \
+  --actions actions.yaml
+```
+
+The existing app remains unchanged. The recorder launches it from `--app-dir` while resolving `actions.yaml`, screenshots, narration, and all video artifacts under `--project-dir`.
+
+Validate the sidecar against the same source directory:
+
+```bash
+python .claude/skills/shiny-component-shorts/scripts/validate_demo.py \
+  --project-dir videos/interesting-filter \
+  --app-dir /path/to/existing-app
+```
 
 ## Action file
 

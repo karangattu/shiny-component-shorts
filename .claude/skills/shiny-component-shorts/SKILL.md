@@ -1,6 +1,6 @@
 ---
 name: shiny-component-shorts
-description: Create interactive Shiny Python or R mini-apps, 30-second "Did you know?" video concepts, Gemini 3.1 TTS narration and audio, storyboards, recording automation, and editing notes. Use when the user provides a Shiny component name or docs URL, or asks for a short demo or video around a Shiny UI feature.
+description: Create interactive Shiny Python or R mini-apps, 30-second "Did you know?" video concepts, Gemini 3.1 TTS narration and audio, storyboards, recording automation, and editing notes. Use when the user provides a Shiny component name, docs URL, or existing Shiny app path, or asks for a short demo or video around a Shiny UI feature.
 ---
 
 # Shiny Component Shorts (Claude Code)
@@ -57,6 +57,17 @@ If the user requests runnable apps, recordings, or finished videos, apply the co
 ### Runnable app
 
 Create the idea deliverables plus a minimal `app.py` or `app.R`. Run the app and verify the chosen behavior. Do not create recording or narration files unless requested.
+
+### Existing app
+
+Use this workflow when the user provides a local path to an existing R Shiny or Shiny for Python app and wants one fascinating behavior other developers should know about.
+
+1. Resolve the path. If it points to `app.R` or `app.py`, use its parent as the app directory. Inspect the entry point, modules, dependency manifests, and local run instructions before starting the app. Detect the language from the source; ask only when both runtimes are plausible.
+2. Do not modify, copy, or restyle the existing app unless the user explicitly asks for source changes. Preserve its typography, palette, layout, data, and behavior; the four-font rotation applies only to newly created demos.
+3. Run the app locally in its declared environment and inspect the rendered UI. Do not expose secrets or trigger external writes, messages, purchases, destructive operations, or production-data mutations while exploring or recording.
+4. Inventory surprising reactive behavior, server-driven updates, validation, layout changes, accessibility, or state synchronization already present in the app. Choose one behavior that passes the creative playbook's proof rule, has a concise existing source line, and supports three meaningful action → reaction beats.
+5. Keep the original app as the recording subject. Put `actions.yaml`, narration, and `artifacts/` in a separate sidecar production directory. Run the recorder with that directory as `--project-dir`, the existing source directory as `--app-dir`, and the detected `--app-type r|python`; pass the same two directories to the validator.
+6. If no behavior passes the proof rule, report the strongest near-misses and why they are not visually provable; do not manufacture interactions or quietly rewrite the app.
 
 ### Silent recording
 
@@ -129,6 +140,7 @@ If the proposed action plan cannot produce three meaningful reactions from the s
 - Prefer one primary card or panel sized for a vertical frame.
 - Rotate app typography in this fixed order, then repeat: Mona Sans → IBM Plex Sans → Source Sans 3 → Manrope. Across a planned series, assign the families by video order; do not choose randomly or switch typefaces inside a video.
 - Use one font family consistently for all app UI text and controls. Load weights 400, 500, 600, and 700 from the selected Google Fonts URL: `https://fonts.googleapis.com/css2?family=Mona+Sans:wght@400;500;600;700&display=swap`, `https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap`, `https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&display=swap`, or `https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap`. Set `--bs-body-font-family` to the selected family followed by `system-ui, sans-serif`, and apply the same `font-family` stack to `body`, `button`, `input`, `select`, and `textarea`.
+- The font rule works in both languages: use `tags$head(tags$link(...), tags$style(...))` in R Shiny and `ui.tags.head(ui.tags.link(...), ui.tags.style(...))` in Shiny for Python.
 - Do not render a visible app title, page title, eyebrow, kicker, series label, or oversized marketing headline. Keep the problem-led hook in the storyboard, narration, or later edit; start the app UI directly with the component or its realistic field/task label.
 - Keep the top 20% and bottom 20% visually empty. In the middle band, use 3–5% side gutters, remove narrow desktop `max-width` constraints, and stretch the primary panel across the available horizontal space.
 - Use the Shiny preset palette consistently: primary `#007BC2`; light surfaces `#FFFFFF`/`#F8F8F8` with `#1D1F21` primary text and `#48505F` secondary text; dark surfaces `#1D1F21`/`#202020` with `#FFFFFF` primary text and `#CDD4DA` secondary text. Use other Shiny semantic colors only when they convey state.
