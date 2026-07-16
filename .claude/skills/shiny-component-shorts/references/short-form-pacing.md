@@ -6,8 +6,10 @@ Use these patterns when creating or editing a recorded short. They are derived f
 
 Layer information so the viewer always knows two things:
 
-1. **Why to care:** A persistent 5–9 word pain-led headline near the top.
+1. **Why to care:** A short problem-led hook in narration or later editing, not baked into the app UI.
 2. **What is happening now:** The app state and narration captions make the current action clear.
+
+Do not render the hook as an in-app eyebrow, series label, or oversized headline. Let the component occupy that space.
 
 Use `Reveal`, `Proof`, `Code`, and `Payoff` only as planning labels in the storyboard and edit timeline. Do not show those labels, numbered state chips, or a beat rail in the video.
 
@@ -46,7 +48,7 @@ Design for 9:16 from the start.
 
 - Record at 720×1280 or 1080×1920.
 - Keep essential text inside a central safe area with roughly 90 px side margins at 720×1280.
-- Reserve the top 12–16% for the hook and the bottom 12–16% for captions.
+- Leave the top 12–16% visually quiet for later editing and the bottom 12–16% for captions.
 - Use one primary card or panel; avoid desktop sidebars and wide multi-column dashboards.
 - Make controls large enough for a phone screen and keep labels short.
 - Verify the first, middle, code, and final frames at actual phone size.
@@ -55,7 +57,7 @@ Design for 9:16 from the start.
 
 | Time | Beat | Retention treatment |
 | ---: | --- | --- |
-| 0–2 | Pain | Persistent hook appears; first action starts |
+| 0–2 | Pain | Spoken hook begins; first action starts |
 | 2–7 | Reveal | App reacts; first caption supports the change |
 | 7–14 | Proof | Second state; punch in on the changing region |
 | 14–19 | Contrast | Reverse or reset to strengthen the proof |
@@ -65,7 +67,7 @@ Design for 9:16 from the start.
 ## Editing restraint
 
 - Use one accent color from the app for labels and progress.
-- Use one display style for headlines and one caption style.
+- Use one caption style; do not add a display headline inside the app.
 - Prefer hard cuts or quick 120–220 ms scale moves; avoid novelty transitions.
-- Keep the headline, captions, and code card from overlapping.
-- Never show all overlay layers at once. At most show the headline with a caption, or the headline with the code card.
+- Keep captions and the code card from overlapping.
+- Never show all overlay layers at once. Show either a caption or the code card over the app.

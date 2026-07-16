@@ -64,6 +64,13 @@ class CodexSkillContractTest(unittest.TestCase):
         self.assertIn("visual-direction matrix", playbook)
         self.assertIn("Do not count a recolor as a distinct hidden behavior", playbook)
 
+    def test_apps_omit_the_marketing_title_stack(self) -> None:
+        skill = CODEX_SKILL.read_text(encoding="utf-8")
+        playbook = (SKILL / "references/creative-playbook.md").read_text(encoding="utf-8")
+        for source in (skill, playbook):
+            self.assertIn("eyebrow, kicker, series label, or oversized marketing headline", source)
+            self.assertIn("problem-led hook", source)
+
     def test_codex_metadata_is_present(self) -> None:
         metadata = SKILL / "agents/openai.yaml"
         self.assertTrue(metadata.is_file())

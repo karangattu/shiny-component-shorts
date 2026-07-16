@@ -72,6 +72,13 @@ class ClaudeSkillContractTest(unittest.TestCase):
         self.assertIn("visual-direction matrix", playbook)
         self.assertIn("Do not count a recolor as a distinct hidden behavior", playbook)
 
+    def test_apps_omit_the_marketing_title_stack(self) -> None:
+        skill = SKILL_MD.read_text(encoding="utf-8")
+        playbook = (SKILL / "references/creative-playbook.md").read_text(encoding="utf-8")
+        for source in (skill, playbook):
+            self.assertIn("eyebrow, kicker, series label, or oversized marketing headline", source)
+            self.assertIn("problem-led hook", source)
+
     def test_skill_mandates_clean_recordings_and_loudness_normalization(self) -> None:
         text = SKILL_MD.read_text(encoding="utf-8")
         self.assertIn("clean browser recording", text)

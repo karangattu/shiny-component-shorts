@@ -108,6 +108,7 @@ If the proposed action plan cannot produce three meaningful reactions from the s
 ## App rules
 
 - Prefer one primary card or panel.
+- Do not add an eyebrow, kicker, series label, or oversized marketing headline to the app. Keep the problem-led hook in the storyboard, narration, or later edit; start the app UI with the component or its realistic task label.
 - Use tiny inline data or built-in data.
 - Use realistic labels and uneven values; avoid lorem ipsum, `Item 1`, `foo`, or synthetic filler.
 - Add stable input IDs and selectors for every recorded target.
