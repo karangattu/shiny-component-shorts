@@ -26,6 +26,27 @@ This repo contains agent skills for creating:
 
 The focus is not full tutorials. Each video should reveal one useful, surprising behavior in a component.
 
+## Setup
+
+Install the Python dependencies and Playwright's Chromium browser:
+
+```bash
+python -m pip install -r requirements.txt
+python -m playwright install chromium
+```
+
+Recording and validation also require `ffmpeg` and `ffprobe` on `PATH`.
+
+## Using with Google Antigravity
+
+Open the repository root as the workspace. Antigravity discovers the skill from `.agents/skills/shiny-component-shorts/SKILL.md`.
+
+Then prompt Antigravity:
+
+```text
+Use the shiny-component-shorts skill to create a narrated vertical video about Shiny's date range selector in Python.
+```
+
 ## Using with Claude Code
 
 Run:

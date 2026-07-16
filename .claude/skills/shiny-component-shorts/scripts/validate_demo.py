@@ -40,7 +40,7 @@ WORD_RE = re.compile(r"\b[\w’'-]+\b")
 
 
 def code_hold_ms(text: str, override: int | None = None) -> int:
-    return override or max(3500, min(8000, 1200 + 55 * len(text)))
+    return override or max(5500, min(10000, 3200 + 55 * len(text)))
 
 
 def estimate_action_seconds(actions: list[dict]) -> float:

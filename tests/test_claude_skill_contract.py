@@ -72,9 +72,10 @@ class ClaudeSkillContractTest(unittest.TestCase):
         self.assertIn("visual-direction matrix", playbook)
         self.assertIn("Do not count a recolor as a distinct hidden behavior", playbook)
 
-    def test_skill_mandates_retention_overlays_and_loudness_normalization(self) -> None:
+    def test_skill_mandates_clean_recordings_and_loudness_normalization(self) -> None:
         text = SKILL_MD.read_text(encoding="utf-8")
-        self.assertIn("overlays.hook", text)
+        self.assertIn("clean browser recording", text)
+        self.assertIn("Do not add `beat`, `label`, or `caption` actions", text)
         self.assertIn("loudnorm=I=-14", text)
 
 
@@ -116,9 +117,9 @@ class ClaudeRecorderContractTest(unittest.TestCase):
         self.assertNotIn("kill -9", source)
 
     def test_code_hold_formula(self) -> None:
-        self.assertEqual(recorder.code_hold_ms(""), 3500)
-        self.assertEqual(recorder.code_hold_ms("x" * 60), 1200 + 55 * 60)
-        self.assertEqual(recorder.code_hold_ms("x" * 500), 8000)
+        self.assertEqual(recorder.code_hold_ms(""), 5500)
+        self.assertEqual(recorder.code_hold_ms("x" * 60), 3200 + 55 * 60)
+        self.assertEqual(recorder.code_hold_ms("x" * 500), 10000)
         self.assertEqual(recorder.code_hold_ms("x" * 500, override=4200), 4200)
 
     def test_normalize_overlays_defaults_and_rejections(self) -> None:

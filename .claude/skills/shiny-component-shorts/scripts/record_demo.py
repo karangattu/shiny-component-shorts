@@ -263,7 +263,7 @@ def resolve_orientation(cli_value: str | None, config: dict) -> str:
 
 
 def code_hold_ms(text: str, override: int | None = None) -> int:
-    return override or max(3500, min(8000, 1200 + 55 * len(text)))
+    return override or max(5500, min(10000, 3200 + 55 * len(text)))
 
 
 def port_is_available(host: str, port: int) -> bool:

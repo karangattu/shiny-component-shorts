@@ -100,7 +100,7 @@ spoken words ÷ 2.5 + one second per audio tag + two-second buffer
 
 Estimate action time from waits, typing duration, approximately one second per interaction, and the code overlay’s typing plus reading hold. If actions are too short, add another proof or reversal and distribute short waits after reactions. Do not pad with a long idle wait.
 
-The code hold defaults to `1200 + 55 × characters` milliseconds, clamped between 3500 and 8000 ms. Its typewriter animation runs before that hold.
+The code hold defaults to `3200 + 55 × characters` milliseconds, clamped between 5500 and 10000 ms. Its typewriter animation runs before that hold.
 
 The validator requires `artifacts/narration.txt` to contain the complete `Audio profile:`, `Scene:`, `Director's notes:`, and `Transcript:` envelope, even for silent recordings.
 

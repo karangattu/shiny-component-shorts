@@ -110,8 +110,8 @@ class SharedRecorderContractTest(unittest.TestCase):
             recorder.validate_action_shape({"paste": "#x"})
 
     def test_code_hold_uses_reading_time_and_bounds(self) -> None:
-        self.assertEqual(recorder.code_hold_ms("x"), 3500)
-        self.assertEqual(recorder.code_hold_ms("x" * 1000), 8000)
+        self.assertEqual(recorder.code_hold_ms("x"), 5500)
+        self.assertEqual(recorder.code_hold_ms("x" * 1000), 10000)
         self.assertEqual(recorder.code_hold_ms("x", 4321), 4321)
 
     def test_occupied_port_is_refused_without_killing_listener(self) -> None:
