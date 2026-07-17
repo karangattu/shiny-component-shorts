@@ -102,7 +102,29 @@ python .agents/skills/shiny-component-shorts/scripts/validate_demo.py \
   --project-dir demo-name
 ```
 
+### Batch processing (Parallel & Cached)
+
+To record, generate TTS, merge, and validate multiple demos in a single command running in the background, run:
+
+```bash
+python .agents/skills/shiny-component-shorts/scripts/batch_process.py \
+  --dirs "*-shorts" \
+  --concurrency 3 \
+  --tts \
+  --merge
+```
+
+Options:
+- `--dirs`: List of directories or glob patterns (default: auto-discovers all folders containing `actions.yaml` and `app.py`/`app.R`).
+- `--concurrency`: Number of concurrent recording tasks (default: 2).
+- `--tts`: Triggers Gemini API audio generation for each demo's `narration.txt`.
+- `--merge`: Merges compiled `demo.mp4` and `narration.wav` with FFmpeg.
+- `--force`: Disables caching and forces rebuild of all steps.
+
+The batch processor automatically scans for free ports to prevent parallel execution conflicts, caches unchanged builds based on input file hashes to save API costs and CPU, and performs pre-flight dependency audits.
+
 ### Narrated or finished video
+
 
 Complete the silent workflow first. Then generate TTS only when requested, merge audio only after verifying the WAV, and validate with `--require-audio`.
 

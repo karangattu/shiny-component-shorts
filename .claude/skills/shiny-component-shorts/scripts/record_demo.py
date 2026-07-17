@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import atexit
 import json
 import random
 import shutil
@@ -16,6 +17,17 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 import yaml
+
+_active_processes = set()
+
+def _cleanup_processes():
+    for proc in list(_active_processes):
+        try:
+            terminate_process(proc)
+        except Exception:
+            pass
+
+atexit.register(_cleanup_processes)
 
 
 SUPPORTED_ACTIONS = frozenset(
@@ -329,6 +341,13 @@ def port_is_available(host: str, port: int) -> bool:
     return True
 
 
+def find_available_port(host: str, start_port: int, max_attempts: int = 100) -> int:
+    for port in range(start_port, start_port + max_attempts):
+        if port_is_available(host, port):
+            return port
+    raise RuntimeError(f"Could not find an available port on {host} in range {start_port} to {start_port + max_attempts}")
+
+
 def wait_for_server(url: str, timeout: float = 30.0) -> None:
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
@@ -359,7 +378,9 @@ def start_app(project_dir: Path, app_type: str, host: str, port: int) -> subproc
             "-e",
             f'shiny::runApp(".", host="{host}", port={port}, launch.browser=FALSE)',
         ]
-    return subprocess.Popen(cmd, cwd=project_dir)
+    proc = subprocess.Popen(cmd, cwd=project_dir)
+    _active_processes.add(proc)
+    return proc
 
 
 def start_app_with_retry(
@@ -458,6 +479,17 @@ def validate_action_shape(action: object) -> str:
     return name
 
 
+def execute_with_retry(func, *args, max_attempts: int = 3, delay: float = 0.5, **kwargs):
+    last_exc = None
+    for attempt in range(1, max_attempts + 1):
+        try:
+            return func(*args, **kwargs)
+        except Exception as exc:
+            last_exc = exc
+            time.sleep(delay)
+    raise last_exc
+
+
 def run_actions(
     page,
     actions: list[dict],
@@ -477,29 +509,35 @@ def run_actions(
         elif name == "wait":
             page.wait_for_timeout(value)
         elif name == "click":
-            human_click(page, value)
+            execute_with_retry(human_click, page, value)
         elif name == "drag":
-            human_drag(page, value)
+            execute_with_retry(human_drag, page, value)
         elif name == "select_option":
-            move_cursor_to(page, value["selector"])
-            page.locator(value["selector"]).select_option(value["value"])
+            def _select():
+                move_cursor_to(page, value["selector"])
+                page.locator(value["selector"]).select_option(value["value"])
+            execute_with_retry(_select)
         elif name == "hover":
-            move_cursor_to(page, value)
+            execute_with_retry(move_cursor_to, page, value)
         elif name == "fill":
-            human_click(page, value["selector"])
-            page.locator(value["selector"]).fill(value["value"])
+            def _fill():
+                human_click(page, value["selector"])
+                page.locator(value["selector"]).fill(value["value"])
+            execute_with_retry(_fill)
         elif name == "type":
-            human_click(page, value["selector"])
-            page.eval_on_selector(
-                value["selector"],
-                "el => { el.focus(); if (el.setSelectionRange) "
-                "el.setSelectionRange(el.value.length, el.value.length); }",
-            )
-            page.locator(value["selector"]).press_sequentially(
-                value["value"], delay=value.get("delay", 45)
-            )
+            def _type():
+                human_click(page, value["selector"])
+                page.eval_on_selector(
+                    value["selector"],
+                    "el => { el.focus(); if (el.setSelectionRange) "
+                    "el.setSelectionRange(el.value.length, el.value.length); }",
+                )
+                page.locator(value["selector"]).press_sequentially(
+                    value["value"], delay=value.get("delay", 45)
+                )
+            execute_with_retry(_type)
         elif name == "press":
-            page.locator(value["selector"]).press(value["key"])
+            execute_with_retry(lambda: page.locator(value["selector"]).press(value["key"]))
         elif name == "code":
             config = code_overlay_config(orientation, value)
             text = config["text"]
@@ -532,6 +570,7 @@ def run_actions(
 
 
 def terminate_process(proc: subprocess.Popen) -> None:
+    _active_processes.discard(proc)
     if proc.poll() is not None:
         return
     proc.terminate()
@@ -567,10 +606,18 @@ def record_project(
         raise ValueError("The shared recorder only starts local Shiny apps")
     bind_host = "127.0.0.1"
     if not port_is_available(bind_host, port):
-        raise RuntimeError(
-            f"Port {port} is already in use. Stop the known listener and rerun; "
-            "the recorder will not kill an unknown process."
-        )
+        try:
+            port = find_available_port(bind_host, port)
+            scheme = parsed.scheme or "http"
+            url = f"{scheme}://{host}:{port}{parsed.path}"
+            if parsed.query:
+                url += f"?{parsed.query}"
+            if parsed.fragment:
+                url += f"#{parsed.fragment}"
+        except RuntimeError as err:
+            raise RuntimeError(
+                f"Port {parsed.port or 8000} is in use and no other ports were available: {err}"
+            )
 
     orientation = resolve_orientation(orientation_override, config)
     overlays = normalize_overlays(config)

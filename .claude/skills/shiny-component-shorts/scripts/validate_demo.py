@@ -132,6 +132,13 @@ def validate_project(
     if not (app_dir / "app.py").is_file() and not (app_dir / "app.R").is_file():
         errors.append("App directory must contain app.py or app.R")
 
+    if (app_dir / "app.R").is_file() and shutil.which("Rscript") is None:
+        errors.append("Rscript command is not available in PATH; needed for R apps")
+    if shutil.which("ffmpeg") is None:
+        errors.append("ffmpeg command is not available in PATH; needed to compile recordings")
+    if shutil.which("ffprobe") is None:
+        errors.append("ffprobe command is not available in PATH; needed to validate video metrics")
+
     actions_path = project_dir / "actions.yaml"
     narration_path = project_dir / "artifacts" / "narration.txt"
     video_path = project_dir / "artifacts" / "demo.mp4"
