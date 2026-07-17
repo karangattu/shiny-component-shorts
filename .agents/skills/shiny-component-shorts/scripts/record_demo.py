@@ -237,6 +237,17 @@ def find_available_port(host: str, start_port: int, max_attempts: int = 100) -> 
     raise RuntimeError(f"Could not find an available port on {host} in range {start_port} to {start_port + max_attempts}")
 
 
+def url_with_port(url: str, port: int) -> str:
+    parsed = urlsplit(url)
+    host = parsed.hostname or "127.0.0.1"
+    updated = f"{parsed.scheme or 'http'}://{host}:{port}{parsed.path}"
+    if parsed.query:
+        updated += f"?{parsed.query}"
+    if parsed.fragment:
+        updated += f"#{parsed.fragment}"
+    return updated
+
+
 
 def wait_for_server(url: str, timeout: float = 30.0) -> None:
     deadline = time.monotonic() + timeout
@@ -316,17 +327,6 @@ def validate_action_shape(action: object) -> str:
     return name
 
 
-def execute_with_retry(func, *args, max_attempts: int = 3, delay: float = 0.5, **kwargs):
-    last_exc = None
-    for attempt in range(1, max_attempts + 1):
-        try:
-            return func(*args, **kwargs)
-        except Exception as exc:
-            last_exc = exc
-            time.sleep(delay)
-    raise last_exc
-
-
 def run_actions(
     page, actions: list[dict], project_dir: Path, orientation: str = "vertical"
 ) -> None:
@@ -338,35 +338,29 @@ def run_actions(
         elif name == "wait":
             page.wait_for_timeout(value)
         elif name == "click":
-            execute_with_retry(human_click, page, value)
+            human_click(page, value)
         elif name == "drag":
-            execute_with_retry(human_drag, page, value)
+            human_drag(page, value)
         elif name == "select_option":
-            def _select():
-                move_cursor_to(page, value["selector"])
-                page.locator(value["selector"]).select_option(value["value"])
-            execute_with_retry(_select)
+            move_cursor_to(page, value["selector"])
+            page.locator(value["selector"]).select_option(value["value"])
         elif name == "hover":
-            execute_with_retry(move_cursor_to, page, value)
+            move_cursor_to(page, value)
         elif name == "fill":
-            def _fill():
-                human_click(page, value["selector"])
-                page.locator(value["selector"]).fill(value["value"])
-            execute_with_retry(_fill)
+            human_click(page, value["selector"])
+            page.locator(value["selector"]).fill(value["value"])
         elif name == "type":
-            def _type():
-                human_click(page, value["selector"])
-                page.eval_on_selector(
-                    value["selector"],
-                    "el => { el.focus(); if (el.setSelectionRange) "
-                    "el.setSelectionRange(el.value.length, el.value.length); }",
-                )
-                page.locator(value["selector"]).press_sequentially(
-                    value["value"], delay=value.get("delay", 45)
-                )
-            execute_with_retry(_type)
+            human_click(page, value["selector"])
+            page.eval_on_selector(
+                value["selector"],
+                "el => { el.focus(); if (el.setSelectionRange) "
+                "el.setSelectionRange(el.value.length, el.value.length); }",
+            )
+            page.locator(value["selector"]).press_sequentially(
+                value["value"], delay=value.get("delay", 45)
+            )
         elif name == "press":
-            execute_with_retry(lambda: page.locator(value["selector"]).press(value["key"]))
+            page.locator(value["selector"]).press(value["key"])
         elif name == "code":
             config = code_overlay_config(orientation, value)
             text = config["text"]
@@ -403,6 +397,7 @@ def record_project(
     actions_path: Path,
     orientation_override: str | None,
     app_dir: Path | None = None,
+    port_override: int | None = None,
 ) -> Path:
     from playwright.sync_api import sync_playwright
 
@@ -417,19 +412,18 @@ def record_project(
     url = config.get("url", "http://127.0.0.1:8000")
     parsed = urlsplit(url)
     host = parsed.hostname or "127.0.0.1"
-    port = parsed.port or 8000
+    port = port_override if port_override is not None else parsed.port or 8000
+    if not 1 <= port <= 65436:
+        raise ValueError("Port must be between 1 and 65436")
     if host not in {"127.0.0.1", "localhost"}:
         raise ValueError("The shared recorder only starts local Shiny apps")
     bind_host = "127.0.0.1"
+    if port_override is not None:
+        url = url_with_port(url, port)
     if not port_is_available(bind_host, port):
         try:
             port = find_available_port(bind_host, port)
-            scheme = parsed.scheme or "http"
-            url = f"{scheme}://{host}:{port}{parsed.path}"
-            if parsed.query:
-                url += f"?{parsed.query}"
-            if parsed.fragment:
-                url += f"#{parsed.fragment}"
+            url = url_with_port(url, port)
         except RuntimeError as err:
             raise RuntimeError(
                 f"Port {parsed.port or 8000} is in use and no other ports were available: {err}"
@@ -530,6 +524,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--app-type", choices=["python", "r"], default="python")
     parser.add_argument("--actions", type=Path, default=Path("actions.yaml"))
     parser.add_argument("--orientation", choices=["vertical", "horizontal"], default=None)
+    parser.add_argument("--port", type=int)
     return parser.parse_args()
 
 
@@ -545,7 +540,7 @@ def main() -> int:
     if not actions_path.is_file():
         raise FileNotFoundError(f"Action file does not exist: {actions_path}")
     mp4_path = record_project(
-        project_dir, args.app_type, actions_path, args.orientation, app_dir
+        project_dir, args.app_type, actions_path, args.orientation, app_dir, args.port
     )
     print(f"Recorded: {mp4_path}")
     return 0

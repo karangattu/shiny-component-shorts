@@ -9,6 +9,32 @@ import time
 from pathlib import Path
 
 
+IGNORED_INPUT_DIRS = {
+    ".git",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".venv",
+    "__pycache__",
+    "artifacts",
+    "venv",
+}
+IGNORED_INPUT_FILES = {".DS_Store"}
+
+
+def collect_project_inputs(
+    project_dir: Path, extra_files: list[Path] | None = None
+) -> list[Path]:
+    """Return source inputs while excluding generated and environment files."""
+    inputs = [
+        path
+        for path in project_dir.rglob("*")
+        if path.is_file()
+        and path.name not in IGNORED_INPUT_FILES
+        and not (set(path.relative_to(project_dir).parts) & IGNORED_INPUT_DIRS)
+    ]
+    return sorted(set(inputs + (extra_files or [])), key=str)
+
+
 def calculate_hash(filepath: Path) -> str:
     """Calculate SHA-256 hash of a file."""
     if not filepath.is_file():

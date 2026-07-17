@@ -152,6 +152,8 @@ class SharedRecorderContractTest(unittest.TestCase):
                     str(app_dir),
                     "--app-type",
                     "r",
+                    "--port",
+                    "8200",
                 ]
                 recorder.record_project = lambda *args: calls.append(args) or project / "demo.mp4"
                 self.assertEqual(recorder.main(), 0)
@@ -162,6 +164,7 @@ class SharedRecorderContractTest(unittest.TestCase):
         self.assertEqual(calls[0][0], project.resolve())
         self.assertEqual(calls[0][1], "r")
         self.assertEqual(calls[0][4], app_dir.resolve())
+        self.assertEqual(calls[0][5], 8200)
 
     def test_orientation_precedence_and_default(self) -> None:
         self.assertEqual(recorder.resolve_orientation(None, {}), "vertical")
@@ -233,6 +236,44 @@ class SharedRecorderContractTest(unittest.TestCase):
             listener.listen()
             self.assertFalse(recorder.port_is_available("127.0.0.1", port))
             self.assertEqual(listener.getsockname()[1], port)
+
+    def test_port_override_preserves_url_path_query_and_fragment(self) -> None:
+        self.assertEqual(
+            recorder.url_with_port("http://localhost:8000/demo?x=1#state", 8200),
+            "http://localhost:8200/demo?x=1#state",
+        )
+
+    def test_failed_typing_is_not_retried(self) -> None:
+        class Locator:
+            calls = 0
+
+            def press_sequentially(self, value, delay):
+                self.calls += 1
+                raise RuntimeError("partial typing failure")
+
+        class Page:
+            def __init__(self):
+                self.target = Locator()
+
+            def eval_on_selector(self, *args):
+                pass
+
+            def locator(self, selector):
+                return self.target
+
+        page = Page()
+        original_click = recorder.human_click
+        try:
+            recorder.human_click = lambda *args: None
+            with self.assertRaisesRegex(RuntimeError, "partial typing failure"):
+                recorder.run_actions(
+                    page,
+                    [{"type": {"selector": "#notes", "value": "hello"}}],
+                    Path("."),
+                )
+        finally:
+            recorder.human_click = original_click
+        self.assertEqual(page.target.calls, 1)
 
     def test_cursor_overlay_cleanup_and_mp4_handling_are_bundled(self) -> None:
         source = RECORDER_PATH.read_text(encoding="utf-8")
