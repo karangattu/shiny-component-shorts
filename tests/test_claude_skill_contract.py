@@ -22,6 +22,7 @@ BASE_ACTIONS = {
     "type",
     "press",
     "code",
+    "zoom",
     "screenshot",
 }
 OVERLAY_ACTIONS = {"caption", "beat", "label"}
@@ -136,7 +137,8 @@ class ClaudeSkillContractTest(unittest.TestCase):
         text = SKILL_MD.read_text(encoding="utf-8")
         self.assertIn("clean browser recording", text)
         self.assertIn("Do not add `beat`, `label`, or `caption` actions", text)
-        self.assertIn("loudnorm=I=-14", text)
+        self.assertIn("merge_audio.py", text)
+        self.assertIn("-14 LUFS", text)
 
 
 class ClaudeRecorderContractTest(unittest.TestCase):
@@ -180,7 +182,7 @@ class ClaudeRecorderContractTest(unittest.TestCase):
         )
         for name in sorted(BASE_ACTIONS | OVERLAY_ACTIONS):
             payload: object = "#selector"
-            if name in {"drag", "select_option", "fill", "type", "press", "code", "screenshot"}:
+            if name in {"drag", "select_option", "fill", "type", "press", "code", "zoom", "screenshot"}:
                 payload = {"selector": "#selector"}
             elif name == "wait":
                 payload = 500

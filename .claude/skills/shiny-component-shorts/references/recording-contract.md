@@ -86,7 +86,7 @@ actions:
       path: "artifacts/final.png"
 ```
 
-Supported actions are `wait_for`, `wait`, `click`, `drag`, `select_option`, `hover`, `fill`, `type`, `press`, `code`, and `screenshot`. Each list item must contain exactly one action. The recorder also accepts the legacy overlay actions `caption`, `beat`, and `label`, but the skill does not use them for clean videos.
+Supported actions are `wait_for`, `wait`, `click`, `drag`, `select_option`, `hover`, `fill`, `type`, `press`, `code`, `zoom`, and `screenshot`. Each list item must contain exactly one action. The recorder also accepts the legacy overlay actions `caption`, `beat`, and `label`, but the skill does not use them for clean videos.
 
 ## Action semantics
 
@@ -100,6 +100,7 @@ Supported actions are `wait_for`, `wait`, `click`, `drag`, `select_option`, `hov
 - `type` clicks, focuses, moves the caret to the end, and types sequentially. Use 35–70 ms per character.
 - `press` sends one named key to the selector.
 - `code` types a compact Shiny-branded editor card, holds it by reading time, then removes it. In horizontal mode it uses the side-by-side layout instead of overlaying the app.
+- `zoom` is an optional camera punch-in: it scales the page toward the center of `selector` (`scale`, default 1.6), holds (`hold` ms, default 1800), then eases back out over about a second total of transitions. Use at most one per video, on the proof beat's changing region, and never while the code card is visible.
 - `screenshot` writes a full-page screenshot relative to the demo directory.
 - Legacy `caption`, `beat`, and `label` actions inject visible overlays and require an `overlays` block. Do not use them in skill-generated recordings. In particular, storyboard beat names such as `Reveal` and `Proof` are planning metadata, not action entries.
 
@@ -151,7 +152,7 @@ The validator requires `artifacts/narration.txt` to contain the complete `Audio 
 
 - `artifacts/demo.webm` is the Playwright intermediate.
 - `artifacts/demo.mp4` is the clean browser deliverable.
-- `artifacts/recording.json` records the resolved orientation and dimensions for validation.
+- `artifacts/recording.json` records the resolved orientation, dimensions, trimmed preamble, and an `action_timeline` of per-action start/end timestamps relative to the trimmed video; the validator compares that timeline against the narration's sentence windows and rejects a first meaningful action that starts after the first sentence ends.
 - `artifacts/final.png` captures the ending state.
 - Edited and narrated outputs use separate filenames and never replace `demo.mp4`.
 

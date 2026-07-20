@@ -61,18 +61,14 @@ If both key variables exist and authentication fails, note that the Google SDK m
 
 ## Merge audio
 
-After verifying the WAV is non-empty and the video is long enough:
+After verifying the WAV is non-empty and the video is long enough, run the bundled merge script instead of a hand-written ffmpeg command:
 
 ```bash
-ffmpeg -y \
-  -i demo-name/artifacts/demo.mp4 \
-  -i demo-name/artifacts/narration.wav \
-  -af "loudnorm=I=-14:TP=-1.5:LRA=11,apad" \
-  -c:v copy -c:a aac -shortest \
-  demo-name/artifacts/final_with_audio.mp4
+python .claude/skills/shiny-component-shorts/scripts/merge_audio.py \
+  --project-dir demo-name
 ```
 
-The `loudnorm` filter normalizes the narration to -14 LUFS so videos in a series play at consistent volume regardless of TTS voice. `apad` preserves the clean recording through its final payoff when narration ends first; `-shortest` then stops at the video boundary instead of cutting the visuals to the audio duration.
+The script measures the narration first, then applies loudnorm in linear two-pass mode so the -14 LUFS short-form target is hit accurately regardless of TTS voice. It also applies a 70 Hz high-pass and 150–250 ms edge fades to remove rumble and abrupt starts, encodes 48 kHz 192 kbps AAC, copies the video stream unchanged, and pads the audio so the clean recording keeps its final payoff when narration ends first.
 
 Listen to the final output. Reject truncated narration, audible tag names, laughter, giggling, chuckling, any other unintended vocalization, awkward tag transitions, mispronounced code that changes meaning, or voiceover that describes a different state from the screen. If any laugh-like sound is present, regenerate after simplifying the inline direction; do not mask it with music or leave it in the final video.
 

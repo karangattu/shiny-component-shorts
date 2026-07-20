@@ -25,6 +25,7 @@ SUPPORTED_ACTIONS = frozenset(
         "type",
         "press",
         "code",
+        "zoom",
         "screenshot",
         "caption",
         "beat",
@@ -61,6 +62,8 @@ def estimate_action_seconds(actions: list[dict]) -> float:
             total_ms += 1500
         elif name in OVERLAY_ACTIONS:
             total_ms += 300
+        elif name == "zoom" and isinstance(value, dict):
+            total_ms += 950 + int(value.get("hold", 1800))
         elif name == "type" and isinstance(value, dict):
             total_ms += len(str(value.get("value", ""))) * int(value.get("delay", 45)) + 1000
         elif name == "code" and isinstance(value, dict):
@@ -109,6 +112,40 @@ def probe_video(path: Path) -> dict:
         "duration": float(payload["format"]["duration"]),
         "bit_rate": int(raw_bit_rate) if str(raw_bit_rate).isdigit() else None,
     }
+
+
+def narration_sentence_windows(path: Path) -> list[dict] | None:
+    """Speech spans in the WAV, derived from the gaps silencedetect reports."""
+    if shutil.which("ffmpeg") is None or not path.is_file() or path.stat().st_size == 0:
+        return None
+    duration = probe_audio_duration(path)
+    if duration is None:
+        return None
+    result = subprocess.run(
+        [
+            "ffmpeg",
+            "-i",
+            str(path),
+            "-af",
+            "silencedetect=noise=-30dB:d=0.4",
+            "-f",
+            "null",
+            "-",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    starts = [float(m) for m in re.findall(r"silence_start: ([\d.]+)", result.stderr)]
+    ends = [float(m) for m in re.findall(r"silence_end: ([\d.]+)", result.stderr)]
+    windows: list[dict] = []
+    cursor = 0.0
+    for silence_start, silence_end in zip(starts, ends):
+        if silence_start - cursor > 0.15:
+            windows.append({"start": round(cursor, 2), "end": round(silence_start, 2)})
+        cursor = silence_end
+    if duration - cursor > 0.15:
+        windows.append({"start": round(cursor, 2), "end": round(duration, 2)})
+    return windows
 
 
 def probe_audio_duration(path: Path) -> float | None:
@@ -314,6 +351,38 @@ def validate_project(
                 )
         except (KeyError, ValueError, RuntimeError, subprocess.CalledProcessError, json.JSONDecodeError) as exc:
             errors.append(f"Cannot validate video: {exc}")
+
+    timeline: list = []
+    timeline_path = project_dir / "artifacts" / "recording.json"
+    if timeline_path.is_file():
+        try:
+            timeline = json.loads(timeline_path.read_text(encoding="utf-8")).get(
+                "action_timeline", []
+            )
+        except json.JSONDecodeError:
+            timeline = []
+    sentence_windows = narration_sentence_windows(
+        project_dir / "artifacts" / "narration.wav"
+    )
+    if timeline:
+        report["action_timeline"] = timeline
+    if sentence_windows:
+        report["narration_sentences"] = sentence_windows
+    if timeline and sentence_windows:
+        first_meaningful = next(
+            (entry for entry in timeline if entry.get("action") in MEANINGFUL_ACTIONS),
+            None,
+        )
+        if (
+            first_meaningful is not None
+            and first_meaningful["start"] > sentence_windows[0]["end"] + 0.5
+        ):
+            errors.append(
+                f"First meaningful action starts at {first_meaningful['start']:.2f}s, "
+                f"after the first narration sentence ends at "
+                f"{sentence_windows[0]['end']:.2f}s; re-time the opening so the action "
+                "is underway during the hook"
+            )
 
     require_nonempty(screenshot_path, errors)
 

@@ -193,6 +193,7 @@ class SharedRecorderContractTest(unittest.TestCase):
                 "type",
                 "press",
                 "code",
+                "zoom",
                 "screenshot",
             },
         )

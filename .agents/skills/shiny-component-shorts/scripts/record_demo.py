@@ -43,6 +43,7 @@ SUPPORTED_ACTIONS = frozenset(
         "type",
         "press",
         "code",
+        "zoom",
         "screenshot",
     }
 )
@@ -285,6 +286,26 @@ def start_app(project_dir: Path, app_type: str, host: str, port: int) -> subproc
 
 
 
+def _ease_in_out(t: float) -> float:
+    return 4 * t**3 if t < 0.5 else 1 - ((-2 * t + 2) ** 3) / 2
+
+
+def _glide(page, x0: float, y0: float, x1: float, y1: float, steps: int) -> None:
+    """Move the cursor with ease-in-out pacing and a subtle overshoot-and-settle."""
+    distance = ((x1 - x0) ** 2 + (y1 - y0) ** 2) ** 0.5
+    if distance < 2:
+        page.mouse.move(x1, y1)
+        return
+    overshoot = min(8.0, distance * 0.05)
+    ox = x1 + (x1 - x0) / distance * overshoot
+    oy = y1 + (y1 - y0) / distance * overshoot
+    for i in range(1, steps + 1):
+        e = _ease_in_out(i / steps)
+        page.mouse.move(x0 + (ox - x0) * e, y0 + (oy - y0) * e)
+    for i in range(1, 4):
+        page.mouse.move(ox + (x1 - ox) * i / 3, oy + (y1 - oy) * i / 3)
+
+
 def move_cursor_to(page, selector: str) -> tuple[float, float]:
     locator = page.locator(selector).first
     locator.scroll_into_view_if_needed()
@@ -293,7 +314,9 @@ def move_cursor_to(page, selector: str) -> tuple[float, float]:
         raise RuntimeError(f"Cursor target is not visible: {selector}")
     x = box["x"] + box["width"] * random.uniform(0.42, 0.58)
     y = box["y"] + box["height"] * random.uniform(0.42, 0.58)
-    page.mouse.move(x, y, steps=random.randint(14, 22))
+    origin = getattr(page, "_demo_cursor_pos", None) or (x - 240, y - 160)
+    _glide(page, origin[0], origin[1], x, y, random.randint(16, 24))
+    page._demo_cursor_pos = (x, y)
     page.wait_for_timeout(random.randint(90, 180))
     return x, y
 
@@ -309,11 +332,14 @@ def human_drag(page, config: dict) -> None:
     x, y = move_cursor_to(page, config["selector"])
     page.mouse.down()
     page.wait_for_timeout(random.randint(90, 150))
-    page.mouse.move(
-        x + float(config.get("delta_x", 0)),
-        y + float(config.get("delta_y", 0)),
-        steps=int(config.get("steps", 24)),
-    )
+    tx = x + float(config.get("delta_x", 0))
+    ty = y + float(config.get("delta_y", 0))
+    steps = int(config.get("steps", 24))
+    # Ease the payload drag without overshoot so slider values never wobble.
+    for i in range(1, steps + 1):
+        e = _ease_in_out(i / steps)
+        page.mouse.move(x + (tx - x) * e, y + (ty - y) * e)
+    page._demo_cursor_pos = (tx, ty)
     page.wait_for_timeout(random.randint(90, 150))
     page.mouse.up()
 
@@ -327,12 +353,33 @@ def validate_action_shape(action: object) -> str:
     return name
 
 
+ZOOM_JS = """
+(cfg) => {
+  const el = document.querySelector(cfg.selector);
+  if (!el) return false;
+  const r = el.getBoundingClientRect();
+  const b = document.body;
+  b.style.transition = 'transform 450ms cubic-bezier(0.4, 0, 0.2, 1)';
+  b.style.transformOrigin = `${r.x + r.width / 2}px ${r.y + r.height / 2}px`;
+  b.style.transform = `scale(${cfg.scale})`;
+  return true;
+}
+"""
+
+
 def run_actions(
-    page, actions: list[dict], project_dir: Path, orientation: str = "vertical"
-) -> None:
+    page,
+    actions: list[dict],
+    project_dir: Path,
+    orientation: str = "vertical",
+    clock_zero: float | None = None,
+) -> list[dict]:
+    timeline: list[dict] = []
+    zero = clock_zero if clock_zero is not None else time.monotonic()
     for action in actions:
         name = validate_action_shape(action)
         value = action[name]
+        started = time.monotonic() - zero
         if name == "wait_for":
             page.wait_for_selector(value, state="attached", timeout=15000)
         elif name == "wait":
@@ -371,10 +418,35 @@ def run_actions(
                 " document.getElementById('__code_overlay_style__')?.remove();"
                 " document.documentElement.classList.remove('__demo_code_side__'); }"
             )
+        elif name == "zoom":
+            found = page.evaluate(
+                ZOOM_JS,
+                {
+                    "selector": value["selector"],
+                    "scale": float(value.get("scale", 1.6)),
+                },
+            )
+            if not found:
+                raise RuntimeError(f"Zoom target not found: {value['selector']}")
+            page.wait_for_timeout(450 + int(value.get("hold", 1800)))
+            page.evaluate("() => { document.body.style.transform = 'none'; }")
+            page.wait_for_timeout(500)
+            page.evaluate(
+                "() => { const b = document.body; b.style.transition = '';"
+                " b.style.transformOrigin = ''; b.style.transform = ''; }"
+            )
         elif name == "screenshot":
             target = project_dir / value["path"]
             target.parent.mkdir(parents=True, exist_ok=True)
             page.screenshot(path=str(target), full_page=True)
+        timeline.append(
+            {
+                "action": name,
+                "start": round(started, 2),
+                "end": round(time.monotonic() - zero, 2),
+            }
+        )
+    return timeline
 
 
 
@@ -458,7 +530,13 @@ def record_project(
             page.wait_for_load_state("networkidle")
             page.wait_for_timeout(3000)
             preamble_seconds = time.monotonic() - recording_started
-            run_actions(page, config["actions"], project_dir, orientation)
+            timeline = run_actions(
+                page,
+                config["actions"],
+                project_dir,
+                orientation,
+                clock_zero=recording_started,
+            )
             context.close()
             video_source = Path(video.path())
             browser.close()
@@ -491,9 +569,9 @@ def record_project(
                 "-c:v",
                 "libx264",
                 "-crf",
-                "18",
+                "17",
                 "-preset",
-                "medium",
+                "slow",
                 "-pix_fmt",
                 "yuv420p",
                 "-movflags",
@@ -507,6 +585,14 @@ def record_project(
         (artifacts / "recording.json").write_text(
             json.dumps(
                 {
+                    "action_timeline": [
+                        {
+                            "action": entry["action"],
+                            "start": round(entry["start"] - trim_seconds, 2),
+                            "end": round(entry["end"] - trim_seconds, 2),
+                        }
+                        for entry in timeline
+                    ],
                     "orientation": orientation,
                     "scale_factor": 2,
                     "trimmed_preamble_seconds": round(trim_seconds, 2),

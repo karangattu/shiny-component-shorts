@@ -112,15 +112,14 @@ Generate the audio before recording so action timing follows the real narration 
 1. Write `artifacts/narration.txt` and generate `artifacts/narration.wav` (see [references/tts-and-costs.md](references/tts-and-costs.md)); verify the WAV is non-empty and listen for defects before recording anything.
 2. Measure the audio: exact duration with `ffprobe`, sentence boundaries with `ffmpeg -af silencedetect` (see the recording contract's Timing section).
 3. Author or adjust `actions.yaml` against those measurements: the first meaningful action must be underway during the hook's first sentence, each visible reaction must begin at or slightly before the sentence that describes it, and the video must run one to three seconds past the narration.
-4. Record and validate with `--require-audio`, then merge.
-
-Merge with loudness normalization to the short-form target (-14 LUFS):
+4. Record and validate with `--require-audio`, then merge with the bundled script:
 
 ```bash
-ffmpeg -i artifacts/demo.mp4 -i artifacts/narration.wav \
-  -af "loudnorm=I=-14:TP=-1.5:LRA=11,apad" \
-  -c:v copy -c:a aac -shortest artifacts/final_with_audio.mp4
+python .claude/skills/shiny-component-shorts/scripts/merge_audio.py \
+  --project-dir demo-name
 ```
+
+It runs two-pass loudnorm to the -14 LUFS short-form target, applies a 70 Hz high-pass and short edge fades, encodes 48 kHz 192 kbps AAC, copies the video stream, and pads the audio so the video keeps its payoff. Do not hand-write a one-pass ffmpeg merge.
 
 If edited overlays are requested, preserve `artifacts/demo.mp4` as the clean browser recording and write edited outputs separately. Do not overwrite the clean recording.
 
@@ -182,6 +181,7 @@ Keep narration around 60–85 spoken words. Make every sentence describe somethi
 - Keep ordinary waits between 500 and 3000 ms; vary them and let the biggest reveal breathe.
 - Keep the total wait before the first meaningful action at or under 1500 ms; the first action must be underway while the narration's opening words are spoken. The validator rejects opening waits over 2000 ms.
 - Include one concise animated `code` action timed to the narration's code sentence.
+- Optionally punch in on a small changing region with one `zoom` action during the proof beat when the readout would be hard to read at phone size; use at most one per video and never during the code card.
 - In horizontal mode, the `code` action must use the recorder's side-by-side layout so the app remains visible beside the code; do not cover the app with the code panel.
 - Keep the action sequence at least as long as the estimated narration. When it comes up short, lengthen the holds after reveals or add another proof beat; never pad the opening wait — that delays the first action past the narration's hook.
 - End with `screenshot: {path: "artifacts/final.png"}`.
@@ -204,6 +204,7 @@ For a recording:
 - Inspect the first, reveal, code, and final frames at phone size; confirm no planning beat names or progress rail appear over the app.
 - Confirm the visible cursor reaches each interactive target.
 - Confirm the narration would finish before the video ends.
+- For narrated videos, compare the validator's `action_timeline` against `narration_sentences` in its report; each visible reaction should begin at or slightly before the sentence that describes it.
 
 For audio:
 
