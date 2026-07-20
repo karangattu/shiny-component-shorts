@@ -42,6 +42,8 @@ For a narrated series, vary the performance direction as deliberately as the vis
 
 ## Generate audio
 
+For a narrated deliverable, generate the audio before recording the video: the WAV's measured duration and silence gaps are what `actions.yaml` timing must follow (see the recording contract's Timing section). Word-count estimates drift enough to push actions out of sync with the spoken sentences.
+
 Do not call Gemini unless the user requested audio. Never print, persist, or ask for the API key value.
 
 If `GEMINI_API_KEY` or `GOOGLE_API_KEY` is available, run:

@@ -132,7 +132,16 @@ Estimate narration as:
 spoken words ÷ 2.5 + one second per audio tag + two-second buffer
 ```
 
-Estimate action time from waits, typing duration, approximately one second per interaction (1.5 seconds per drag), and the code overlay’s typing plus reading hold. If actions are too short, add another proof or reversal and distribute short waits after reactions. Do not pad with a long idle wait.
+Estimate action time from waits, typing duration, approximately one second per interaction (1.5 seconds per drag), and the code overlay’s typing plus reading hold. If actions are too short, add another proof or reversal and distribute short waits after reactions. Do not pad with a long idle wait, and never pad the opening: keep the total wait before the first meaningful action at or under 1500 ms (the validator rejects over 2000 ms) so the first action is underway while the narration's opening words are spoken.
+
+For a narrated deliverable, do not time actions against the word-count estimate. Generate `artifacts/narration.wav` first, then measure it:
+
+```bash
+ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1 artifacts/narration.wav
+ffmpeg -i artifacts/narration.wav -af "silencedetect=noise=-30dB:d=0.4" -f null -
+```
+
+Map each silence gap to a sentence boundary and set the waits so every visible reaction begins at or slightly before the sentence that describes it. Keep the video one to three seconds longer than the WAV, and place any slack needed to reach that length in the holds after reveals or before the code card — never at the start.
 
 The code hold defaults to `3200 + 55 × characters` milliseconds, clamped between 5500 and 10000 ms. Its typewriter animation runs before that hold.
 

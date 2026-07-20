@@ -107,7 +107,12 @@ Treat validator errors as blocking. Missing-overlay warnings are expected for cl
 
 ### Narrated or finished video
 
-Complete the silent workflow first. Then generate TTS only when requested (see [references/tts-and-costs.md](references/tts-and-costs.md)), merge audio only after verifying the WAV is non-empty, and validate with `--require-audio`.
+Generate the audio before recording so action timing follows the real narration instead of a word-count estimate:
+
+1. Write `artifacts/narration.txt` and generate `artifacts/narration.wav` (see [references/tts-and-costs.md](references/tts-and-costs.md)); verify the WAV is non-empty and listen for defects before recording anything.
+2. Measure the audio: exact duration with `ffprobe`, sentence boundaries with `ffmpeg -af silencedetect` (see the recording contract's Timing section).
+3. Author or adjust `actions.yaml` against those measurements: the first meaningful action must be underway during the hook's first sentence, each visible reaction must begin at or slightly before the sentence that describes it, and the video must run one to three seconds past the narration.
+4. Record and validate with `--require-audio`, then merge.
 
 Merge with loudness normalization to the short-form target (-14 LUFS):
 
@@ -145,6 +150,7 @@ If the proposed action plan cannot produce three meaningful reactions from the s
 - Keep the top 20% and bottom 20% visually empty. In the middle band, use 3–5% side gutters, remove narrow desktop `max-width` constraints, and stretch the primary panel across the available horizontal space.
 - Use the Shiny preset palette consistently: primary `#007BC2`; light surfaces `#FFFFFF`/`#F8F8F8` with `#1D1F21` primary text and `#48505F` secondary text; dark surfaces `#1D1F21`/`#202020` with `#FFFFFF` primary text and `#CDD4DA` secondary text. Use other Shiny semantic colors only when they convey state.
 - Use tiny inline data or built-in data.
+- Use Font Awesome icons where a small inline icon makes a label, button, or state readout easier to scan: `from faicons import icon_svg` in Shiny for Python, `fontawesome::fa()` or `shiny::icon()` in R. Match the icon to the adjacent text color and size, and skip icons that would be pure decoration or one per element by rote.
 - Use realistic labels and uneven values; avoid lorem ipsum, `Item 1`, `foo`, or synthetic filler.
 - Add stable input IDs and selectors for every recorded target; no random Bootstrap-generated IDs.
 - Keep the code line featured in the video verbatim in the app.
@@ -174,9 +180,10 @@ Keep narration around 60–85 spoken words. Make every sentence describe somethi
 - The recorder pre-validates every selector on the loaded page and fails fast listing any that are missing; fix the app or the selector, never loosen a selector to something unstable.
 - Use `type` for text visibly entered by a person and `fill` only for clearing or paste-like actions.
 - Keep ordinary waits between 500 and 3000 ms; vary them and let the biggest reveal breathe.
+- Keep the total wait before the first meaningful action at or under 1500 ms; the first action must be underway while the narration's opening words are spoken. The validator rejects opening waits over 2000 ms.
 - Include one concise animated `code` action timed to the narration's code sentence.
 - In horizontal mode, the `code` action must use the recorder's side-by-side layout so the app remains visible beside the code; do not cover the app with the code panel.
-- Keep the action sequence at least as long as the estimated narration.
+- Keep the action sequence at least as long as the estimated narration. When it comes up short, lengthen the holds after reveals or add another proof beat; never pad the opening wait — that delays the first action past the narration's hook.
 - End with `screenshot: {path: "artifacts/final.png"}`.
 - Let selector, server, browser, FFmpeg, and validation failures stop the workflow.
 - Never kill an unknown process to reclaim a port; the recorder refuses occupied ports and retries flaky app startups on its own.

@@ -63,6 +63,7 @@ Strong candidates include:
 - Do not put a visible app title, page title, eyebrow, kicker, series label, or oversized marketing headline above the component. The app should begin directly with the component or a realistic field/task label; keep the problem-led hook in narration, storyboarding, or later editing.
 - Reserve the top 20% and bottom 20% of the frame for later branding. Center the app in the middle 60% band, use 3–5% side gutters, and stretch its primary card or panel across the available horizontal space; do not use a narrow desktop `max-width` that creates dead space.
 - Use realistic task content: notes, ticket tags, chart colors, filters, or status changes.
+- Add a Font Awesome icon where it makes a label, button, or state readout easier to scan (`from faicons import icon_svg` in Shiny for Python; `fontawesome::fa()` or `shiny::icon()` in R). Keep icons the same color and scale as their adjacent text, and leave elements icon-free when an icon would be pure decoration.
 - Keep state labels concrete: `5 lines`, `2 selected`, `Mode: dark`, not `Output updated`.
 - End on the state that best communicates the feature, not an empty reset.
 

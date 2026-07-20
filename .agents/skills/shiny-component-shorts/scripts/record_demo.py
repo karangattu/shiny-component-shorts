@@ -453,9 +453,11 @@ def record_project(
             context.add_init_script(CURSOR_OVERLAY_JS)
             page = context.new_page()
             video = page.video
+            recording_started = time.monotonic()
             page.goto(url)
             page.wait_for_load_state("networkidle")
             page.wait_for_timeout(3000)
+            preamble_seconds = time.monotonic() - recording_started
             run_actions(page, config["actions"], project_dir, orientation)
             context.close()
             video_source = Path(video.path())
@@ -473,6 +475,9 @@ def record_project(
         if shutil.which("ffmpeg") is None:
             raise RuntimeError("ffmpeg is required to create artifacts/demo.mp4")
         mp4_path = artifacts / Path(video_name).with_suffix(".mp4").name
+        # Trim the page-load preamble so the first action lands near the start
+        # of the deliverable and narration timed from zero stays in sync.
+        trim_seconds = max(0.0, preamble_seconds - 0.7)
         subprocess.run(
             [
                 "ffmpeg",
@@ -481,6 +486,8 @@ def record_project(
                 "-y",
                 "-i",
                 str(webm_path),
+                "-ss",
+                f"{trim_seconds:.2f}",
                 "-c:v",
                 "libx264",
                 "-crf",
@@ -502,6 +509,7 @@ def record_project(
                 {
                     "orientation": orientation,
                     "scale_factor": 2,
+                    "trimmed_preamble_seconds": round(trim_seconds, 2),
                     "width": size["width"],
                     "height": size["height"],
                     "video": mp4_path.name,

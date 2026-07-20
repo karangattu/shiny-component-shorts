@@ -103,6 +103,30 @@ def probe_video(path: Path) -> dict:
     }
 
 
+def probe_audio_duration(path: Path) -> float | None:
+    if shutil.which("ffprobe") is None or not path.is_file() or path.stat().st_size == 0:
+        return None
+    try:
+        result = subprocess.run(
+            [
+                "ffprobe",
+                "-v",
+                "error",
+                "-show_entries",
+                "format=duration",
+                "-of",
+                "json",
+                str(path),
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        return float(json.loads(result.stdout)["format"]["duration"])
+    except (subprocess.CalledProcessError, KeyError, ValueError, json.JSONDecodeError):
+        return None
+
+
 def require_nonempty(path: Path, errors: list[str]) -> bool:
     if not path.is_file() or path.stat().st_size == 0:
         errors.append(f"Missing or empty file: {path}")
@@ -178,9 +202,26 @@ def validate_project(
     if screenshot_actions != 1:
         errors.append(f"Need exactly one final screenshot action; found {screenshot_actions}")
 
+    opening_wait_ms = 0
+    for action in actions:
+        if not isinstance(action, dict) or len(action) != 1:
+            continue
+        name, value = next(iter(action.items()))
+        if name in MEANINGFUL_ACTIONS or name == "code":
+            break
+        if name == "wait" and isinstance(value, (int, float)):
+            opening_wait_ms += value
+    if actions and opening_wait_ms > 2000:
+        errors.append(
+            f"Opening waits total {opening_wait_ms:.0f} ms before the first meaningful "
+            "action; keep them at or under 2000 ms so the first action starts with the "
+            "narration hook, and move slack to holds after reveals instead"
+        )
+
     action_seconds = estimate_action_seconds(actions)
     report["meaningful_actions"] = meaningful
     report["estimated_action_seconds"] = round(action_seconds, 2)
+    report["opening_wait_ms"] = round(opening_wait_ms)
 
     narration_seconds = 0.0
     if require_nonempty(narration_path, errors):
@@ -206,6 +247,10 @@ def validate_project(
                     "estimated_narration_seconds": round(narration_seconds, 2),
                 }
             )
+            measured = probe_audio_duration(project_dir / "artifacts" / "narration.wav")
+            if measured is not None:
+                narration_seconds = measured
+                report["measured_narration_seconds"] = round(measured, 2)
             if not 60 <= words <= 85:
                 errors.append(f"Narration must contain 60–85 spoken words; found {words}")
             if not 3 <= tags <= 6:
