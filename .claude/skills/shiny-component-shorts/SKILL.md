@@ -165,7 +165,7 @@ Use this sequence:
 | 0–3 s | Problem | Begin the first meaningful action by second 2 |
 | 3–8 s | Reveal | Show the hidden behavior clearly |
 | 8–19 s | Proof | Repeat, reverse, or contrast it |
-| 19–26 s | Code | Show only the decisive code line over the live app |
+| 19–26 s | Code | Focus the decisive code line; keep any real source context dimmed |
 | 26–30 s | Payoff | End on the strongest result |
 
 These beat names are planning labels only; never render them in the video.

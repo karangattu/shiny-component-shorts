@@ -230,6 +230,43 @@ class SharedRecorderContractTest(unittest.TestCase):
         )
         self.assertNotIn("font:11px 'Mona Sans'", recorder.CODE_OVERLAY_JS)
 
+    def test_code_overlay_accepts_real_context_around_the_focus_line(self) -> None:
+        config = recorder.code_overlay_config(
+            "vertical",
+            {
+                "title": "app.py",
+                "before": "@render.ui\ndef retry_state():\n",
+                "text": "    attempt = input.retry()\n",
+                "after": "    checks = (...)\n    completed = min(attempt, 3)\n",
+                "start_line": 117,
+            },
+        )
+
+        self.assertEqual(config["before"], "@render.ui\ndef retry_state():")
+        self.assertEqual(config["text"], "    attempt = input.retry()")
+        self.assertEqual(
+            config["after"], "    checks = (...)\n    completed = min(attempt, 3)"
+        )
+        self.assertEqual(config["startLine"], 117)
+        self.assertEqual(config["language"], "python")
+
+    def test_code_overlay_marks_a_syntax_highlighted_vscode_focus_line(self) -> None:
+        source = recorder.CODE_OVERLAY_JS
+
+        for marker in (
+            "highlightCode",
+            "__code_focus_block__",
+            "__code_status_bar__",
+            "tok-keyword",
+            "tok-string",
+            "tok-comment",
+            "Visual Studio Code",
+            "cfg.before",
+            "cfg.after",
+            "cfg.startLine",
+        ):
+            self.assertIn(marker, source)
+
     def test_occupied_port_is_refused_without_killing_listener(self) -> None:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:
             listener.bind(("127.0.0.1", 0))

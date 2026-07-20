@@ -117,17 +117,65 @@ CURSOR_OVERLAY_JS = r"""(() => {
     }
 })();"""
 
-CODE_OVERLAY_JS = """async (cfg) => {
+CODE_OVERLAY_JS = r"""async (cfg) => {
     document.getElementById('__code_overlay__')?.remove();
     document.getElementById('__code_overlay_style__')?.remove();
     document.documentElement.classList.remove('__demo_code_side__');
     const sideBySide = cfg.layout === 'side';
     const uiFont = getComputedStyle(document.body).fontFamily;
+    const escapeHtml = value => value
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    const highlightCode = (source, language) => {
+        const keywords = new Set(language === 'r'
+            ? ['function', 'if', 'else', 'for', 'while', 'in', 'return', 'TRUE', 'FALSE', 'NULL']
+            : ['and', 'as', 'async', 'await', 'break', 'class', 'continue', 'def', 'elif',
+                'else', 'False', 'finally', 'for', 'from', 'if', 'import', 'in', 'is',
+                'lambda', 'None', 'not', 'or', 'pass', 'raise', 'return', 'True',
+                'try', 'while', 'with', 'yield']);
+        const builtins = new Set(language === 'r'
+            ? ['c', 'list', 'min', 'max', 'length', 'paste', 'paste0']
+            : ['dict', 'enumerate', 'float', 'int', 'len', 'list', 'max', 'min',
+                'range', 'set', 'str', 'tuple', 'zip']);
+        const pattern = /(#[^\n]*)|("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')|(@[A-Za-z_][A-Za-z0-9_.]*)|([A-Za-z_][A-Za-z0-9_]*)|([0-9]+(?:\.[0-9]+)?)/g;
+        let html = '';
+        let cursor = 0;
+        for (const match of source.matchAll(pattern)) {
+            html += escapeHtml(source.slice(cursor, match.index));
+            const token = match[0];
+            let kind = '';
+            if (match[1]) kind = 'comment';
+            else if (match[2]) kind = 'string';
+            else if (match[3]) kind = 'decorator';
+            else if (match[5]) kind = 'number';
+            else if (keywords.has(token)) kind = 'keyword';
+            else if (builtins.has(token)) kind = 'builtin';
+            else if (source.slice(match.index + token.length).trimStart().startsWith('(')) {
+                kind = 'function';
+            }
+            html += kind
+                ? `<span class="tok-${kind}">${escapeHtml(token)}</span>`
+                : escapeHtml(token);
+            cursor = match.index + token.length;
+        }
+        return html + escapeHtml(source.slice(cursor));
+    };
     const style = document.createElement('style');
     style.id = '__code_overlay_style__';
     style.textContent = '@keyframes __blink {0%,55%{opacity:1}56%,100%{opacity:0}}'
         + '#__code_overlay__ .cursor{animation:__blink 1s step-end infinite;}'
         + '#__code_overlay__ *{box-sizing:border-box;}'
+        + '#__code_overlay__ .tok-keyword{color:#BF007F;font-weight:600;}'
+        + '#__code_overlay__ .tok-string{color:#00BF7F;}'
+        + '#__code_overlay__ .tok-comment{color:#CDD4DA;font-style:italic;opacity:.72;}'
+        + '#__code_overlay__ .tok-number{color:#F9B928;}'
+        + '#__code_overlay__ .tok-decorator{color:#03C7E8;}'
+        + '#__code_overlay__ .tok-builtin{color:#03C7E8;}'
+        + '#__code_overlay__ .tok-function{color:#F9B928;}'
+        + '#__code_overlay__ .__code_context_line__{opacity:.58;}'
+        + '#__code_overlay__ .__code_focus_line__{background:rgba(0,123,194,.16);'
+        + 'box-shadow:inset 2px 0 #007BC2;}'
         + 'html.__demo_code_side__ body{width:54vw!important;max-width:54vw!important;'
         + 'margin-left:2vw!important;margin-right:0!important;overflow-x:hidden!important;}'
         + 'html.__demo_code_side__ body>*:not(#__code_overlay__){max-width:100%!important;}';
@@ -144,24 +192,38 @@ CODE_OVERLAY_JS = """async (cfg) => {
             + 'box-shadow:0 18px 60px rgba(29,31,33,.55);overflow:hidden;';
     if (sideBySide) document.documentElement.classList.add('__demo_code_side__');
     const titlebar = document.createElement('div');
-    titlebar.textContent = 'Shiny app code';
-    titlebar.style.cssText = 'height:28px;display:grid;place-items:center;background:#202020;'
-        + 'border-bottom:1px solid #343A46;color:#CDD4DA;'
-        + 'font-size:11px;font-family:' + uiFont + ';';
+    titlebar.style.cssText = 'height:30px;display:grid;grid-template-columns:64px 1fr 64px;'
+        + 'align-items:center;background:#202020;border-bottom:1px solid rgba(205,212,218,.18);'
+        + 'color:#CDD4DA;font-size:10px;font-family:' + uiFont + ';';
+    const traffic = document.createElement('div');
+    traffic.innerHTML = '<i></i><i></i><i></i>';
+    traffic.style.cssText = 'display:flex;gap:6px;padding-left:11px;';
+    Array.from(traffic.children).forEach((dot, index) => {
+        dot.style.cssText = 'display:block;width:9px;height:9px;border-radius:50%;background:'
+            + ['#C10000', '#F9B928', '#00891A'][index] + ';';
+    });
+    const windowTitle = document.createElement('div');
+    windowTitle.textContent = cfg.title + ' — Shiny component short — Visual Studio Code';
+    windowTitle.style.cssText = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center;';
+    titlebar.append(traffic, windowTitle, document.createElement('span'));
     const workbench = document.createElement('div');
-    workbench.style.cssText = 'display:flex;min-height:146px;flex:1;';
+    workbench.style.cssText = 'display:flex;min-height:176px;flex:1;';
     const activity = document.createElement('div');
     activity.id = '__code_activity_bar__';
     activity.innerHTML = '<div>▱</div><div>⌕</div><div>⑂</div>';
-    activity.style.cssText = 'width:38px;flex:0 0 38px;background:#202020;color:#8D959E;'
-        + 'border-right:1px solid #343A46;text-align:center;font:20px/38px sans-serif;';
+    activity.style.cssText = 'width:38px;flex:0 0 38px;background:#202020;color:#CDD4DA;'
+        + 'border-right:1px solid rgba(205,212,218,.18);text-align:center;'
+        + 'font:20px/38px sans-serif;opacity:.82;box-shadow:inset 2px 0 #FFFFFF;';
     const editor = document.createElement('div');
-    editor.style.cssText = 'min-width:0;flex:1;background:#1D1F21;';
+    editor.style.cssText = 'min-width:0;display:flex;flex-direction:column;flex:1;background:#1D1F21;';
     const tabs = document.createElement('div');
-    tabs.style.cssText = 'height:34px;display:flex;background:#202020;border-bottom:1px solid #343A46;';
+    tabs.style.cssText = 'height:34px;display:flex;background:#202020;'
+        + 'border-bottom:1px solid rgba(205,212,218,.18);';
     const tab = document.createElement('div');
     tab.id = '__code_tab__';
-    tab.innerHTML = '<span style="color:#007BC2;font-weight:800">PY</span><span></span><span>×</span>';
+    tab.innerHTML = '<span></span><span></span><span>×</span>';
+    tab.children[0].textContent = cfg.language === 'r' ? 'R' : 'PY';
+    tab.children[0].style.cssText = 'color:#03C7E8;font-weight:800;';
     tab.children[1].textContent = cfg.title;
     tab.style.cssText = 'display:flex;align-items:center;gap:8px;padding:0 12px;background:#1D1F21;'
         + 'border-top:2px solid #007BC2;color:#CDD4DA;'
@@ -169,36 +231,68 @@ CODE_OVERLAY_JS = """async (cfg) => {
     tabs.appendChild(tab);
     const breadcrumb = document.createElement('div');
     breadcrumb.textContent = 'src  ›  ' + cfg.title;
-    breadcrumb.style.cssText = 'height:25px;padding:5px 12px;color:#8D959E;'
+    breadcrumb.style.cssText = 'height:25px;padding:5px 12px;color:#CDD4DA;opacity:.68;'
         + 'font-size:11px;font-family:' + uiFont + ';';
-    const codeRow = document.createElement('div');
-    codeRow.style.cssText = 'display:flex;padding:10px 14px 15px 0;';
-    const gutter = document.createElement('div');
-    gutter.id = '__code_gutter__';
-    gutter.textContent = '1';
-    gutter.style.cssText = 'width:42px;flex:0 0 42px;padding-right:12px;text-align:right;'
-        + "white-space:pre;color:#8D959E;font:15px/1.65 'Source Code Pro',ui-monospace,monospace;"
-        + 'user-select:none;';
-    const body = document.createElement('div');
-    body.style.cssText = 'min-width:0;white-space:pre-wrap;color:#FFFFFF;'
+    const codeViewport = document.createElement('div');
+    codeViewport.id = '__code_gutter__';
+    codeViewport.style.cssText = 'flex:1;overflow:hidden;padding:8px 0 12px;'
         + "font-family:'Source Code Pro','SF Mono',ui-monospace,Menlo,monospace;"
-        + 'font-size:15px;line-height:1.65;';
-    const text = document.createElement('span');
-    const cursor = document.createElement('span');
-    cursor.className = 'cursor';
-    cursor.textContent = '\\u258B';
-    cursor.style.color = '#007BC2';
-    body.append(text, cursor);
-    codeRow.append(gutter, body);
-    editor.append(tabs, breadcrumb, codeRow);
+        + 'font-size:14px;line-height:1.65;color:#FFFFFF;';
+    const beforeBlock = document.createElement('div');
+    const focusBlock = document.createElement('div');
+    focusBlock.id = '__code_focus_block__';
+    const afterBlock = document.createElement('div');
+    const renderLines = (target, source, firstLine, focus) => {
+        target.replaceChildren();
+        if (!source && !focus) return 0;
+        const lines = (source || '').split('\n');
+        lines.forEach((line, index) => {
+            const row = document.createElement('div');
+            row.className = focus ? '__code_focus_line__' : '__code_context_line__';
+            row.style.cssText = 'display:grid;grid-template-columns:42px minmax(0,1fr);min-height:23px;';
+            const number = document.createElement('span');
+            number.textContent = String(firstLine + index);
+            number.style.cssText = 'padding-right:12px;text-align:right;color:#CDD4DA;'
+                + 'opacity:.62;user-select:none;';
+            const code = document.createElement('span');
+            code.style.cssText = 'min-width:0;padding-right:12px;white-space:pre-wrap;overflow-wrap:anywhere;';
+            code.innerHTML = highlightCode(line, cfg.language);
+            if (focus && index === lines.length - 1) {
+                const typingCursor = document.createElement('span');
+                typingCursor.className = 'cursor';
+                typingCursor.textContent = '\u258B';
+                typingCursor.style.color = '#007BC2';
+                code.appendChild(typingCursor);
+            }
+            row.append(number, code);
+            target.appendChild(row);
+        });
+        return lines.length;
+    };
+    const beforeCount = cfg.before ? cfg.before.split('\n').length : 0;
+    const focusStart = cfg.startLine + beforeCount;
+    const focusCount = cfg.text.split('\n').length;
+    renderLines(beforeBlock, cfg.before, cfg.startLine, false);
+    renderLines(focusBlock, '', focusStart, true);
+    renderLines(afterBlock, cfg.after, focusStart + focusCount, false);
+    codeViewport.append(beforeBlock, focusBlock, afterBlock);
+    const status = document.createElement('div');
+    status.id = '__code_status_bar__';
+    status.style.cssText = 'height:20px;display:flex;align-items:center;justify-content:flex-end;gap:12px;'
+        + 'padding:0 10px;background:#007BC2;color:#FFFFFF;font:10px/1 ' + uiFont + ';';
+    const updateStatus = typed => {
+        const column = (typed.split('\n').at(-1) || '').length + 1;
+        status.textContent = `Ln ${focusStart}, Col ${column}   Spaces: 4   UTF-8   ${cfg.language === 'r' ? 'R' : 'Python'}`;
+    };
+    updateStatus('');
+    editor.append(tabs, breadcrumb, codeViewport, status);
     workbench.append(activity, editor);
     el.append(titlebar, workbench);
     document.body.appendChild(el);
     for (let i = 1; i <= cfg.text.length; i++) {
-        text.textContent = cfg.text.slice(0, i);
-        gutter.textContent = Array.from(
-            {length: text.textContent.split('\\n').length}, (_, index) => index + 1
-        ).join('\\n');
+        const typed = cfg.text.slice(0, i);
+        renderLines(focusBlock, typed, focusStart, true);
+        updateStatus(typed);
         await new Promise(resolve => setTimeout(resolve, cfg.typeMs));
     }
 }"""
@@ -320,9 +414,18 @@ def resolve_orientation(cli_value: str | None, config: dict) -> str:
 def code_overlay_config(orientation: str, action: dict) -> dict:
     if orientation not in {"vertical", "horizontal"}:
         raise ValueError(f"Unsupported orientation: {orientation}")
+    title = action.get("title", "app.py")
+    language = str(
+        action.get("language")
+        or ("r" if str(title).lower().endswith(".r") else "python")
+    )
     return {
-        "title": action.get("title", "app.py"),
+        "title": title,
+        "before": str(action.get("before", "")).strip("\n"),
         "text": str(action["text"]).rstrip("\n"),
+        "after": str(action.get("after", "")).strip("\n"),
+        "startLine": int(action.get("start_line", 1)),
+        "language": language.lower(),
         "typeMs": action.get("type_ms", 22),
         "layout": "side" if orientation == "horizontal" else "overlay",
     }

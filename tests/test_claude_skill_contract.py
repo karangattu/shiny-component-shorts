@@ -65,6 +65,22 @@ class ClaudeSkillContractTest(unittest.TestCase):
         self.assertIn("claude_session_cost.py", text)
         self.assertTrue((SKILL / "scripts/claude_session_cost.py").is_file())
 
+    def test_contextual_code_window_is_documented_across_repo_contracts(self) -> None:
+        skill = SKILL_MD.read_text(encoding="utf-8")
+        recording = (SKILL / "references/recording-contract.md").read_text(
+            encoding="utf-8"
+        )
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+
+        self.assertIn(
+            "Focus the decisive code line; keep any real source context dimmed",
+            skill,
+        )
+        for marker in ("syntax-highlighted", "before", "after", "start_line"):
+            self.assertIn(marker, recording)
+        self.assertIn("syntax-highlighted code card", readme)
+        self.assertIn("real source context", readme)
+
     def test_multi_video_series_requires_visual_variety(self) -> None:
         skill = SKILL_MD.read_text(encoding="utf-8")
         playbook = (SKILL / "references/creative-playbook.md").read_text(encoding="utf-8")
@@ -244,6 +260,43 @@ class ClaudeRecorderContractTest(unittest.TestCase):
             recorder.CODE_OVERLAY_JS,
         )
         self.assertNotIn("font:11px 'Mona Sans'", recorder.CODE_OVERLAY_JS)
+
+    def test_code_overlay_accepts_real_context_around_the_focus_line(self) -> None:
+        config = recorder.code_overlay_config(
+            "vertical",
+            {
+                "title": "app.py",
+                "before": "@render.ui\ndef retry_state():\n",
+                "text": "    attempt = input.retry()\n",
+                "after": "    checks = (...)\n    completed = min(attempt, 3)\n",
+                "start_line": 117,
+            },
+        )
+
+        self.assertEqual(config["before"], "@render.ui\ndef retry_state():")
+        self.assertEqual(config["text"], "    attempt = input.retry()")
+        self.assertEqual(
+            config["after"], "    checks = (...)\n    completed = min(attempt, 3)"
+        )
+        self.assertEqual(config["startLine"], 117)
+        self.assertEqual(config["language"], "python")
+
+    def test_code_overlay_marks_a_syntax_highlighted_vscode_focus_line(self) -> None:
+        source = recorder.CODE_OVERLAY_JS
+
+        for marker in (
+            "highlightCode",
+            "__code_focus_block__",
+            "__code_status_bar__",
+            "tok-keyword",
+            "tok-string",
+            "tok-comment",
+            "Visual Studio Code",
+            "cfg.before",
+            "cfg.after",
+            "cfg.startLine",
+        ):
+            self.assertIn(marker, source)
 
     def test_normalize_overlays_defaults_and_rejections(self) -> None:
         self.assertIsNone(recorder.normalize_overlays({}))

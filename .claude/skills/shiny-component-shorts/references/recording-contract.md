@@ -80,8 +80,14 @@ actions:
       key: "Escape"
   - code:
       title: "app.py"
+      start_line: 42
+      before: |
+        @render.ui
+        def note_field():
       text: |
-        ui.input_text_area("notes", autoresize=True)
+            ui.input_text_area("notes", autoresize=True)
+      after: |
+            return ui.div("Saved")
   - screenshot:
       path: "artifacts/final.png"
 ```
@@ -99,7 +105,7 @@ Supported actions are `wait_for`, `wait`, `click`, `drag`, `select_option`, `hov
 - `fill` changes a field instantly; reserve it for clearing or realistic paste actions.
 - `type` clicks, focuses, moves the caret to the end, and types sequentially. Use 35–70 ms per character.
 - `press` sends one named key to the selector.
-- `code` types a compact Shiny-branded editor card, holds it by reading time, then removes it. In horizontal mode it uses the side-by-side layout instead of overlaying the app.
+- `code` types a compact, syntax-highlighted Shiny-branded editor card, holds it by reading time, then removes it. Its `text` is the highlighted focus line; optional `before` and `after` blocks show dimmed real source context, and `start_line` keeps the gutter honest. In horizontal mode it uses the side-by-side layout instead of overlaying the app.
 - `zoom` is an optional camera punch-in: it scales the page toward the center of `selector` (`scale`, default 1.6), holds (`hold` ms, default 1800), then eases back out over about a second total of transitions. Use at most one per video, on the proof beat's changing region, and never while the code card is visible.
 - `screenshot` writes a full-page screenshot relative to the demo directory.
 - Legacy `caption`, `beat`, and `label` actions inject visible overlays and require an `overlays` block. Do not use them in skill-generated recordings. In particular, storyboard beat names such as `Reveal` and `Proof` are planning metadata, not action entries.

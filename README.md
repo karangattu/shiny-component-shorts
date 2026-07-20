@@ -111,6 +111,8 @@ Recorded shorts default to a true 9:16 composition with the app as the hero. `Pr
 
 Every composition reserves the top 20% and bottom 20% for later branding while the app stretches across the available width in the middle band. Horizontal recordings present the live app and code side-by-side during the code beat. App UI, cursor effects, and code cards use the official Shiny preset palette, including Shiny blue `#007BC2`, accessible `#1D1F21` text on light surfaces, and `#FFFFFF` text on dark surfaces.
 
+The shared Claude and Codex recorders use the same VS Code-style, syntax-highlighted code card. A code action can show dimmed real source context with `before` and `after`, keep honest gutter numbers with `start_line`, and animate only the decisive focused line.
+
 Narration uses speech only. Laughing, giggling, chuckling, and other non-speech vocalizations are prohibited by the prompt contract and rejected by validation.
 
 ## Gemini 3.1 TTS
