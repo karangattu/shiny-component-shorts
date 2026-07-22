@@ -94,7 +94,7 @@ Every recording must:
 
 The storyboard follows `Problem → Reveal → Proof → Code → Payoff`, but those labels never appear on screen — the browser recording stays clean.
 
-The code card is a syntax-highlighted VS Code-style editor showing a verbatim slice of the app source: dimmed `before`/`after` context around one animated, highlighted decisive line, with honest gutter numbers. In vertical videos it renders in the lower half of the frame, below the component; in horizontal videos the app and code sit side by side.
+During the code beat, a syntax-highlighted code card styled like a real VS Code window shows real source context: a verbatim slice of the app with dimmed `before`/`after` lines around one animated, highlighted decisive line, and honest gutter numbers. In vertical videos it renders in the lower half of the frame, below the component; in horizontal videos the app and code sit side by side.
 
 Narration is speech only — laughing, giggling, and other non-speech sounds are rejected by validation. Detailed pacing rules live in each skill's `references/` directory.
 

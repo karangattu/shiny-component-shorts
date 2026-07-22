@@ -251,7 +251,11 @@ class ClaudeRecorderContractTest(unittest.TestCase):
     def test_code_hold_formula(self) -> None:
         self.assertEqual(recorder.code_hold_ms(""), 5500)
         self.assertEqual(recorder.code_hold_ms("x" * 60), 3200 + 55 * 60)
-        self.assertEqual(recorder.code_hold_ms("x" * 500), 10000)
+        self.assertEqual(
+            recorder.code_hold_ms("x" * 60, context="y" * 100),
+            3200 + 55 * 60 + 14 * 100,
+        )
+        self.assertEqual(recorder.code_hold_ms("x" * 500), 11000)
         self.assertEqual(recorder.code_hold_ms("x" * 500, override=4200), 4200)
 
     def test_horizontal_code_uses_a_side_panel_and_shiny_palette(self) -> None:

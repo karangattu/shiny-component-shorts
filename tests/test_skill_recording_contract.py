@@ -220,7 +220,11 @@ class SharedRecorderContractTest(unittest.TestCase):
 
     def test_code_hold_uses_reading_time_and_bounds(self) -> None:
         self.assertEqual(recorder.code_hold_ms("x"), 5500)
-        self.assertEqual(recorder.code_hold_ms("x" * 1000), 10000)
+        self.assertEqual(recorder.code_hold_ms("x" * 1000), 11000)
+        self.assertEqual(
+            recorder.code_hold_ms("x" * 60, context="y" * 100),
+            3200 + 55 * 60 + 14 * 100,
+        )
         self.assertEqual(recorder.code_hold_ms("x", 4321), 4321)
 
     def test_horizontal_code_uses_a_side_panel_and_shiny_palette(self) -> None:
