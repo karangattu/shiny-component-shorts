@@ -104,7 +104,24 @@ Just describe what you want in the prompt:
 
 - **Generated narration** (default when you ask for audio) — the agent writes the script and synthesizes it with Gemini 3.1 Flash TTS Preview, then times every on-screen action to the measured audio.
 - **Reuse existing narration** — point the agent at a WAV or an already-narrated video and it uses that audio instead of calling TTS. No API key needed.
+
+  ```text
+  /shiny-component-shorts Create a vertical video about bslib value boxes in R.
+  Use the narration from recordings/value-box-take2.wav instead of generating new audio.
+  ```
+
+  ```text
+  Use the shiny-component-shorts skill to remake the slider demo video, reusing the
+  narration audio from old-videos/slider-final.mp4.
+  ```
+
 - **Silent videos** — a narration script is still written (it drives action timing), but no TTS is called and no API key is required.
+
+  ```text
+  /shiny-component-shorts Create a vertical video about Shiny's date range picker
+  in Python, with a narration script but no audio — I'll record the voiceover myself.
+  ```
+
 - **Pin a voice or model** — add a per-video `tts-settings.json` with `{"voice": "Kore"}` and the agent uses it for that video.
 
 For narrated videos, the agent generates the audio first, measures it, and only records after the action timing is reviewed against the real narration — so reactions land on the sentences that describe them. Audio is merged with two-pass loudness normalization to the -14 LUFS short-form target.
