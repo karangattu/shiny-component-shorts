@@ -42,7 +42,6 @@ SUPPORTED_ACTIONS = frozenset(
         "type",
         "press",
         "code",
-        "zoom",
         "screenshot",
         "caption",
         "beat",
@@ -187,7 +186,7 @@ CODE_OVERLAY_JS = r"""async (cfg) => {
             + 'display:flex;flex-direction:column;background:#1D1F21;'
             + 'border:1px solid #48505F;border-radius:10px;'
             + 'box-shadow:0 18px 60px rgba(29,31,33,.55);overflow:hidden;'
-        : 'position:fixed;left:4%;right:4%;bottom:20.5%;max-height:46%;z-index:99999;'
+        : 'position:fixed;left:4%;right:4%;bottom:4%;max-height:46%;z-index:99999;'
             + 'display:flex;flex-direction:column;background:#1D1F21;'
             + 'border:1px solid #48505F;border-radius:10px;'
             + 'box-shadow:0 18px 60px rgba(29,31,33,.55);overflow:hidden;';
@@ -546,7 +545,7 @@ def collect_selectors(actions: list[dict]) -> list[str]:
             continue
         if name in {"click", "hover"}:
             selector = value
-        elif name in {"drag", "select_option", "fill", "type", "press", "zoom"}:
+        elif name in {"drag", "select_option", "fill", "type", "press"}:
             selector = value["selector"]
         else:
             continue
@@ -622,20 +621,6 @@ def validate_action_shape(action: object) -> str:
     return name
 
 
-ZOOM_JS = """
-(cfg) => {
-  const el = document.querySelector(cfg.selector);
-  if (!el) return false;
-  const r = el.getBoundingClientRect();
-  const b = document.body;
-  b.style.transition = 'transform 450ms cubic-bezier(0.4, 0, 0.2, 1)';
-  b.style.transformOrigin = `${r.x + r.width / 2}px ${r.y + r.height / 2}px`;
-  b.style.transform = `scale(${cfg.scale})`;
-  return true;
-}
-"""
-
-
 def run_actions(
     page,
     actions: list[dict],
@@ -698,27 +683,10 @@ def run_actions(
                 " document.getElementById('__code_overlay_style__')?.remove();"
                 " document.documentElement.classList.remove('__demo_code_side__'); }"
             )
-        elif name == "zoom":
-            found = page.evaluate(
-                ZOOM_JS,
-                {
-                    "selector": value["selector"],
-                    "scale": float(value.get("scale", 1.6)),
-                },
-            )
-            if not found:
-                raise RuntimeError(f"Zoom target not found: {value['selector']}")
-            page.wait_for_timeout(450 + int(value.get("hold", 1800)))
-            page.evaluate("() => { document.body.style.transform = 'none'; }")
-            page.wait_for_timeout(500)
-            page.evaluate(
-                "() => { const b = document.body; b.style.transition = '';"
-                " b.style.transformOrigin = ''; b.style.transform = ''; }"
-            )
         elif name == "screenshot":
             target = project_dir / value["path"]
             target.parent.mkdir(parents=True, exist_ok=True)
-            page.screenshot(path=str(target), full_page=True)
+            page.screenshot(path=str(target))
         elif name == "caption":
             page.evaluate(
                 "text => window.__demo_overlays__?.setCaption(text)", str(value or "")
@@ -764,7 +732,7 @@ def record_project(
     app_dir: Path | None = None,
     port_override: int | None = None,
 ) -> Path:
-    from playwright.sync_api import sync_playwright
+    from playwright.sync_api import ViewportSize, sync_playwright
 
     project_dir = project_dir.resolve()
     app_dir = (app_dir or project_dir).resolve()
@@ -796,10 +764,10 @@ def record_project(
 
     orientation = resolve_orientation(orientation_override, config)
     overlays = normalize_overlays(config)
-    viewport = {"width": 720, "height": 1280}
+    viewport = ViewportSize(width=720, height=1280)
     if orientation == "horizontal":
-        viewport = {"width": 1280, "height": 720}
-    size = {dimension: pixels * 2 for dimension, pixels in viewport.items()}
+        viewport = ViewportSize(width=1280, height=720)
+    size = ViewportSize(width=viewport["width"] * 2, height=viewport["height"] * 2)
 
     artifacts = project_dir / "artifacts"
     artifacts.mkdir(parents=True, exist_ok=True)
@@ -821,6 +789,8 @@ def record_project(
                 )
             page = context.new_page()
             video = page.video
+            if video is None:
+                raise RuntimeError("Playwright did not attach a video recorder")
             recording_started = time.monotonic()
             page.goto(url)
             page.wait_for_load_state("networkidle")
@@ -862,6 +832,19 @@ def record_project(
         # Trim the page-load preamble so the first action lands near the start
         # of the deliverable and narration timed from zero stays in sync.
         trim_seconds = max(0.0, preamble_seconds - 0.7)
+        # Cut the tail at the final screenshot: capturing it re-rasterizes the
+        # page at 1x, which records as a shrunken frame on a gray canvas.
+        tail_args: list[str] = []
+        screenshot_start = next(
+            (
+                entry["start"]
+                for entry in timeline
+                if entry["action"] == "screenshot"
+            ),
+            None,
+        )
+        if screenshot_start is not None and screenshot_start - 0.05 > trim_seconds:
+            tail_args = ["-t", f"{screenshot_start - 0.05 - trim_seconds:.2f}"]
         subprocess.run(
             [
                 "ffmpeg",
@@ -872,6 +855,7 @@ def record_project(
                 str(webm_path),
                 "-ss",
                 f"{trim_seconds:.2f}",
+                *tail_args,
                 "-c:v",
                 "libx264",
                 "-crf",

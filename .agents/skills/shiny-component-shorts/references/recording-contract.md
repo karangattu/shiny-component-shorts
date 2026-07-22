@@ -24,7 +24,7 @@ Options:
 
 Author the app with an empty top 20% and bottom 20% for later branding. The app belongs in the middle 60% band and should span the available horizontal space between 3–5% side gutters.
 
-The `code` action is orientation-aware. Vertical recordings anchor the panel to the bottom of the middle safe band (just above the reserved bottom 20%), growing upward as needed, so it sits below the component instead of covering it; compose the app toward the top of the band so the two never fight. Horizontal recordings switch to a side-by-side composition: the live app reflows on the left while the code panel occupies the right, so neither is hidden. The code panel uses the Shiny preset palette: `#007BC2` accent, `#1D1F21`/`#202020` dark surfaces, `#FFFFFF` primary text, and `#CDD4DA` secondary text.
+The `code` action is orientation-aware. Vertical recordings anchor the panel near the bottom edge of the frame (a 4% margin), growing upward as needed, so it fills the bottom half and sits below the component instead of covering it; during the code beat the panel may occupy the reserved bottom 20%. Compose the app toward the top of the band so the two never fight. Horizontal recordings switch to a side-by-side composition: the live app reflows on the left while the code panel occupies the right, so neither is hidden. The code panel uses the Shiny preset palette: `#007BC2` accent, `#1D1F21`/`#202020` dark surfaces, `#FFFFFF` primary text, and `#CDD4DA` secondary text.
 
 The recorder refuses to start if its port is already occupied. Stop the known process yourself; never kill an unknown listener automatically.
 
@@ -92,7 +92,7 @@ actions:
       path: "artifacts/final.png"
 ```
 
-Supported actions are `wait_for`, `wait`, `click`, `drag`, `select_option`, `hover`, `fill`, `type`, `press`, `code`, `zoom`, and `screenshot`. Each list item must contain exactly one action.
+Supported actions are `wait_for`, `wait`, `click`, `drag`, `select_option`, `hover`, `fill`, `type`, `press`, `code`, and `screenshot`. Each list item must contain exactly one action.
 
 Storyboard beats such as `Reveal`, `Proof`, `Code`, and `Payoff` are planning metadata only. Do not add them to `actions.yaml` or render them over the recording.
 
@@ -107,8 +107,7 @@ Storyboard beats such as `Reveal`, `Proof`, `Code`, and `Payoff` are planning me
 - `fill` changes a field instantly; reserve it for clearing or realistic paste actions.
 - `type` clicks, focuses, moves the caret to the end, and types sequentially. Use 35–70 ms per character.
 - `press` sends one named key to the selector.
-- `code` types a compact, syntax-highlighted Shiny-branded editor card, holds it by reading time, then removes it. Its `text` is the highlighted focus line; `before` and `after` blocks show dimmed real source context, and `start_line` keeps the gutter honest. Make that context an authentic slice of the app: include the code that surrounds the trick — for a UI feature, the enclosing UI component plus the related server logic (or the reverse when the server line is the star) — copied verbatim from the app source, typically 6–14 dimmed lines total, and highlight only the decisive line or two. Do not paste the whole app or invent tidied pseudo-source. Place any explanatory comment at the end of `before`, directly above the focus line — never in `after`, where a comment below the highlighted code reads as an afterthought and distracts from it. In vertical mode the card renders in the lower half of the frame, anchored above the bottom branding band; in horizontal mode it uses the side-by-side layout instead of overlaying the app.
-- `zoom` is an optional camera punch-in: it scales the page toward the center of `selector` (`scale`, default 1.6), holds (`hold` ms, default 1800), then eases back out over about a second total of transitions. Use at most one per video, on the proof beat's changing region, and never while the code card is visible.
+- `code` types a compact, syntax-highlighted Shiny-branded editor card, holds it by reading time, then removes it. Its `text` is the highlighted focus line; `before` and `after` blocks show dimmed real source context, and `start_line` keeps the gutter honest. Make that context an authentic slice of the app: include the code that surrounds the trick — for a UI feature, the enclosing UI component plus the related server logic (or the reverse when the server line is the star) — copied verbatim from the app source, typically 6–14 dimmed lines total, and highlight only the decisive line or two. Do not paste the whole app or invent tidied pseudo-source. Place any explanatory comment at the end of `before`, directly above the focus line — never in `after`, where a comment below the highlighted code reads as an afterthought and distracts from it. In vertical mode the card fills the bottom half of the frame, anchored near the bottom edge; in horizontal mode it uses the side-by-side layout instead of overlaying the app.
 - `screenshot` writes a full-page screenshot relative to the demo directory.
 
 ## Stable selectors
@@ -140,7 +139,16 @@ ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1 ar
 ffmpeg -i artifacts/narration.wav -af "silencedetect=noise=-30dB:d=0.4" -f null -
 ```
 
-Map each silence gap to a sentence boundary and set the waits so every visible reaction begins at or slightly before the sentence that describes it. Keep the video one to three seconds longer than the WAV, and place any slack needed to reach that length in the holds after reveals or before the code card — never at the start.
+Map each silence gap to a sentence boundary, then write the mapping down before touching the waits: put a comment block at the top of `actions.yaml` listing every measured sentence window and the action beat assigned to it. Timing is then a hard contract, not a vibe:
+
+- Every visible reaction must begin inside `[sentence_start − 1.0 s, sentence_start + 0.5 s]` of the sentence that describes it. When the narration says "switch to seven days," the seven-day click lands within a second of those words.
+- The first meaningful action must start before the first sentence ends (the validator rejects later starts), even when the second sentence names the action — start the pointer travel early so the click lands on the sentence boundary.
+- The code card must start within one second of the sentence that introduces the code.
+- No visible action may start after the narration ends; the validator rejects it. After the last sentence, only hold the payoff.
+- While narration plays, never leave the screen static for more than 8 seconds between visible actions (the validator rejects longer gaps).
+- Keep the video one to three seconds longer than the WAV (the validator enforces 0.75–3.5 s); place any slack in the holds after reveals or before the code card — never at the start.
+
+After recording, verify the sync against reality, not the plan: compare `action_timeline` in `artifacts/recording.json` with the sentence windows and confirm every reaction falls inside its window. If any beat drifts more than a second, adjust the waits and re-record; do not ship a drifting take.
 
 The code hold defaults to `3200 + 55 × focus characters + 14 × context characters` milliseconds, clamped between 5500 and 11000 ms, so richer dimmed context earns a slightly longer read. Its typewriter animation runs before that hold.
 

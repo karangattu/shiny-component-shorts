@@ -3,6 +3,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from typing import Any
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -22,16 +23,16 @@ BASE_ACTIONS = {
     "type",
     "press",
     "code",
-    "zoom",
     "screenshot",
 }
 OVERLAY_ACTIONS = {"caption", "beat", "label"}
 
 
-def load_module(name: str, path: Path):
+def load_module(name: str, path: Path) -> Any:
+    """Load a script as a module; typed as Any because tests monkeypatch it."""
     spec = importlib.util.spec_from_file_location(name, path)
+    assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
-    assert spec.loader is not None
     spec.loader.exec_module(module)
     return module
 
@@ -212,7 +213,7 @@ class ClaudeRecorderContractTest(unittest.TestCase):
         )
         for name in sorted(BASE_ACTIONS | OVERLAY_ACTIONS):
             payload: object = "#selector"
-            if name in {"drag", "select_option", "fill", "type", "press", "code", "zoom", "screenshot"}:
+            if name in {"drag", "select_option", "fill", "type", "press", "code", "screenshot"}:
                 payload = {"selector": "#selector"}
             elif name == "wait":
                 payload = 500

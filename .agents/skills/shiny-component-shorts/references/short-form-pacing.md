@@ -35,7 +35,7 @@ Use a stable composition with frequent information changes:
 
 - Keep the Shiny app as the hero in the center height band and stretch it across the available horizontal space between 3–5% side gutters.
 - Make each app state change visually self-explanatory.
-- Cut or punch in on the affected UI region after a meaningful action.
+- Keep the full app in frame; state changes must be legible without camera moves.
 - Use a compact Shiny-branded code card sized by reading time (typewriter animation + a hold computed from character count); keep the live app visible.
 - Return to the full app for the payoff.
 - Make one visual change every 1.5–3 seconds: interaction, reaction, crop, or caption.
@@ -53,7 +53,7 @@ Design for the final orientation from the start.
 - Make controls large enough for a phone screen and keep labels short.
 - Verify the first, middle, code, and final frames at actual phone size.
 
-In horizontal mode, show the code and live app side-by-side during the code beat: keep the app on the left and the Shiny-branded code panel on the right. Never place the code panel over the app in horizontal mode. In vertical mode, the code card sits in the lower half of the frame, anchored just above the bottom branding band, so the component stays visible above it; compose the app toward the top of the middle band.
+In horizontal mode, show the code and live app side-by-side during the code beat: keep the app on the left and the Shiny-branded code panel on the right. Never place the code panel over the app in horizontal mode. In vertical mode, the code card fills the bottom half of the frame, anchored near the bottom edge (a 4% margin), so the component stays visible above it; during the code beat the card may cover the bottom branding band. Compose the app toward the top of the middle band.
 
 All framing and editing elements must stay in the Shiny preset palette. Use Shiny blue `#007BC2` for primary emphasis, `#FFFFFF`/`#F8F8F8` with `#1D1F21` text for light treatments, and `#1D1F21`/`#202020` with `#FFFFFF` and `#CDD4DA` text for dark treatments.
 
@@ -63,7 +63,7 @@ All framing and editing elements must stay in the Shiny preset palette. Use Shin
 | ---: | --- | --- |
 | 0–2 | Pain | Spoken hook begins; first action starts |
 | 2–7 | Reveal | App reacts; first caption supports the change |
-| 7–14 | Proof | Second state; punch in on the changing region |
+| 7–14 | Proof | Second state; the changing readout carries the beat |
 | 14–19 | Contrast | Reverse or reset to strengthen the proof |
 | 19–23 | Code | Vertical: compact card over the app. Horizontal: app and code side-by-side |
 | 23–30 | Payoff | Strongest interaction, full app, short takeaway |

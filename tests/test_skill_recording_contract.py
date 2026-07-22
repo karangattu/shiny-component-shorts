@@ -5,6 +5,7 @@ import tempfile
 from types import SimpleNamespace
 import unittest
 from pathlib import Path
+from typing import Any
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -16,10 +17,11 @@ VALIDATOR_PATH = SKILL / "scripts/validate_demo.py"
 TTS_PATH = SKILL / "scripts/generate_tts.py"
 
 
-def load_module(name: str, path: Path):
+def load_module(name: str, path: Path) -> Any:
+    """Load a script as a module; typed as Any because tests monkeypatch it."""
     spec = importlib.util.spec_from_file_location(name, path)
+    assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
-    assert spec.loader is not None
     spec.loader.exec_module(module)
     return module
 
@@ -207,7 +209,6 @@ class SharedRecorderContractTest(unittest.TestCase):
                 "type",
                 "press",
                 "code",
-                "zoom",
                 "screenshot",
             },
         )

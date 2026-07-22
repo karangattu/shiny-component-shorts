@@ -1,0 +1,13 @@
+# Pass the skill script dirs explicitly on the CLI (see CI); a bare
+# `pyrefly check` skips dot-directories like .claude/ and .agents/.
+project-includes = [
+    "tests",
+    ".agents/skills/shiny-component-shorts/scripts",
+    ".claude/skills/shiny-component-shorts/scripts",
+]
+
+# tests/test_batch_process.py imports the batch scripts after a sys.path insert
+search-path = [
+    ".agents/skills/shiny-component-shorts/scripts",
+    ".",
+]

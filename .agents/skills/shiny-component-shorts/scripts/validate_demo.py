@@ -25,10 +25,13 @@ SUPPORTED_ACTIONS = frozenset(
         "type",
         "press",
         "code",
-        "zoom",
         "screenshot",
     }
 )
+REMOVED_ACTIONS = {
+    "zoom": "zoom was removed; punch-ins fire at unpredictable moments — "
+    "cut the action and let the reveal breathe at full frame"
+}
 MEANINGFUL_ACTIONS = frozenset(
     {"click", "drag", "select_option", "hover", "fill", "type", "press"}
 )
@@ -58,8 +61,6 @@ def estimate_action_seconds(actions: list[dict]) -> float:
             total_ms += 1000
         elif name == "drag":
             total_ms += 1500
-        elif name == "zoom" and isinstance(value, dict):
-            total_ms += 950 + int(value.get("hold", 1800))
         elif name == "type" and isinstance(value, dict):
             total_ms += len(str(value.get("value", ""))) * int(value.get("delay", 45)) + 1000
         elif name == "code" and isinstance(value, dict):
@@ -174,6 +175,46 @@ def require_nonempty(path: Path, errors: list[str]) -> bool:
     return True
 
 
+def code_block_source_errors(
+    index: int, value: dict, source_lines: list[str]
+) -> list[str]:
+    """The code card must mirror the app source, including indentation.
+
+    Every non-comment line must exist in the source, and one uniform
+    indentation offset must map the card onto the source so relative
+    indentation is preserved exactly.
+    """
+    problems: list[str] = []
+    offsets: set[int] | None = None
+    for key in ("before", "text", "after"):
+        block = str(value.get(key) or "")
+        for line in block.strip("\n").split("\n"):
+            stripped = line.strip()
+            if not stripped or stripped.startswith("#"):
+                continue
+            indent = len(line) - len(line.lstrip(" "))
+            candidates = {
+                (len(source) - len(source.lstrip(" "))) - indent
+                for source in source_lines
+                if source.strip() == stripped
+            }
+            if not candidates:
+                problems.append(
+                    f"Action {index} code line is not in the app source "
+                    f"verbatim: {stripped!r}"
+                )
+                continue
+            offsets = candidates if offsets is None else offsets & candidates
+    if offsets is not None and not offsets and not problems:
+        problems.append(
+            f"Action {index} code indentation does not mirror the app source: "
+            "the card's lines need one uniform indentation offset from their "
+            "source lines — copy the leading whitespace exactly (use a YAML "
+            "block indicator such as `before: |2` so it is not stripped)"
+        )
+    return problems
+
+
 def validate_project(
     project_dir: Path,
     require_audio: bool = False,
@@ -216,6 +257,13 @@ def validate_project(
         except (OSError, yaml.YAMLError) as exc:
             errors.append(f"Cannot read actions.yaml: {exc}")
 
+    app_source_lines: list[str] | None = None
+    for app_name in ("app.py", "app.R"):
+        app_path = app_dir / app_name
+        if app_path.is_file():
+            app_source_lines = app_path.read_text(encoding="utf-8").split("\n")
+            break
+
     meaningful = 0
     screenshot_actions = 0
     for index, action in enumerate(actions, start=1):
@@ -223,6 +271,9 @@ def validate_project(
             errors.append(f"Action {index} must contain exactly one key")
             continue
         name, value = next(iter(action.items()))
+        if name in REMOVED_ACTIONS:
+            errors.append(f"Action {index}: {REMOVED_ACTIONS[name]}")
+            continue
         if name not in SUPPORTED_ACTIONS:
             errors.append(f"Action {index} uses unsupported action: {name}")
             continue
@@ -232,6 +283,8 @@ def validate_project(
             errors.append(f"Action {index} has an invalid wait")
         elif name == "wait" and value > 3000:
             errors.append(f"Action {index} has an idle wait over 3000 ms")
+        if name == "code" and isinstance(value, dict) and app_source_lines is not None:
+            errors.extend(code_block_source_errors(index, value, app_source_lines))
         if name == "screenshot":
             screenshot_actions += 1
             if not isinstance(value, dict) or value.get("path") != "artifacts/final.png":
@@ -318,7 +371,17 @@ def validate_project(
                     f"Video is {video['width']}x{video['height']}; expected "
                     f"{expected[0]}x{expected[1]} for {orientation}"
                 )
-            if narration_seconds and video["duration"] + 0.25 < narration_seconds:
+            measured_narration = report.get("measured_narration_seconds")
+            if measured_narration:
+                overrun = video["duration"] - measured_narration
+                if not 0.75 <= overrun <= 3.5:
+                    errors.append(
+                        f"Video runs {overrun:.2f}s past the narration "
+                        f"({video['duration']:.2f}s video vs {measured_narration:.2f}s "
+                        "audio); the payoff needs 1–3 s of screen time after the last "
+                        "sentence — adjust the closing holds, never the opening wait"
+                    )
+            elif narration_seconds and video["duration"] + 0.25 < narration_seconds:
                 errors.append(
                     f"Video ({video['duration']:.2f}s) is shorter than narration "
                     f"with buffer ({narration_seconds:.2f}s)"
@@ -343,8 +406,15 @@ def validate_project(
     if sentence_windows:
         report["narration_sentences"] = sentence_windows
     if timeline and sentence_windows:
+        narration_end = sentence_windows[-1]["end"]
+        visible_events = [
+            entry
+            for entry in timeline
+            if entry.get("action") in MEANINGFUL_ACTIONS
+            or entry.get("action") == "code"
+        ]
         first_meaningful = next(
-            (entry for entry in timeline if entry.get("action") in MEANINGFUL_ACTIONS),
+            (entry for entry in visible_events if entry["action"] in MEANINGFUL_ACTIONS),
             None,
         )
         if (
@@ -356,6 +426,36 @@ def validate_project(
                 f"after the first narration sentence ends at "
                 f"{sentence_windows[0]['end']:.2f}s; re-time the opening so the action "
                 "is underway during the hook"
+            )
+        late = [
+            entry
+            for entry in visible_events
+            if entry["start"] > narration_end + 0.25
+        ]
+        if late:
+            errors.append(
+                f"{len(late)} visible action(s) start after the narration ends at "
+                f"{narration_end:.2f}s (first: {late[0]['action']} at "
+                f"{late[0]['start']:.2f}s); everything the viewer must see belongs "
+                "inside the spoken track — after it, only hold the payoff"
+            )
+        previous_end = 0.0
+        for entry in visible_events:
+            if entry["start"] >= narration_end:
+                break
+            gap = entry["start"] - previous_end
+            if gap > 8.0:
+                errors.append(
+                    f"Dead air: no visible action between {previous_end:.2f}s and "
+                    f"{entry['start']:.2f}s while narration plays; keep a reaction, "
+                    "contrast, or the code card on screen at least every 8 s"
+                )
+            previous_end = max(previous_end, entry["end"])
+        if visible_events and narration_end - previous_end > 8.0:
+            errors.append(
+                f"Dead air: the last visible action ends at {previous_end:.2f}s but "
+                f"narration continues to {narration_end:.2f}s; add a proof or hold a "
+                "changing state under the closing sentences"
             )
 
     require_nonempty(screenshot_path, errors)

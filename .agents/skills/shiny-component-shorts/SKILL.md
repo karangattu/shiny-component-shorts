@@ -174,6 +174,7 @@ If the proposed action plan cannot produce three meaningful reactions from the s
 - Use tiny inline data or built-in data.
 - Use Font Awesome icons where a small inline icon makes a label, button, or state readout easier to scan: `from faicons import icon_svg` in Shiny for Python, `fontawesome::fa()` or `shiny::icon()` in R. Match the icon to the adjacent text color and size, and skip icons that would be pure decoration or one per element by rote.
 - Use realistic labels and uneven values; avoid lorem ipsum, `Item 1`, `foo`, or synthetic filler.
+- Give every control visible breathing room: nothing inside a control may touch its border. When restyling radios or checkboxes into segmented buttons or chips, hide the native input (stretch it invisibly across the whole hit area) instead of leaving the widget dot pressed against an edge, keep the label centered, and keep at least 10 px of padding on every side. Inspect a rendered screenshot of every custom-styled control before recording.
 - Add stable input IDs and selectors for every recorded target.
 - Do not use random Bootstrap-generated IDs.
 - Keep the code line featured in the video verbatim in the app.
@@ -205,7 +206,7 @@ Keep narration around 60–85 spoken words. Make every sentence describe somethi
 - Use varied waits and allow the biggest reveal to breathe.
 - Keep the total wait before the first meaningful action at or under 1500 ms; the first action must be underway while the narration's opening words are spoken. The validator rejects opening waits over 2000 ms.
 - Include one animated `code` action timed to the narration’s code sentence. Give it authentic context: dimmed `before`/`after` blocks copied verbatim from the app — for a UI trick, the enclosing UI component plus the related server logic — typically 6–14 context lines, with only the decisive line or two highlighted. In vertical mode the card renders in the lower half of the frame below the component.
-- Optionally punch in on a small changing region with one `zoom` action during the proof beat when the readout would be hard to read at phone size; use at most one per video and never during the code card.
+- Do not use `zoom` or any camera punch-in; the recorder rejects it. Make readouts phone-legible through the app's own type sizes instead.
 - In horizontal mode, the `code` action must use the recorder's side-by-side layout so the app remains visible beside the code; do not cover the app with the code panel.
 - Keep the action sequence at least as long as the estimated narration. When it comes up short, lengthen the holds after reveals or add another proof beat; never pad the opening wait — that delays the first action past the narration's hook.
 - End with `screenshot: {path: "artifacts/final.png"}`.
