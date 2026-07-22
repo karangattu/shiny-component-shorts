@@ -40,8 +40,10 @@ FORBIDDEN_VOCALIZATION_RE = re.compile(
 )
 
 
-def code_hold_ms(text: str, override: int | None = None) -> int:
-    return override or max(5500, min(10000, 3200 + 55 * len(text)))
+def code_hold_ms(text: str, override: int | None = None, context: str = "") -> int:
+    return override or max(
+        5500, min(11000, 3200 + 55 * len(text) + 14 * len(context))
+    )
 
 
 def estimate_action_seconds(actions: list[dict]) -> float:
@@ -62,8 +64,9 @@ def estimate_action_seconds(actions: list[dict]) -> float:
             total_ms += len(str(value.get("value", ""))) * int(value.get("delay", 45)) + 1000
         elif name == "code" and isinstance(value, dict):
             text = str(value.get("text", "")).rstrip("\n")
+            context = str(value.get("before", "")) + str(value.get("after", ""))
             total_ms += len(text) * int(value.get("type_ms", 22))
-            total_ms += code_hold_ms(text, value.get("duration"))
+            total_ms += code_hold_ms(text, value.get("duration"), context)
     return total_ms / 1000
 
 

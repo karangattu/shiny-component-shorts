@@ -2,6 +2,8 @@
 
 Read this reference only when narration audio, a finished video with audio, or cost reporting is requested.
 
+Check for `GEMINI_API_KEY`/`GOOGLE_API_KEY` only after audio has been requested and only when TTS will actually be called. Never check for, mention, or ask the user for these keys on a silent-video workflow or when importing existing narration; a missing key is an error only on a TTS path. In a silent video's cost report, list the Gemini TTS row as `not used / $0`.
+
 ## Narration prompt
 
 Write `artifacts/narration.txt` in this form:
@@ -58,6 +60,23 @@ python .claude/skills/shiny-component-shorts/scripts/generate_tts.py \
 The generator uses Gemini 3.1 Flash TTS Preview and chooses from the curated Kore, Erinome, Charon, and Achird voices unless `--voice` overrides it. Treat preview model names and prices as unstable.
 
 If both key variables exist and authentication fails, note that the Google SDK may prioritize `GOOGLE_API_KEY`; do not reveal either value.
+
+## Use existing narration audio
+
+When the user supplies existing narration — a WAV, MP3, or a previously narrated video whose audio track is the narration — do not call Gemini and do not check for any API key. Import it instead:
+
+```bash
+python .claude/skills/shiny-component-shorts/scripts/import_narration.py \
+  --source path/to/narrated.mp4 \
+  --output demo-name/artifacts/narration.wav \
+  --usage-output demo-name/artifacts/narration.usage.json
+```
+
+The script verifies the source has an audio stream, converts it to the pipeline's mono 24 kHz PCM WAV, and writes a `$0` usage report marked `Imported audio`. From there the workflow is identical to generated narration: listen to the WAV, measure its duration and sentence gaps, and time `actions.yaml` against it. Keep the `narration.txt` envelope's transcript matched to what the imported audio actually says, since the validator compares action timing against its sentence windows.
+
+For batch processing, set `{"audio_source": "path/to/narrated.mp4"}` in the video's `tts-settings.json` (relative paths resolve against the video directory); the narration phase then imports instead of synthesizing and adds the source file to the cache key. `audio_source` cannot be combined with `voice` or `model`.
+
+In the cost report, list the Gemini TTS row as `imported / $0`.
 
 ## Merge audio
 

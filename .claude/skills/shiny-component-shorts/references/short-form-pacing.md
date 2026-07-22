@@ -53,7 +53,7 @@ Design for the final orientation from the start.
 - Make controls large enough for a phone screen and keep labels short.
 - Verify the first, middle, code, and final frames at actual phone size.
 
-In horizontal mode, show the code and live app side-by-side during the code beat: keep the app on the left and the Shiny-branded code panel on the right. Never place the code panel over the app in horizontal mode. In vertical mode, the compact code card may overlay the live app within the middle safe band.
+In horizontal mode, show the code and live app side-by-side during the code beat: keep the app on the left and the Shiny-branded code panel on the right. Never place the code panel over the app in horizontal mode. In vertical mode, the code card sits in the lower half of the frame, anchored just above the bottom branding band, so the component stays visible above it; compose the app toward the top of the middle band.
 
 All framing and editing elements must stay in the Shiny preset palette. Use Shiny blue `#007BC2` for primary emphasis, `#FFFFFF`/`#F8F8F8` with `#1D1F21` text for light treatments, and `#1D1F21`/`#202020` with `#FFFFFF` and `#CDD4DA` text for dark treatments.
 

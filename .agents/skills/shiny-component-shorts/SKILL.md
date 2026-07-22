@@ -86,7 +86,7 @@ demo-name/
     └── final.png
 ```
 
-Write the complete narration prompt envelope defined in the creative playbook even for a silent recording, so action timing has a concrete target. Do not write only the transcript, and do not call a paid TTS API unless audio is requested.
+Write the complete narration prompt envelope defined in the creative playbook even for a silent recording, so action timing has a concrete target. Do not write only the transcript, and do not call a paid TTS API unless audio is requested. When no audio was requested, do not check for, mention, or ask the user for `GEMINI_API_KEY` or `GOOGLE_API_KEY` — the narration envelope exists only as a timing target. Silent projects run `record_demo.py` and `validate_demo.py` directly (without `--require-audio`); do not route them through the batch finish phase, which requires narration audio.
 
 Run the shared recorder; never generate a demo-specific recorder:
 
@@ -130,13 +130,15 @@ The timing approval is bound to hashes of the current WAV, timing report, and ac
 
 To lock a specific voice or model for one video, add an optional `tts-settings.json` beside its app containing `{"voice": "Kore", "model": "gemini-3.1-flash-tts-preview"}`. The batch processor passes these settings to the TTS generator and includes the file in that video's narration cache key.
 
+To reuse existing narration instead of generating TTS for one video, set `{"audio_source": "path/to/narrated.mp4"}` in that video's `tts-settings.json` (a WAV, MP3, or narrated video file; relative paths resolve against the video directory). The narration phase then extracts and measures that audio via `import_narration.py` with no Gemini call and no API key, and includes the source file in the cache key. `audio_source` cannot be combined with `voice` or `model`.
+
 After the batch succeeds, each assigned agent must still inspect the first, reveal, code, and final frames at phone size and listen to the final video. The lead agent accepts the series only after every subagent reports those checks and the lead confirms every requested output independently.
 
 ### Narrated or finished video
 
 Generate the audio before recording so action timing follows the real narration instead of a word-count estimate:
 
-1. Write `artifacts/narration.txt` and generate `artifacts/narration.wav` (see [references/tts-and-costs.md](references/tts-and-costs.md)); verify the WAV is non-empty and listen for defects before recording anything.
+1. Write `artifacts/narration.txt` and generate `artifacts/narration.wav` (see [references/tts-and-costs.md](references/tts-and-costs.md)); verify the WAV is non-empty and listen for defects before recording anything. When the user supplies existing narration — a WAV or a previously narrated video — import it with `import_narration.py` instead of calling TTS (see the same reference); the transcript in `narration.txt` must match what that audio actually says.
 2. Measure the audio: exact duration with `ffprobe`, sentence boundaries with `ffmpeg -af silencedetect` (see the recording contract's Timing section).
 3. Author or adjust `actions.yaml` against those measurements: the first meaningful action must be underway during the hook's first sentence, each visible reaction must begin at or slightly before the sentence that describes it, and the video must run one to three seconds past the narration.
 4. Record and validate with `--require-audio`, then merge with the bundled script:
@@ -202,7 +204,7 @@ Keep narration around 60–85 spoken words. Make every sentence describe somethi
 - Keep ordinary waits between 500 and 3000 ms.
 - Use varied waits and allow the biggest reveal to breathe.
 - Keep the total wait before the first meaningful action at or under 1500 ms; the first action must be underway while the narration's opening words are spoken. The validator rejects opening waits over 2000 ms.
-- Include one concise animated `code` action timed to the narration’s code sentence.
+- Include one animated `code` action timed to the narration’s code sentence. Give it authentic context: dimmed `before`/`after` blocks copied verbatim from the app — for a UI trick, the enclosing UI component plus the related server logic — typically 6–14 context lines, with only the decisive line or two highlighted. In vertical mode the card renders in the lower half of the frame below the component.
 - Optionally punch in on a small changing region with one `zoom` action during the proof beat when the readout would be hard to read at phone size; use at most one per video and never during the code card.
 - In horizontal mode, the `code` action must use the recorder's side-by-side layout so the app remains visible beside the code; do not cover the app with the code panel.
 - Keep the action sequence at least as long as the estimated narration. When it comes up short, lengthen the holds after reveals or add another proof beat; never pad the opening wait — that delays the first action past the narration's hook.

@@ -182,8 +182,9 @@ CODE_OVERLAY_JS = r"""async (cfg) => {
             + 'display:flex;flex-direction:column;background:#1D1F21;'
             + 'border:1px solid #48505F;border-radius:10px;'
             + 'box-shadow:0 18px 60px rgba(29,31,33,.55);overflow:hidden;'
-        : 'position:fixed;left:4%;right:4%;top:28%;max-height:52%;z-index:99999;'
-            + 'background:#1D1F21;border:1px solid #48505F;border-radius:10px;'
+        : 'position:fixed;left:4%;right:4%;bottom:20.5%;max-height:46%;z-index:99999;'
+            + 'display:flex;flex-direction:column;background:#1D1F21;'
+            + 'border:1px solid #48505F;border-radius:10px;'
             + 'box-shadow:0 18px 60px rgba(29,31,33,.55);overflow:hidden;';
     if (sideBySide) document.documentElement.classList.add('__demo_code_side__');
     const titlebar = document.createElement('div');
@@ -320,8 +321,10 @@ def code_overlay_config(orientation: str, action: dict) -> dict:
     }
 
 
-def code_hold_ms(text: str, override: int | None = None) -> int:
-    return override or max(5500, min(10000, 3200 + 55 * len(text)))
+def code_hold_ms(text: str, override: int | None = None, context: str = "") -> int:
+    return override or max(
+        5500, min(11000, 3200 + 55 * len(text) + 14 * len(context))
+    )
 
 
 def port_is_available(host: str, port: int) -> bool:
@@ -515,7 +518,13 @@ def run_actions(
             config = code_overlay_config(orientation, value)
             text = config["text"]
             page.evaluate(CODE_OVERLAY_JS, config)
-            page.wait_for_timeout(code_hold_ms(text, value.get("duration")))
+            page.wait_for_timeout(
+                code_hold_ms(
+                    text,
+                    value.get("duration"),
+                    config["before"] + config["after"],
+                )
+            )
             page.evaluate(
                 "() => { document.getElementById('__code_overlay__')?.remove();"
                 " document.getElementById('__code_overlay_style__')?.remove();"

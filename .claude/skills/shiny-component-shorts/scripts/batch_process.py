@@ -102,9 +102,12 @@ def narration_inputs(project_dir: Path) -> list[Path]:
         SCRIPTS_DIR / "generate_tts.py",
         SCRIPTS_DIR / "validate_demo.py",
     ]
-    settings = project_dir / "tts-settings.json"
-    if settings.is_file():
-        inputs.append(settings)
+    settings_path = project_dir / "tts-settings.json"
+    if settings_path.is_file():
+        inputs.append(settings_path)
+        source = audio_source_path(project_dir, load_tts_settings(project_dir))
+        if source is not None:
+            inputs.extend([SCRIPTS_DIR / "import_narration.py", source])
     return inputs
 
 
@@ -115,13 +118,26 @@ def load_tts_settings(project_dir: Path) -> dict[str, str]:
     payload = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
         raise ValueError("tts-settings.json must contain a JSON object")
-    unknown = set(payload) - {"voice", "model"}
+    unknown = set(payload) - {"voice", "model", "audio_source"}
     if unknown:
         raise ValueError(f"Unknown TTS settings: {', '.join(sorted(unknown))}")
     for key, value in payload.items():
         if not isinstance(value, str) or not value.strip():
             raise ValueError(f"TTS setting {key!r} must be a non-empty string")
+    if "audio_source" in payload and ("voice" in payload or "model" in payload):
+        raise ValueError(
+            "TTS setting 'audio_source' cannot be combined with 'voice' or 'model'"
+        )
     return payload
+
+
+def audio_source_path(project_dir: Path, settings: dict[str, str]) -> Path | None:
+    """Resolve the optional imported-narration source declared in tts-settings.json."""
+    raw = settings.get("audio_source")
+    if raw is None:
+        return None
+    source = Path(raw)
+    return source if source.is_absolute() else project_dir / source
 
 
 def recording_inputs(project_dir: Path) -> list[Path]:
@@ -170,27 +186,42 @@ def generate_narration(project_dir: Path, force: bool) -> dict:
     audio = artifacts / "narration.wav"
     usage = artifacts / "narration.usage.json"
     timing = artifacts / "narration-timing.json"
-    inputs = narration_inputs(project_dir)
     outputs = [audio, usage, timing]
     try:
         require_nonempty(narration, "narration prompt")
         settings = load_tts_settings(project_dir)
+        inputs = narration_inputs(project_dir)
+        source = audio_source_path(project_dir, settings)
+        if source is not None:
+            require_nonempty(source, "narration audio source")
         if not force and build_cache.check_cache(project_dir, "tts", inputs, outputs):
             result["tts"] = "CACHED"
         else:
-            command = [
-                sys.executable,
-                str(SCRIPTS_DIR / "generate_tts.py"),
-                "--input",
-                str(narration),
-                "--output",
-                str(audio),
-                "--usage-output",
-                str(usage),
-            ]
-            for option in ("voice", "model"):
-                if option in settings:
-                    command.extend([f"--{option}", settings[option]])
+            if source is not None:
+                command = [
+                    sys.executable,
+                    str(SCRIPTS_DIR / "import_narration.py"),
+                    "--source",
+                    str(source),
+                    "--output",
+                    str(audio),
+                    "--usage-output",
+                    str(usage),
+                ]
+            else:
+                command = [
+                    sys.executable,
+                    str(SCRIPTS_DIR / "generate_tts.py"),
+                    "--input",
+                    str(narration),
+                    "--output",
+                    str(audio),
+                    "--usage-output",
+                    str(usage),
+                ]
+                for option in ("voice", "model"):
+                    if option in settings:
+                        command.extend([f"--{option}", settings[option]])
             completed = subprocess.run(command, capture_output=True, text=True)
             if completed.returncode != 0:
                 raise RuntimeError(completed.stderr or completed.stdout or "TTS failed")

@@ -1,166 +1,116 @@
 # Shiny Component Shorts
 
-A small repo for generating 30-second videos about Shiny components.
-
-## Skill workflow at a glance
-
-![Skill workflow at a glance](assets/process.jpg)
-
-## How we ensure quality
-
-![Quality gate loop](assets/quality_gate_loop.jpg)
+Generate 30-second videos about Shiny components. One video = one useful, surprising behavior — not a tutorial.
 
 ## Example finished short
 
-https://github.com/user-attachments/assets/71058600-9228-41d7-99f8-a410ae47c643
+https://github.com/user-attachments/assets/af6b0ec9-b78a-4f4b-a849-ad896d4500e6
 
-## What this repo does
+## How it works
 
-This repo contains agent skills for creating:
+![Skill workflow at a glance](assets/process.jpg)
 
-* Short Shiny mini-apps
-* 30-second video storyboards
-* Narration scripts
-* Recording notes
-* Python or R examples
+![Quality gate loop](assets/quality_gate_loop.jpg)
 
-The focus is not full tutorials. Each video should reveal one useful, surprising behavior in a component.
+## What you can create
 
-You can also point the skill at an existing R Shiny or Shiny for Python app to find one fascinating behavior and create a video without modifying the original app.
+- Short Shiny mini-apps (Python or R)
+- 30-second video storyboards and narration scripts
+- Automated browser recordings with a VS Code-style code card
+- Narrated, finished vertical videos
+- Videos about an **existing** Shiny app, without modifying it
 
 ## Setup
-
-Install the Python dependencies and Playwright's Chromium browser:
 
 ```bash
 python -m pip install -r requirements.txt
 python -m playwright install chromium
 ```
 
-Recording and validation also require `ffmpeg` and `ffprobe` on `PATH`.
+You also need `ffmpeg` and `ffprobe` on `PATH`.
 
-## Using with Google Antigravity
+For narrated videos (optional — not needed for silent videos):
 
-Open the repository root as the workspace. Antigravity discovers the skill from `.agents/skills/shiny-component-shorts/SKILL.md`.
+```bash
+python3 -m pip install google-genai
+export GEMINI_API_KEY="your-key"   # GOOGLE_API_KEY also works; never commit either
+```
 
-Then prompt Antigravity:
+## Usage
+
+Everything is prompt-driven — the agent runs the recording, TTS, and validation scripts for you. The same skill ships in `.claude/` (Claude Code) and `.agents/` (Antigravity, Codex, OpenCode).
+
+### Claude Code
+
+```text
+/shiny-component-shorts toolbar-select in Python
+/shiny-component-shorts Create 5 did-you-know video ideas for Shiny data grid. Include runnable mini apps.
+```
+
+### Google Antigravity
+
+Open the repo root as the workspace, then:
 
 ```text
 Use the shiny-component-shorts skill to create a narrated vertical video about Shiny's date range selector in Python.
 ```
 
-## Using with Claude Code
-
-Run:
-
-```text
-/shiny-component-shorts toolbar-select in Python
-```
-
-Example:
-
-```text
-/shiny-component-shorts Create 5 did-you-know video ideas for Shiny data grid. Include runnable mini apps.
-```
-
-## Using with Codex
-
-Run:
+### Codex
 
 ```text
 Use $shiny-component-shorts to create 5 mini-app video ideas for Shiny toolbar-select in Python.
 ```
 
-Requests for multiple videos use the dedicated series workflow. A series contains at most five videos about one component, and every video must demonstrate a distinct hidden behavior. The skill returns fewer ideas when the component does not have enough strong, visual behaviors.
+### OpenCode
 
-For implemented series, one lead agent locks the shared research and series direction, then up to three subagents work in isolated video directories. Media generation remains process-based: TTS, Playwright recording, two-pass audio merging, and validation run through the cached batch processor.
-
-For example:
-
-```text
-Use $shiny-component-shorts to create a multi-video series for Shiny data grid in Python. Create up to 5 videos, each focused on a distinct hidden behavior, and include a runnable mini-app for each one.
-```
-
-## Using with OpenCode
-
-This repo includes the skill in both `.agents` and `.claude`. Disable Claude-compatible skill discovery when launching OpenCode so it loads the `.agents` copy without a duplicate name:
+Disable Claude-compatible skill discovery so only the `.agents` copy loads:
 
 ```bash
 OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1 opencode
 ```
 
-Then prompt OpenCode:
-
 ```text
-Use the shiny-component-shorts skill to create a multi-video series for Shiny data grid in Python. Create up to 5 videos, each focused on a distinct hidden behavior, and include a runnable mini-app for each one.
+Use the shiny-component-shorts skill to create a multi-video series for Shiny data grid in Python.
 ```
+
+### Multi-video series
+
+Ask for multiple videos about one component and the skill uses its series workflow:
+
+- At most **5 videos per component**, each proving a distinct hidden behavior
+- Fewer ideas are returned when the component lacks enough strong, visual behaviors
+- One lead agent locks the research and series direction; up to three subagents build videos in isolated directories
+- TTS, recording, audio merging, and validation run through a cached, timing-safe batch processor
 
 ## Video format
 
-Each idea should include:
+Every recording must:
 
-* Hook
-* Hidden feature
-* Mini-app concept
-* Variations
-* 30-second storyboard
-* Runnable code
-* Recording notes
+- Use at least **3 meaningful interactions** and **3 visible state changes**
+- Reveal, contrast, and replay or reset the same hidden behavior — no long idle waits or static code cards
+- Default to a true 9:16 vertical composition with the app as the hero
+- Reserve the top and bottom 20% of the frame for later branding
+- Use the official Shiny palette (`#007BC2` blue, `#1D1F21` text on light, `#FFFFFF` text on dark)
 
-The skills require at least three meaningful interactions and three visible state changes per 30-second recording. Long idle waits and static code cards are rejected; the recording should reveal, contrast, and replay or reset the same hidden behavior.
+The storyboard follows `Problem → Reveal → Proof → Code → Payoff`, but those labels never appear on screen — the browser recording stays clean.
 
-Recorded shorts default to a true 9:16 composition with the app as the hero. `Problem → Reveal → Proof → Code → Payoff` organizes the storyboard and timing, but those planning labels are not shown in the video. The browser deliverable stays clean: no beat rail, numbered state chips, or planning labels over the app. The detailed pacing rules live in each skill's `references/short-form-pacing.md` file.
+The code card is a syntax-highlighted VS Code-style editor showing a verbatim slice of the app source: dimmed `before`/`after` context around one animated, highlighted decisive line, with honest gutter numbers. In vertical videos it renders in the lower half of the frame, below the component; in horizontal videos the app and code sit side by side.
 
-Every composition reserves the top 20% and bottom 20% for later branding while the app stretches across the available width in the middle band. Horizontal recordings present the live app and code side-by-side during the code beat. App UI, cursor effects, and code cards use the official Shiny preset palette, including Shiny blue `#007BC2`, accessible `#1D1F21` text on light surfaces, and `#FFFFFF` text on dark surfaces.
+Narration is speech only — laughing, giggling, and other non-speech sounds are rejected by validation. Detailed pacing rules live in each skill's `references/` directory.
 
-The shared Claude and Codex recorders use the same VS Code-style, syntax-highlighted code card. A code action can show dimmed real source context with `before` and `after`, keep honest gutter numbers with `start_line`, and animate only the decisive focused line.
+## Narration options
 
-Narration uses speech only. Laughing, giggling, chuckling, and other non-speech vocalizations are prohibited by the prompt contract and rejected by validation.
+Just describe what you want in the prompt:
 
-## Gemini 3.1 TTS
+- **Generated narration** (default when you ask for audio) — the agent writes the script and synthesizes it with Gemini 3.1 Flash TTS Preview, then times every on-screen action to the measured audio.
+- **Reuse existing narration** — point the agent at a WAV or an already-narrated video and it uses that audio instead of calling TTS. No API key needed.
+- **Silent videos** — a narration script is still written (it drives action timing), but no TTS is called and no API key is required.
+- **Pin a voice or model** — add a per-video `tts-settings.json` with `{"voice": "Kore"}` and the agent uses it for that video.
 
-Install the official Gemini SDK and expose the key to the shell that launches Codex or Claude:
+For narrated videos, the agent generates the audio first, measures it, and only records after the action timing is reviewed against the real narration — so reactions land on the sentences that describe them. Audio is merged with two-pass loudness normalization to the -14 LUFS short-form target.
 
-```bash
-python3 -m pip install google-genai
-export GEMINI_API_KEY="your-key"
-```
+## Cost reporting
 
-When narration audio is requested, the skill writes `artifacts/narration.txt` and uses Gemini 3.1 Flash TTS Preview to create `artifacts/narration.wav`. You can also run it directly:
-
-```bash
-python3 .agents/skills/shiny-component-shorts/scripts/generate_tts.py \
-  --input demo-name/artifacts/narration.txt \
-  --output demo-name/artifacts/narration.wav \
-  --usage-output demo-name/artifacts/narration.usage.json
-```
-
-Claude Code can use `.claude/skills/shiny-component-shorts/scripts/generate_tts.py`. `GOOGLE_API_KEY` is also supported; if both variables are set, the Google SDK gives `GOOGLE_API_KEY` precedence. Never commit either key.
-
-## Timing-safe batch production
-
-Generate and measure all narration first:
-
-```bash
-python3 .agents/skills/shiny-component-shorts/scripts/batch_process.py \
-  --phase narration \
-  --dirs "*-shorts" \
-  --tts-concurrency 3
-```
-
-Listen to each WAV, use `artifacts/narration-timing.json` to align `actions.yaml`, then approve those exact inputs and finish the batch:
-
-```bash
-python3 .agents/skills/shiny-component-shorts/scripts/batch_process.py \
-  --phase finish --approve-timing \
-  --dirs "*-shorts" \
-  --record-concurrency 2 \
-  --merge-concurrency 2 \
-  --validate-concurrency 3
-```
-
-Approval is invalidated when the narration, measured timing, or actions change. Cached recordings are still validated, and the finish phase uses the shared two-pass `merge_audio.py` path rather than a one-pass FFmpeg shortcut.
-
-An optional per-video `tts-settings.json` can pin `voice` and `model`; those settings are passed to the generator and included in the narration cache key.
-
-The TTS script writes exact Gemini token usage and a paid-tier list-price estimate to `narration.usage.json`. At the end of every artifact-generating workflow, the skill also reports the active Claude Code or Codex usage when the harness exposes it. Subscription usage, unavailable usage, and list-price estimates are labeled separately so a partial estimate is never presented as a complete bill.
+- `artifacts/narration.usage.json` records exact Gemini token usage and a paid-tier list-price estimate
+- Imported or silent narration reports `$0` TTS cost
+- Each artifact-generating workflow ends with a cost report; subscription usage, unavailable usage, and list-price estimates are labeled separately so a partial estimate is never presented as a complete bill

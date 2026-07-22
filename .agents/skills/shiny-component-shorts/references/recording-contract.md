@@ -24,7 +24,7 @@ Options:
 
 Author the app with an empty top 20% and bottom 20% for later branding. The app belongs in the middle 60% band and should span the available horizontal space between 3–5% side gutters.
 
-The `code` action is orientation-aware. Vertical recordings use a compact panel over the live app. Horizontal recordings switch to a side-by-side composition: the live app reflows on the left while the code panel occupies the right, so neither is hidden. The code panel uses the Shiny preset palette: `#007BC2` accent, `#1D1F21`/`#202020` dark surfaces, `#FFFFFF` primary text, and `#CDD4DA` secondary text.
+The `code` action is orientation-aware. Vertical recordings anchor the panel to the bottom of the middle safe band (just above the reserved bottom 20%), growing upward as needed, so it sits below the component instead of covering it; compose the app toward the top of the band so the two never fight. Horizontal recordings switch to a side-by-side composition: the live app reflows on the left while the code panel occupies the right, so neither is hidden. The code panel uses the Shiny preset palette: `#007BC2` accent, `#1D1F21`/`#202020` dark surfaces, `#FFFFFF` primary text, and `#CDD4DA` secondary text.
 
 The recorder refuses to start if its port is already occupied. Stop the known process yourself; never kill an unknown listener automatically.
 
@@ -107,7 +107,7 @@ Storyboard beats such as `Reveal`, `Proof`, `Code`, and `Payoff` are planning me
 - `fill` changes a field instantly; reserve it for clearing or realistic paste actions.
 - `type` clicks, focuses, moves the caret to the end, and types sequentially. Use 35–70 ms per character.
 - `press` sends one named key to the selector.
-- `code` types a compact, syntax-highlighted Shiny-branded editor card, holds it by reading time, then removes it. Its `text` is the highlighted focus line; optional `before` and `after` blocks show dimmed real source context, and `start_line` keeps the gutter honest. Place any explanatory comment at the end of `before`, directly above the focus line — never in `after`, where a comment below the highlighted code reads as an afterthought and distracts from it. In horizontal mode it uses the side-by-side layout instead of overlaying the app.
+- `code` types a compact, syntax-highlighted Shiny-branded editor card, holds it by reading time, then removes it. Its `text` is the highlighted focus line; `before` and `after` blocks show dimmed real source context, and `start_line` keeps the gutter honest. Make that context an authentic slice of the app: include the code that surrounds the trick — for a UI feature, the enclosing UI component plus the related server logic (or the reverse when the server line is the star) — copied verbatim from the app source, typically 6–14 dimmed lines total, and highlight only the decisive line or two. Do not paste the whole app or invent tidied pseudo-source. Place any explanatory comment at the end of `before`, directly above the focus line — never in `after`, where a comment below the highlighted code reads as an afterthought and distracts from it. In vertical mode the card renders in the lower half of the frame, anchored above the bottom branding band; in horizontal mode it uses the side-by-side layout instead of overlaying the app.
 - `zoom` is an optional camera punch-in: it scales the page toward the center of `selector` (`scale`, default 1.6), holds (`hold` ms, default 1800), then eases back out over about a second total of transitions. Use at most one per video, on the proof beat's changing region, and never while the code card is visible.
 - `screenshot` writes a full-page screenshot relative to the demo directory.
 
@@ -142,7 +142,7 @@ ffmpeg -i artifacts/narration.wav -af "silencedetect=noise=-30dB:d=0.4" -f null 
 
 Map each silence gap to a sentence boundary and set the waits so every visible reaction begins at or slightly before the sentence that describes it. Keep the video one to three seconds longer than the WAV, and place any slack needed to reach that length in the holds after reveals or before the code card — never at the start.
 
-The code hold defaults to `3200 + 55 × characters` milliseconds, clamped between 5500 and 10000 ms. Its typewriter animation runs before that hold.
+The code hold defaults to `3200 + 55 × focus characters + 14 × context characters` milliseconds, clamped between 5500 and 11000 ms, so richer dimmed context earns a slightly longer read. Its typewriter animation runs before that hold.
 
 The validator requires `artifacts/narration.txt` to contain the complete `Audio profile:`, `Scene:`, `Director's notes:`, and `Transcript:` envelope, even for silent recordings.
 
