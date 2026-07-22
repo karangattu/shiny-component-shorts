@@ -1,24 +1,28 @@
 #!/usr/bin/env python3
-"""Batch process Shiny component short videos with parallel execution and caching."""
+"""Run cached narration and finishing phases for Shiny component shorts."""
 
 from __future__ import annotations
 
 import argparse
 import concurrent.futures
-import fnmatch
+import json
 import os
 import subprocess
 import sys
 import time
 from pathlib import Path
+from typing import Callable
 
-# Add the scripts directory to path to import build_cache
+
 SCRIPTS_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPTS_DIR))
 import build_cache
+import validate_demo
+
 
 BASE_PORT = 8000
 PORT_RANGE_SIZE = 100
+FAILED_STATES = {"FAILED", "ERROR", "BLOCKED"}
 
 
 def start_port_for(project_index: int) -> int:
@@ -28,66 +32,8 @@ def start_port_for(project_index: int) -> int:
     return port
 
 
-def has_failures(results: list[dict]) -> bool:
-    failed_states = {"FAILED", "ERROR", "BLOCKED"}
-    return any(
-        result["errors"]
-        or any(
-            result[step] in failed_states
-            for step in ("record", "tts", "merge", "validate")
-        )
-        for result in results
-    )
-
-
-def discover_projects(base_dir: Path, patterns: list[str] | None = None) -> list[Path]:
-    """Find directories containing app.py/app.R and actions.yaml."""
-    projects = []
-    
-    # Common directories to ignore
-    ignored_dirs = {".git", ".github", ".venv", ".agents", ".claude", "tests", "assets", "artifacts"}
-
-    # If specific glob patterns are provided, match folders in base_dir
-    if patterns:
-        for pattern in patterns:
-            # Handle direct directory paths or globs
-            matched = False
-            for path in base_dir.glob(pattern):
-                if path.is_dir():
-                    if (path / "actions.yaml").is_file() and ((path / "app.py").is_file() or (path / "app.R").is_file()):
-                        projects.append(path)
-                        matched = True
-            if not matched:
-                # Try relative to CWD if not found in base_dir
-                path = Path(pattern).resolve()
-                if path.is_dir() and (path / "actions.yaml").is_file() and ((path / "app.py").is_file() or (path / "app.R").is_file()):
-                    projects.append(path)
-        return sorted(list(set(projects)))
-
-    # Otherwise, auto-discover in base_dir
-    for root, dirs, files in os.walk(base_dir):
-        # Skip ignored directories
-        dirs[:] = [d for d in dirs if d not in ignored_dirs]
-        
-        root_path = Path(root)
-        if (root_path / "actions.yaml").is_file() and ((root_path / "app.py").is_file() or (root_path / "app.R").is_file()):
-            projects.append(root_path)
-            # Don't descend further into a project directory
-            dirs.clear()
-
-    return sorted(projects)
-
-
-def process_project(
-    project_dir: Path,
-    start_port: int,
-    tts_enabled: bool,
-    merge_enabled: bool,
-    force: bool,
-) -> dict:
-    """Process a single project (record, generate TTS, merge, validate)."""
-    start_time = time.time()
-    result = {
+def new_result(project_dir: Path) -> dict:
+    return {
         "name": project_dir.name,
         "record": "SKIPPED",
         "tts": "SKIPPED",
@@ -97,250 +43,454 @@ def process_project(
         "duration": 0.0,
     }
 
-    # Determine app type
-    if (project_dir / "app.py").is_file():
-        app_type = "python"
-    elif (project_dir / "app.R").is_file():
-        app_type = "r"
-    else:
-        result["errors"].append("No app.py or app.R found")
-        result["validate"] = "FAILED"
-        return result
 
-    # 1. Recording Step
-    actions_yaml = project_dir / "actions.yaml"
-    demo_mp4 = project_dir / "artifacts" / "demo.mp4"
-    recording_json = project_dir / "artifacts" / "recording.json"
-    final_png = project_dir / "artifacts" / "final.png"
-
-    rec_inputs = build_cache.collect_project_inputs(
-        project_dir, [SCRIPTS_DIR / "record_demo.py"]
-    )
-    rec_outputs = [demo_mp4, recording_json, final_png]
-
-    try:
-        # Check cache
-        if not force and build_cache.check_cache(project_dir, "recording", rec_inputs, rec_outputs):
-            result["record"] = "CACHED"
-        else:
-            cmd = [
-                sys.executable,
-                str(SCRIPTS_DIR / "record_demo.py"),
-                "--project-dir", str(project_dir),
-                "--app-type", app_type,
-                "--actions", str(actions_yaml),
-                "--port", str(start_port),
-            ]
-            
-            # Run record_demo as a subprocess
-            proc_res = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-            )
-            if proc_res.returncode == 0:
-                result["record"] = "SUCCESS"
-                build_cache.update_cache(project_dir, "recording", rec_inputs)
-            else:
-                result["record"] = "FAILED"
-                result["errors"].append(f"Recording failed:\n{proc_res.stderr or proc_res.stdout}")
-                result["validate"] = "FAILED"
-                return result
-    except Exception as exc:
-        result["record"] = "FAILED"
-        result["errors"].append(f"Recording error: {exc}")
-        result["validate"] = "FAILED"
-        return result
-
-    # 2. TTS Generation Step
-    narration_txt = project_dir / "artifacts" / "narration.txt"
-    narration_wav = project_dir / "artifacts" / "narration.wav"
-    narration_json = project_dir / "artifacts" / "narration.usage.json"
-
-    if tts_enabled and narration_txt.is_file():
-        tts_inputs = [narration_txt, SCRIPTS_DIR / "generate_tts.py"]
-        tts_outputs = [narration_wav, narration_json]
-        
-        try:
-            if not force and build_cache.check_cache(project_dir, "tts", tts_inputs, tts_outputs):
-                result["tts"] = "CACHED"
-            else:
-                cmd = [
-                    sys.executable,
-                    str(SCRIPTS_DIR / "generate_tts.py"),
-                    "--input", str(narration_txt),
-                    "--output", str(narration_wav),
-                    "--usage-output", str(narration_json),
-                ]
-                proc_res = subprocess.run(
-                    cmd,
-                    capture_output=True,
-                    text=True,
-                )
-                if proc_res.returncode == 0:
-                    result["tts"] = "SUCCESS"
-                    build_cache.update_cache(project_dir, "tts", tts_inputs)
-                else:
-                    result["tts"] = "FAILED"
-                    result["errors"].append(f"TTS generation failed:\n{proc_res.stderr or proc_res.stdout}")
-        except Exception as exc:
-            result["tts"] = "FAILED"
-            result["errors"].append(f"TTS generation error: {exc}")
-    elif tts_enabled:
-        result["tts"] = "FAILED"
-        result["errors"].append("TTS requested but artifacts/narration.txt is missing")
-
-    # 3. Audio/Video Merge Step
-    final_with_audio = project_dir / "artifacts" / "final_with_audio.mp4"
-    tts_ready = not tts_enabled or result["tts"] in ("SUCCESS", "CACHED")
-    if merge_enabled and not tts_ready:
-        result["merge"] = "BLOCKED"
-    elif merge_enabled and (not narration_wav.is_file() or narration_wav.stat().st_size == 0):
-        result["merge"] = "FAILED"
-        result["errors"].append("Merge requested but artifacts/narration.wav is missing or empty")
-    elif merge_enabled:
-        merge_inputs = [demo_mp4, narration_wav, SCRIPTS_DIR / "batch_process.py"]
-        merge_outputs = [final_with_audio]
-        
-        try:
-            if not force and build_cache.check_cache(project_dir, "merge", merge_inputs, merge_outputs):
-                result["merge"] = "CACHED"
-            else:
-                cmd = [
-                    "ffmpeg", "-y",
-                    "-i", str(demo_mp4),
-                    "-i", str(narration_wav),
-                    "-af", "loudnorm=I=-14:TP=-1.5:LRA=11,apad",
-                    "-c:v", "copy", "-c:a", "aac", "-shortest",
-                    str(final_with_audio)
-                ]
-                proc_res = subprocess.run(
-                    cmd,
-                    capture_output=True,
-                    text=True,
-                )
-                if proc_res.returncode == 0:
-                    result["merge"] = "SUCCESS"
-                    build_cache.update_cache(project_dir, "merge", merge_inputs)
-                else:
-                    result["merge"] = "FAILED"
-                    result["errors"].append(f"Merge failed:\n{proc_res.stderr or proc_res.stdout}")
-        except Exception as exc:
-            result["merge"] = "FAILED"
-            result["errors"].append(f"Merge error: {exc}")
-
-    # 4. Validation Step
-    try:
-        cmd = [
-            sys.executable,
-            str(SCRIPTS_DIR / "validate_demo.py"),
-            "--project-dir", str(project_dir),
-        ]
-        if merge_enabled:
-            cmd.append("--require-audio")
-            
-        proc_res = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
+def has_failures(results: list[dict]) -> bool:
+    return any(
+        result["errors"]
+        or any(
+            result[step] in FAILED_STATES
+            for step in ("record", "tts", "merge", "validate")
         )
-        if proc_res.returncode == 0:
-            result["validate"] = "PASSED"
-        else:
-            result["validate"] = "FAILED"
-            result["errors"].append(f"Validation failed:\n{proc_res.stdout or proc_res.stderr}")
-    except Exception as exc:
-        result["validate"] = "FAILED"
-        result["errors"].append(f"Validation launch error: {exc}")
+        for result in results
+    )
 
-    result["duration"] = round(time.time() - start_time, 2)
+
+def discover_projects(base_dir: Path, patterns: list[str] | None = None) -> list[Path]:
+    """Find directories containing actions.yaml and an app entry point."""
+    projects: list[Path] = []
+    ignored = {
+        ".git",
+        ".github",
+        ".venv",
+        ".agents",
+        ".claude",
+        "tests",
+        "assets",
+        "artifacts",
+    }
+    if patterns:
+        for pattern in patterns:
+            requested = Path(pattern).expanduser()
+            candidates = [] if requested.is_absolute() else list(base_dir.glob(pattern))
+            direct = requested.resolve()
+            if direct.is_dir():
+                candidates.append(direct)
+            for path in candidates:
+                if (
+                    path.is_dir()
+                    and (path / "actions.yaml").is_file()
+                    and ((path / "app.py").is_file() or (path / "app.R").is_file())
+                ):
+                    projects.append(path)
+        return sorted(set(projects))
+
+    for root, dirs, _files in os.walk(base_dir):
+        dirs[:] = [directory for directory in dirs if directory not in ignored]
+        path = Path(root)
+        if (
+            (path / "actions.yaml").is_file()
+            and ((path / "app.py").is_file() or (path / "app.R").is_file())
+        ):
+            projects.append(path)
+            dirs.clear()
+    return sorted(projects)
+
+
+def narration_inputs(project_dir: Path) -> list[Path]:
+    inputs = [
+        project_dir / "artifacts" / "narration.txt",
+        SCRIPTS_DIR / "generate_tts.py",
+        SCRIPTS_DIR / "validate_demo.py",
+    ]
+    settings = project_dir / "tts-settings.json"
+    if settings.is_file():
+        inputs.append(settings)
+    return inputs
+
+
+def load_tts_settings(project_dir: Path) -> dict[str, str]:
+    path = project_dir / "tts-settings.json"
+    if not path.is_file():
+        return {}
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError("tts-settings.json must contain a JSON object")
+    unknown = set(payload) - {"voice", "model"}
+    if unknown:
+        raise ValueError(f"Unknown TTS settings: {', '.join(sorted(unknown))}")
+    for key, value in payload.items():
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError(f"TTS setting {key!r} must be a non-empty string")
+    return payload
+
+
+def recording_inputs(project_dir: Path) -> list[Path]:
+    artifacts = project_dir / "artifacts"
+    return build_cache.collect_project_inputs(
+        project_dir,
+        [
+            SCRIPTS_DIR / "record_demo.py",
+            artifacts / "narration.wav",
+            artifacts / "narration-timing.json",
+            artifacts / "timing-approval.json",
+        ],
+    )
+
+
+def merge_inputs(project_dir: Path) -> list[Path]:
+    artifacts = project_dir / "artifacts"
+    return [
+        artifacts / "demo.mp4",
+        artifacts / "narration.wav",
+        SCRIPTS_DIR / "merge_audio.py",
+    ]
+
+
+def require_nonempty(path: Path, label: str) -> None:
+    if not path.is_file() or path.stat().st_size == 0:
+        raise RuntimeError(f"Missing or empty {label}: {path}")
+
+
+def measure_narration(audio_path: Path) -> dict:
+    duration = validate_demo.probe_audio_duration(audio_path)
+    windows = validate_demo.narration_sentence_windows(audio_path)
+    if duration is None or windows is None:
+        raise RuntimeError(f"Could not measure narration audio: {audio_path}")
+    return {
+        "duration_seconds": round(duration, 3),
+        "sentence_windows": windows,
+    }
+
+
+def generate_narration(project_dir: Path, force: bool) -> dict:
+    started = time.time()
+    result = new_result(project_dir)
+    artifacts = project_dir / "artifacts"
+    narration = artifacts / "narration.txt"
+    audio = artifacts / "narration.wav"
+    usage = artifacts / "narration.usage.json"
+    timing = artifacts / "narration-timing.json"
+    inputs = narration_inputs(project_dir)
+    outputs = [audio, usage, timing]
+    try:
+        require_nonempty(narration, "narration prompt")
+        settings = load_tts_settings(project_dir)
+        if not force and build_cache.check_cache(project_dir, "tts", inputs, outputs):
+            result["tts"] = "CACHED"
+        else:
+            command = [
+                sys.executable,
+                str(SCRIPTS_DIR / "generate_tts.py"),
+                "--input",
+                str(narration),
+                "--output",
+                str(audio),
+                "--usage-output",
+                str(usage),
+            ]
+            for option in ("voice", "model"):
+                if option in settings:
+                    command.extend([f"--{option}", settings[option]])
+            completed = subprocess.run(command, capture_output=True, text=True)
+            if completed.returncode != 0:
+                raise RuntimeError(completed.stderr or completed.stdout or "TTS failed")
+            require_nonempty(audio, "narration audio")
+            require_nonempty(usage, "narration usage report")
+            timing.write_text(
+                json.dumps(measure_narration(audio), indent=2) + "\n",
+                encoding="utf-8",
+            )
+            build_cache.update_cache(project_dir, "tts", inputs)
+            result["tts"] = "SUCCESS"
+    except Exception as exc:
+        result["tts"] = "FAILED"
+        result["errors"].append(f"Narration failed: {exc}")
+    result["duration"] = round(time.time() - started, 2)
     return result
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description="Batch process Shiny component short videos in the background.")
-    parser.add_argument("--dirs", nargs="*", help="List of directory names or glob patterns to process")
-    parser.add_argument("--concurrency", type=int, default=2, help="Number of concurrent workers (default: 2)")
-    parser.add_argument("--tts", action="store_true", help="Generate Gemini TTS audio")
-    parser.add_argument("--merge", action="store_true", help="Merge audio and video using FFmpeg")
-    parser.add_argument("--force", action="store_true", help="Ignore build cache and rebuild everything")
-    
-    args = parser.parse_args()
-    base_dir = Path.cwd()
+def timing_paths(project_dir: Path) -> list[Path]:
+    artifacts = project_dir / "artifacts"
+    return [
+        project_dir / "actions.yaml",
+        artifacts / "narration.wav",
+        artifacts / "narration-timing.json",
+    ]
 
-    projects = discover_projects(base_dir, args.dirs)
+
+def timing_hashes(project_dir: Path) -> dict[str, str]:
+    return {
+        str(path.relative_to(project_dir)): build_cache.calculate_hash(path)
+        for path in timing_paths(project_dir)
+    }
+
+
+def approve_timing(project_dir: Path) -> None:
+    for path in timing_paths(project_dir):
+        require_nonempty(path, "timing approval input")
+    approval = project_dir / "artifacts" / "timing-approval.json"
+    approval.write_text(
+        json.dumps({"approved_inputs": timing_hashes(project_dir)}, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
+def timing_is_approved(project_dir: Path) -> bool:
+    approval = project_dir / "artifacts" / "timing-approval.json"
+    try:
+        payload = json.loads(approval.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    hashes = timing_hashes(project_dir)
+    return all(hashes.values()) and payload.get("approved_inputs") == hashes
+
+
+def prepare_finish(project_dir: Path, result: dict, approve: bool) -> bool:
+    try:
+        for path in timing_paths(project_dir):
+            require_nonempty(path, "timing approval input")
+        if approve:
+            approve_timing(project_dir)
+        if not timing_is_approved(project_dir):
+            raise RuntimeError(
+                "Missing or stale timing approval; listen to the narration, adjust "
+                "actions.yaml from narration-timing.json, then rerun with --approve-timing"
+            )
+        return True
+    except Exception as exc:
+        result["record"] = "BLOCKED"
+        result["merge"] = "BLOCKED"
+        result["validate"] = "BLOCKED"
+        result["errors"].append(f"Finish preflight failed: {exc}")
+        return False
+
+
+def app_type(project_dir: Path) -> str:
+    if (project_dir / "app.py").is_file():
+        return "python"
+    if (project_dir / "app.R").is_file():
+        return "r"
+    raise RuntimeError("No app.py or app.R found")
+
+
+def record_project(
+    project_dir: Path, start_port: int, result: dict, force: bool
+) -> dict:
+    artifacts = project_dir / "artifacts"
+    inputs = recording_inputs(project_dir)
+    outputs = [
+        artifacts / "demo.mp4",
+        artifacts / "recording.json",
+        artifacts / "final.png",
+    ]
+    try:
+        if not force and build_cache.check_cache(project_dir, "recording", inputs, outputs):
+            result["record"] = "CACHED"
+            return result
+        command = [
+            sys.executable,
+            str(SCRIPTS_DIR / "record_demo.py"),
+            "--project-dir",
+            str(project_dir),
+            "--app-type",
+            app_type(project_dir),
+            "--actions",
+            str(project_dir / "actions.yaml"),
+            "--port",
+            str(start_port),
+        ]
+        completed = subprocess.run(command, capture_output=True, text=True)
+        if completed.returncode != 0:
+            raise RuntimeError(completed.stderr or completed.stdout or "Recording failed")
+        for output in outputs:
+            require_nonempty(output, "recording output")
+        build_cache.update_cache(project_dir, "recording", inputs)
+        result["record"] = "SUCCESS"
+    except Exception as exc:
+        result["record"] = "FAILED"
+        result["merge"] = "BLOCKED"
+        result["validate"] = "BLOCKED"
+        result["errors"].append(f"Recording failed: {exc}")
+    return result
+
+
+def merge_project(project_dir: Path, result: dict, force: bool) -> dict:
+    output = project_dir / "artifacts" / "final_with_audio.mp4"
+    inputs = merge_inputs(project_dir)
+    try:
+        if not force and build_cache.check_cache(project_dir, "merge", inputs, [output]):
+            result["merge"] = "CACHED"
+            return result
+        command = [
+            sys.executable,
+            str(SCRIPTS_DIR / "merge_audio.py"),
+            "--project-dir",
+            str(project_dir),
+        ]
+        completed = subprocess.run(command, capture_output=True, text=True)
+        if completed.returncode != 0:
+            raise RuntimeError(completed.stderr or completed.stdout or "Merge failed")
+        require_nonempty(output, "merged video")
+        build_cache.update_cache(project_dir, "merge", inputs)
+        result["merge"] = "SUCCESS"
+    except Exception as exc:
+        result["merge"] = "FAILED"
+        result["validate"] = "BLOCKED"
+        result["errors"].append(f"Merge failed: {exc}")
+    return result
+
+
+def validate_project(project_dir: Path, result: dict) -> dict:
+    try:
+        command = [
+            sys.executable,
+            str(SCRIPTS_DIR / "validate_demo.py"),
+            "--project-dir",
+            str(project_dir),
+            "--require-audio",
+        ]
+        completed = subprocess.run(command, capture_output=True, text=True)
+        if completed.returncode != 0:
+            raise RuntimeError(completed.stdout or completed.stderr or "Validation failed")
+        result["validate"] = "PASSED"
+    except Exception as exc:
+        result["validate"] = "FAILED"
+        result["errors"].append(f"Validation failed: {exc}")
+    return result
+
+
+def run_parallel(
+    items: list[tuple], worker: Callable[..., dict], max_workers: int
+) -> None:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = [executor.submit(worker, *item) for item in items]
+        for future in concurrent.futures.as_completed(futures):
+            future.result()
+
+
+def run_narration_phase(
+    projects: list[Path], force: bool, max_workers: int
+) -> list[dict]:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = [
+            executor.submit(generate_narration, project, force) for project in projects
+        ]
+        return [future.result() for future in concurrent.futures.as_completed(futures)]
+
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--phase", choices=("narration", "finish"), required=True)
+    parser.add_argument("--dirs", nargs="*", help="Directories or glob patterns")
+    parser.add_argument("--force", action="store_true", help="Ignore stage caches")
+    parser.add_argument(
+        "--approve-timing",
+        action="store_true",
+        help="Approve current narration timing inputs before the finish phase",
+    )
+    parser.add_argument("--tts-concurrency", type=int, default=3)
+    parser.add_argument("--record-concurrency", type=int, default=2)
+    parser.add_argument("--merge-concurrency", type=int, default=2)
+    parser.add_argument("--validate-concurrency", type=int, default=3)
+    parser.add_argument("--tts", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--merge", action="store_true", help=argparse.SUPPRESS)
+    return parser.parse_args(argv)
+
+
+def validate_cli_args(args: argparse.Namespace) -> None:
+    if args.tts or args.merge:
+        raise ValueError(
+            "--tts/--merge are deprecated. Run --phase narration, review and adjust "
+            "timing, then run --phase finish --approve-timing."
+        )
+    if args.approve_timing and args.phase != "finish":
+        raise ValueError("--approve-timing is valid only with --phase finish")
+    for name in (
+        "tts_concurrency",
+        "record_concurrency",
+        "merge_concurrency",
+        "validate_concurrency",
+    ):
+        if getattr(args, name) < 1:
+            raise ValueError(f"--{name.replace('_', '-')} must be at least 1")
+
+
+def print_summary(results: list[dict]) -> None:
+    print("\nBatch summary")
+    for result in sorted(results, key=lambda item: item["name"]):
+        print(
+            f"{result['name']}: TTS={result['tts']} Record={result['record']} "
+            f"Merge={result['merge']} Validate={result['validate']}"
+        )
+        for error in result["errors"]:
+            print(f"  - {error}")
+
+
+def main(argv: list[str] | None = None) -> int:
+    try:
+        args = parse_args(argv)
+        validate_cli_args(args)
+    except ValueError as exc:
+        print(exc, file=sys.stderr)
+        return 2
+
+    projects = discover_projects(Path.cwd(), args.dirs)
     if not projects:
         print("No project directories discovered.")
         return 0
     try:
-        start_ports = [start_port_for(index) for index in range(len(projects))]
+        ports = [start_port_for(index) for index in range(len(projects))]
     except ValueError as exc:
-        print(exc)
+        print(exc, file=sys.stderr)
         return 2
 
-    print(f"Discovered {len(projects)} projects:")
-    for proj in projects:
-        print(f" - {proj.relative_to(base_dir)}")
-    print(f"Starting batch execution with concurrency={args.concurrency}...\n")
+    if args.phase == "narration":
+        results = run_narration_phase(projects, args.force, args.tts_concurrency)
+        print_summary(results)
+        return 1 if has_failures(results) else 0
 
-    results = []
-    with concurrent.futures.ProcessPoolExecutor(max_workers=args.concurrency) as executor:
-        futures = {}
-        for project_dir, start_port in zip(projects, start_ports):
-            fut = executor.submit(
-                process_project,
-                project_dir=project_dir,
-                start_port=start_port,
-                tts_enabled=args.tts,
-                merge_enabled=args.merge,
-                force=args.force,
-            )
-            futures[fut] = project_dir
-
-        for fut in concurrent.futures.as_completed(futures):
-            project_dir = futures[fut]
-            try:
-                res = fut.result()
-                results.append(res)
-                status_icon = "✅" if res["validate"] == "PASSED" and not res["errors"] else "❌"
-                print(f"{status_icon} Processed {res['name']} ({res['duration']}s) - Record: {res['record']}, TTS: {res['tts']}, Merge: {res['merge']}, Validation: {res['validate']}")
-                if res["errors"]:
-                    print(f"   Errors for {res['name']}:")
-                    for err in res["errors"]:
-                        print(f"     * {err}")
-            except Exception as exc:
-                print(f"❌ Worker crashed for {project_dir.name}: {exc}")
-                results.append({
-                    "name": project_dir.name,
-                    "record": "ERROR",
-                    "tts": "ERROR",
-                    "merge": "ERROR",
-                    "validate": "FAILED",
-                    "errors": [str(exc)],
-                    "duration": 0.0,
-                })
-
-    # Summary Report
-    print("\n" + "="*80)
-    print("BATCH PROCESSING SUMMARY REPORT")
-    print("="*80)
-    print(f"{'Project Name':<28} | {'Record':<8} | {'TTS':<8} | {'Merge':<8} | {'Validate':<8} | {'Time (s)':<8}")
-    print("-"*80)
-    
-    passed_count = 0
-    for res in sorted(results, key=lambda x: x["name"]):
-        if res["validate"] == "PASSED":
-            passed_count += 1
-        print(f"{res['name']:<28} | {res['record']:<8} | {res['tts']:<8} | {res['merge']:<8} | {res['validate']:<8} | {res['duration']:<8}")
-        
-    print("-"*80)
-    print(f"Total: {len(results)} projects | Passed Validation: {passed_count}/{len(results)}")
-    print("="*80)
-
-    if has_failures(results):
-        return 1
-    return 0
+    started = {project: time.time() for project in projects}
+    results_by_project = {project: new_result(project) for project in projects}
+    ready = [
+        project
+        for project in projects
+        if prepare_finish(project, results_by_project[project], args.approve_timing)
+    ]
+    run_parallel(
+        [
+            (project, port, results_by_project[project], args.force)
+            for project, port in zip(projects, ports)
+            if project in ready
+        ],
+        record_project,
+        args.record_concurrency,
+    )
+    recorded = [
+        project
+        for project in ready
+        if results_by_project[project]["record"] in {"SUCCESS", "CACHED"}
+    ]
+    run_parallel(
+        [(project, results_by_project[project], args.force) for project in recorded],
+        merge_project,
+        args.merge_concurrency,
+    )
+    merged = [
+        project
+        for project in recorded
+        if results_by_project[project]["merge"] in {"SUCCESS", "CACHED"}
+    ]
+    run_parallel(
+        [(project, results_by_project[project]) for project in merged],
+        validate_project,
+        args.validate_concurrency,
+    )
+    results = [results_by_project[project] for project in projects]
+    for project, result in results_by_project.items():
+        result["duration"] = round(time.time() - started[project], 2)
+    print_summary(results)
+    return 1 if has_failures(results) else 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(main())

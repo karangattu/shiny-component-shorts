@@ -65,6 +65,20 @@ class CodexSkillContractTest(unittest.TestCase):
         self.assertIn("visual-direction matrix", playbook)
         self.assertIn("Do not count a recolor as a distinct hidden behavior", playbook)
 
+    def test_multi_video_series_documents_hybrid_two_phase_production(self) -> None:
+        skill = CODEX_SKILL.read_text(encoding="utf-8")
+        for marker in (
+            "lead agent",
+            "up to three subagents",
+            "--phase narration",
+            "--phase finish --approve-timing",
+            "--record-concurrency 2",
+            "narration-timing.json",
+            "merge_audio.py",
+            "verify every requested output independently",
+        ):
+            self.assertIn(marker, skill)
+
     def test_apps_rotate_four_professional_fonts_and_omit_visible_titles(self) -> None:
         skill = CODEX_SKILL.read_text(encoding="utf-8")
         playbook = (SKILL / "references/creative-playbook.md").read_text(encoding="utf-8")
@@ -505,6 +519,38 @@ class GeminiTTSContractTest(unittest.TestCase):
         self.assertEqual(source, "Gemini Interactions API")
         self.assertEqual(interactions.kwargs["input"], "Read this")
 
+    def test_password_field_shorts_structure_and_validation(self) -> None:
+        project_dir = ROOT / "password-field-shorts"
+        self.assertTrue(project_dir.is_dir())
+        self.assertTrue((project_dir / "app.py").is_file())
+        self.assertTrue((project_dir / "actions.yaml").is_file())
+        self.assertTrue((project_dir / "artifacts" / "narration.txt").is_file())
+        self.assertTrue((project_dir / "artifacts" / "narration.wav").is_file())
+        self.assertTrue((project_dir / "artifacts" / "demo.mp4").is_file())
+        self.assertTrue((project_dir / "artifacts" / "final_with_audio.mp4").is_file())
+
+        errors, report = validator.validate_project(project_dir, require_audio=True)
+        self.assertEqual(errors, [])
+        self.assertEqual(report["video"]["width"], 1440)
+        self.assertEqual(report["video"]["height"], 2560)
+
+    def test_accordion_panels_shorts_structure_and_validation(self) -> None:
+        project_dir = ROOT / "accordion-panels-shorts"
+        self.assertTrue(project_dir.is_dir())
+        self.assertTrue((project_dir / "app.py").is_file())
+        self.assertTrue((project_dir / "actions.yaml").is_file())
+        self.assertTrue((project_dir / "artifacts" / "narration.txt").is_file())
+        self.assertTrue((project_dir / "artifacts" / "narration.wav").is_file())
+        self.assertTrue((project_dir / "artifacts" / "demo.mp4").is_file())
+        self.assertTrue((project_dir / "artifacts" / "final_with_audio.mp4").is_file())
+
+        errors, report = validator.validate_project(project_dir, require_audio=True)
+        self.assertEqual(errors, [])
+        self.assertEqual(report["video"]["width"], 2560)
+        self.assertEqual(report["video"]["height"], 1440)
+
 
 if __name__ == "__main__":
     unittest.main()
+
+

@@ -52,6 +52,8 @@ Use this workflow when the user asks for multiple videos about one component. Cr
 6. Before implementation, assign each video a one-line visual direction covering backdrop mode, palette, typography, composition, and setting. For series of three or more, include both light and dark or color-led treatments, and do not let one backdrop treatment dominate more than about half the series unless the user requests a fixed brand system or the component behavior requires it.
 7. When audio is requested, assign each video a one-line performance direction covering persona, emotional arc, pace, and one or two purposeful inline cues. Vary the delivery across the series without turning every short into a character voice.
 
+For implementation, use hybrid orchestration when the runtime supports subagents: the lead agent owns shared research, scoring, ordering, visual and performance directions, and final acceptance. Dispatch up to three subagents at once, give each one an isolated video directory, and handle any remaining videos in a second wave. Subagents implement and verify only their assigned video; deterministic TTS, Playwright, FFmpeg, and validation work uses the batch processor rather than subagents.
+
 If the user requests runnable apps, recordings, or finished videos, apply the corresponding workflow separately to each selected idea. Use one directory per video and verify every requested output independently.
 
 ### Runnable app
@@ -104,6 +106,34 @@ python .claude/skills/shiny-component-shorts/scripts/validate_demo.py \
 ```
 
 Treat validator errors as blocking. Missing-overlay warnings are expected for clean recordings and do not need to be fixed.
+
+### Batch processing (parallel, cached, and timing-safe)
+
+Generate and measure narration for every selected demo first:
+
+```bash
+python .claude/skills/shiny-component-shorts/scripts/batch_process.py \
+  --phase narration \
+  --dirs "*-shorts" \
+  --tts-concurrency 3
+```
+
+For each demo, listen to `artifacts/narration.wav`, inspect `artifacts/narration-timing.json`, and adjust `actions.yaml` so reactions align with the measured sentence windows. Then explicitly approve those exact inputs and finish the videos:
+
+```bash
+python .claude/skills/shiny-component-shorts/scripts/batch_process.py \
+  --phase finish --approve-timing \
+  --dirs "*-shorts" \
+  --record-concurrency 2 \
+  --merge-concurrency 2 \
+  --validate-concurrency 3
+```
+
+The timing approval is bound to hashes of the current WAV, timing report, and actions file; changing any of them requires another review and approval. Recording defaults to two concurrent browsers to avoid resource contention. Merging always calls `merge_audio.py`, and validation always reruns even for cached recordings. Use `--force` only to rebuild the selected phase. The old combined `--tts --merge` invocation is deprecated because it skips the timing-adjustment gate.
+
+To lock a specific voice or model for one video, add an optional `tts-settings.json` beside its app containing `{"voice": "Kore", "model": "gemini-3.1-flash-tts-preview"}`. The batch processor passes these settings to the TTS generator and includes the file in that video's narration cache key.
+
+After the batch succeeds, each assigned agent must still inspect the first, reveal, code, and final frames at phone size and listen to the final video. The lead agent accepts the series only after every subagent reports those checks and the lead confirms every requested output independently.
 
 ### Narrated or finished video
 

@@ -90,6 +90,20 @@ class ClaudeSkillContractTest(unittest.TestCase):
         self.assertIn("visual-direction matrix", playbook)
         self.assertIn("Do not count a recolor as a distinct hidden behavior", playbook)
 
+    def test_multi_video_series_documents_hybrid_two_phase_production(self) -> None:
+        skill = SKILL_MD.read_text(encoding="utf-8")
+        for marker in (
+            "lead agent",
+            "up to three subagents",
+            "--phase narration",
+            "--phase finish --approve-timing",
+            "--record-concurrency 2",
+            "narration-timing.json",
+            "merge_audio.py",
+            "verify every requested output independently",
+        ):
+            self.assertIn(marker, skill)
+
     def test_apps_rotate_four_professional_fonts_and_omit_visible_titles(self) -> None:
         skill = SKILL_MD.read_text(encoding="utf-8")
         playbook = (SKILL / "references/creative-playbook.md").read_text(encoding="utf-8")

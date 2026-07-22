@@ -73,6 +73,8 @@ Use $shiny-component-shorts to create 5 mini-app video ideas for Shiny toolbar-s
 
 Requests for multiple videos use the dedicated series workflow. A series contains at most five videos about one component, and every video must demonstrate a distinct hidden behavior. The skill returns fewer ideas when the component does not have enough strong, visual behaviors.
 
+For implemented series, one lead agent locks the shared research and series direction, then up to three subagents work in isolated video directories. Media generation remains process-based: TTS, Playwright recording, two-pass audio merging, and validation run through the cached batch processor.
+
 For example:
 
 ```text
@@ -134,5 +136,31 @@ python3 .agents/skills/shiny-component-shorts/scripts/generate_tts.py \
 ```
 
 Claude Code can use `.claude/skills/shiny-component-shorts/scripts/generate_tts.py`. `GOOGLE_API_KEY` is also supported; if both variables are set, the Google SDK gives `GOOGLE_API_KEY` precedence. Never commit either key.
+
+## Timing-safe batch production
+
+Generate and measure all narration first:
+
+```bash
+python3 .agents/skills/shiny-component-shorts/scripts/batch_process.py \
+  --phase narration \
+  --dirs "*-shorts" \
+  --tts-concurrency 3
+```
+
+Listen to each WAV, use `artifacts/narration-timing.json` to align `actions.yaml`, then approve those exact inputs and finish the batch:
+
+```bash
+python3 .agents/skills/shiny-component-shorts/scripts/batch_process.py \
+  --phase finish --approve-timing \
+  --dirs "*-shorts" \
+  --record-concurrency 2 \
+  --merge-concurrency 2 \
+  --validate-concurrency 3
+```
+
+Approval is invalidated when the narration, measured timing, or actions change. Cached recordings are still validated, and the finish phase uses the shared two-pass `merge_audio.py` path rather than a one-pass FFmpeg shortcut.
+
+An optional per-video `tts-settings.json` can pin `voice` and `model`; those settings are passed to the generator and included in the narration cache key.
 
 The TTS script writes exact Gemini token usage and a paid-tier list-price estimate to `narration.usage.json`. At the end of every artifact-generating workflow, the skill also reports the active Claude Code or Codex usage when the harness exposes it. Subscription usage, unavailable usage, and list-price estimates are labeled separately so a partial estimate is never presented as a complete bill.

@@ -51,6 +51,8 @@ Use this workflow when the user asks for multiple videos about one component. Cr
 6. Before implementation, assign each video a one-line visual direction covering backdrop mode, palette, typography, composition, and setting. For series of three or more, include both light and dark or color-led treatments, and do not let one backdrop treatment dominate more than about half the series unless the user requests a fixed brand system or the component behavior requires it.
 7. When audio is requested, assign each video a one-line performance direction covering persona, emotional arc, pace, and one or two purposeful inline cues. Vary the delivery across the series without turning every short into a character voice.
 
+For implementation, use hybrid orchestration when the runtime supports subagents: the lead agent owns shared research, scoring, ordering, visual and performance directions, and final acceptance. Dispatch up to three subagents at once, give each one an isolated video directory, and handle any remaining videos in a second wave. Subagents implement and verify only their assigned video; deterministic TTS, Playwright, FFmpeg, and validation work uses the batch processor rather than subagents.
+
 If the user requests runnable apps, recordings, or finished videos, apply the corresponding workflow separately to each selected idea. Use one directory per video and verify every requested output independently.
 
 ### Runnable app
@@ -102,26 +104,33 @@ python .agents/skills/shiny-component-shorts/scripts/validate_demo.py \
   --project-dir demo-name
 ```
 
-### Batch processing (Parallel & Cached)
+### Batch processing (parallel, cached, and timing-safe)
 
-To record, generate TTS, merge, and validate multiple demos in a single command running in the background, run:
+Generate and measure narration for every selected demo first:
 
 ```bash
 python .agents/skills/shiny-component-shorts/scripts/batch_process.py \
+  --phase narration \
   --dirs "*-shorts" \
-  --concurrency 3 \
-  --tts \
-  --merge
+  --tts-concurrency 3
 ```
 
-Options:
-- `--dirs`: List of directories or glob patterns (default: auto-discovers all folders containing `actions.yaml` and `app.py`/`app.R`).
-- `--concurrency`: Number of concurrent recording tasks (default: 2).
-- `--tts`: Triggers Gemini API audio generation for each demo's `narration.txt`.
-- `--merge`: Merges compiled `demo.mp4` and `narration.wav` with FFmpeg.
-- `--force`: Disables caching and forces rebuild of all steps.
+For each demo, listen to `artifacts/narration.wav`, inspect `artifacts/narration-timing.json`, and adjust `actions.yaml` so reactions align with the measured sentence windows. Then explicitly approve those exact inputs and finish the videos:
 
-The batch processor automatically scans for free ports to prevent parallel execution conflicts, caches unchanged builds based on input file hashes to save API costs and CPU, and performs pre-flight dependency audits.
+```bash
+python .agents/skills/shiny-component-shorts/scripts/batch_process.py \
+  --phase finish --approve-timing \
+  --dirs "*-shorts" \
+  --record-concurrency 2 \
+  --merge-concurrency 2 \
+  --validate-concurrency 3
+```
+
+The timing approval is bound to hashes of the current WAV, timing report, and actions file; changing any of them requires another review and approval. Recording defaults to two concurrent browsers to avoid resource contention. Merging always calls `merge_audio.py`, and validation always reruns even for cached recordings. Use `--force` only to rebuild the selected phase. The old combined `--tts --merge` invocation is deprecated because it skips the timing-adjustment gate.
+
+To lock a specific voice or model for one video, add an optional `tts-settings.json` beside its app containing `{"voice": "Kore", "model": "gemini-3.1-flash-tts-preview"}`. The batch processor passes these settings to the TTS generator and includes the file in that video's narration cache key.
+
+After the batch succeeds, each assigned agent must still inspect the first, reveal, code, and final frames at phone size and listen to the final video. The lead agent accepts the series only after every subagent reports those checks and the lead confirms every requested output independently.
 
 ### Narrated or finished video
 
