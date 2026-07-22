@@ -6,6 +6,8 @@ Generate 30-second videos about Shiny components. One video = one useful, surpri
 
 https://github.com/user-attachments/assets/af6b0ec9-b78a-4f4b-a849-ad896d4500e6
 
+https://github.com/user-attachments/assets/79519994-e8be-4450-91f2-549f5765c4fa
+
 ## How it works
 
 ![Skill workflow at a glance](assets/process.jpg)

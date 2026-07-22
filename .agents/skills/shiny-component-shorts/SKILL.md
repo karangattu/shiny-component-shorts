@@ -177,7 +177,7 @@ If the proposed action plan cannot produce three meaningful reactions from the s
 - Give every control visible breathing room: nothing inside a control may touch its border. When restyling radios or checkboxes into segmented buttons or chips, hide the native input (stretch it invisibly across the whole hit area) instead of leaving the widget dot pressed against an edge, keep the label centered, and keep at least 10 px of padding on every side. Inspect a rendered screenshot of every custom-styled control before recording.
 - Add stable input IDs and selectors for every recorded target.
 - Do not use random Bootstrap-generated IDs.
-- Keep the code line featured in the video verbatim in the app.
+- Keep the code card verbatim from the app: every `before`, `text`, and `after` line must exist in the app source with its original relative indentation (the validator allows only one uniform dedent across the whole card). Copy lines exactly; never condense, reorder, or re-wrap them.
 - Do not add decorative controls just to create motion.
 - Make comparison states visible in the same composition when practical.
 
