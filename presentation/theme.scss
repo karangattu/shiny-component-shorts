@@ -1,0 +1,229 @@
+/*-- scss:defaults --*/
+
+// Shiny preset palette
+$shiny-blue: #007BC2;
+$ink: #1D1F21;
+$ink-secondary: #48505F;
+$paper: #FCFCFD;
+$paper-alt: #F8F8F8;
+$dark-surface: #1D1F21;
+$dark-surface-alt: #202020;
+$dark-text: #FFFFFF;
+$dark-text-secondary: #CDD4DA;
+
+$font-family-sans-serif: "Mona Sans", system-ui, -apple-system, sans-serif;
+$font-family-monospace: "JetBrains Mono", "SF Mono", Menlo, monospace;
+
+$body-bg: $paper;
+$body-color: $ink;
+$link-color: $shiny-blue;
+$presentation-heading-font: "Mona Sans", system-ui, sans-serif;
+$presentation-heading-color: $ink;
+$presentation-heading-font-weight: 700;
+$presentation-font-size-root: 34px;
+$presentation-h1-font-size: 2.1em;
+$presentation-h2-font-size: 1.35em;
+$presentation-h3-font-size: 1.0em;
+$code-block-font-size: 0.52em;
+$code-block-bg: $dark-surface-alt;
+$code-color: #B8478A;
+
+/*-- scss:rules --*/
+
+.reveal {
+  font-weight: 450;
+
+  .slides section {
+    text-align: left;
+  }
+
+  h2 {
+    letter-spacing: -0.015em;
+    margin-bottom: 0.6em;
+
+    .fa-solid, .fa-regular, .fa-brands {
+      color: $shiny-blue;
+      margin-right: 0.35em;
+      font-size: 0.85em;
+    }
+  }
+
+  h3 {
+    color: $shiny-blue;
+    font-weight: 650;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    font-size: 0.62em;
+    margin-bottom: 0.4em;
+  }
+
+  p, li { line-height: 1.5; }
+
+  li { margin-bottom: 0.35em; }
+
+  strong { font-weight: 700; color: $ink; }
+
+  .slide-number { color: $ink-secondary; }
+
+  // ---- Title slide ----
+  .title-slide, #title-slide {
+    text-align: left;
+
+    h1.title {
+      color: $dark-text;
+      font-weight: 800;
+      font-size: 1.9em;
+      letter-spacing: -0.02em;
+      line-height: 1.12;
+    }
+    p.subtitle {
+      color: $dark-text-secondary;
+      font-weight: 450;
+      font-size: 0.85em;
+      margin-top: 0.8em;
+    }
+    .quarto-title-authors { justify-content: flex-start; padding-left: 0; }
+    .quarto-title-author-name { color: $dark-text; font-weight: 600; }
+    p.date { color: $dark-text-secondary; font-size: 0.6em; }
+  }
+
+  // ---- Dark section-divider slides ----
+  .slides section.divider {
+    h2 {
+      color: $dark-text;
+      font-size: 1.7em;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+    h3 { color: lighten($shiny-blue, 18%); }
+    p, li { color: $dark-text-secondary; font-size: 0.92em; }
+    strong { color: $dark-text; }
+    .fa-solid, .fa-regular { color: $shiny-blue; }
+  }
+
+  // ---- Callout card ----
+  .card {
+    background: #FFFFFF;
+    border: 1px solid #E3E7EC;
+    border-left: 5px solid $shiny-blue;
+    border-radius: 12px;
+    padding: 0.7em 0.9em;
+    margin: 0.5em 0;
+    box-shadow: 0 2px 10px rgba(29, 31, 33, 0.05);
+    font-size: 0.85em;
+
+    p { margin: 0; }
+    p + p { margin-top: 0.4em; }
+  }
+
+  .card-dark {
+    background: $dark-surface-alt;
+    border: 1px solid #33383D;
+    border-left: 5px solid $shiny-blue;
+    border-radius: 12px;
+    padding: 0.7em 0.9em;
+    margin: 0.5em 0;
+    font-size: 0.85em;
+    color: $dark-text-secondary;
+
+    strong, code { color: $dark-text; }
+    p { margin: 0; }
+  }
+
+  // ---- Big statement ----
+  .big {
+    font-size: 1.35em;
+    font-weight: 700;
+    line-height: 1.3;
+    letter-spacing: -0.015em;
+  }
+
+  .muted { color: $ink-secondary; }
+  .accent { color: $shiny-blue; }
+
+  .small { font-size: 0.72em; }
+  .tiny { font-size: 0.6em; color: $ink-secondary; }
+
+  // ---- Icon feature rows ----
+  .feature {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6em;
+    margin-bottom: 0.55em;
+    font-size: 0.88em;
+
+    .fa-solid, .fa-regular, .fa-brands {
+      color: $shiny-blue;
+      font-size: 1.05em;
+      width: 1.4em;
+      text-align: center;
+      flex: 0 0 auto;
+      margin-top: 0.18em;
+    }
+  }
+
+  // ---- Verdict chips ----
+  .chip-pass, .chip-fail, .chip-warn {
+    display: inline-block;
+    border-radius: 999px;
+    padding: 0.05em 0.6em;
+    font-size: 0.65em;
+    font-weight: 700;
+    vertical-align: middle;
+  }
+  .chip-pass { background: #E2F2E7; color: #1F7A3D; }
+  .chip-fail { background: #FBE3E4; color: #B3261E; }
+  .chip-warn { background: #FBF1DC; color: #92600A; }
+
+  // ---- Tables ----
+  table {
+    font-size: 0.68em;
+    border-collapse: collapse;
+
+    th {
+      color: $ink;
+      font-weight: 700;
+      border-bottom: 2.5px solid $shiny-blue;
+      padding: 0.35em 0.7em;
+    }
+    td {
+      border-bottom: 1px solid #E3E7EC;
+      padding: 0.35em 0.7em;
+      color: $ink-secondary;
+    }
+  }
+
+  // ---- Code ----
+  pre {
+    border-radius: 10px;
+    box-shadow: 0 3px 14px rgba(29, 31, 33, 0.18);
+  }
+  code { font-feature-settings: "liga" 0; }
+  p code, li code {
+    background: #EDF3F8;
+    color: #0B5E93;
+    border-radius: 5px;
+    padding: 0.05em 0.3em;
+    font-size: 0.85em;
+  }
+
+  .divider p code, .divider li code,
+  .card-dark p code, .card-dark li code {
+    background: #2C3237;
+    color: #7FC8F0;
+  }
+
+  // plain-text code blocks get no token colors; keep them light on dark
+  pre code { color: #E8EAED; }
+
+  // ---- Two-line footer kicker ----
+  .kicker {
+    position: absolute;
+    bottom: 0.4em;
+    font-size: 0.55em;
+    color: $ink-secondary;
+  }
+}
+
+// progress bar
+.reveal .progress { color: $shiny-blue; height: 5px; }

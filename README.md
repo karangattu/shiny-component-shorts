@@ -12,7 +12,55 @@ https://github.com/user-attachments/assets/79519994-e8be-4450-91f2-549f5765c4fa
 
 ![Skill workflow at a glance](assets/process.jpg)
 
-![Quality gate loop](assets/quality_gate_loop.jpg)
+## Quality control
+
+```mermaid
+flowchart TD
+    A["Component or content request"] --> B["Confirm scope<br/>Idea, app, recording, or finished video"]
+    B --> C["Research official Shiny documentation"]
+    C --> D["List genuinely visual behaviors"]
+
+    D --> E{"Creative score<br/>passes all 4 questions?"}
+    E -- "No" --> F["Reject or replace the behavior"]
+    F --> D
+    E -- "Yes" --> G["Choose proof shape<br/>Direct comparison or two-way proof"]
+
+    G --> H["Create hook, storyboard,<br/>and action → reaction plan"]
+    H --> I{"Concept quality gate"}
+
+    I -- "Needs explanation to be visible" --> F
+    I -- "Fewer than 3 meaningful reactions" --> F
+    I -- "More than one trick" --> F
+    I -- "Pass" --> J["Generate only the requested content"]
+
+    J --> K{"Artifact type"}
+
+    K -- "Idea" --> L["Check complete deliverables<br/>angle, hook, variations, storyboard, actions"]
+    K -- "App" --> M["Run app and exercise behavior<br/>Check selectors, readability, and reactive output"]
+    K -- "Recording" --> N["Validate timing, resolution,<br/>cursor targets, code card, and final frame"]
+    K -- "Narrated video" --> O["Check audio quality and alignment<br/>Visible reactions match spoken sentences"]
+
+    L --> P{"Final acceptance gate"}
+    M --> P
+    N --> P
+    O --> P
+
+    P -- "Missing, empty, or unclear" --> Q["Revise and validate again"]
+    Q --> J
+    P -- "Pass" --> R["Approved content artifact"]
+
+    style A fill:#007BC2,color:#FFFFFF
+    style B fill:#007BC2,color:#FFFFFF
+    style C fill:#007BC2,color:#FFFFFF
+    style D fill:#007BC2,color:#FFFFFF
+    style E fill:#F9B928,color:#1D1F21
+    style I fill:#F9B928,color:#1D1F21
+    style K fill:#F9B928,color:#1D1F21
+    style P fill:#F9B928,color:#1D1F21
+    style F fill:#C10000,color:#FFFFFF
+    style Q fill:#C10000,color:#FFFFFF
+    style R fill:#00891A,color:#FFFFFF
+```
 
 ## What you can create
 
