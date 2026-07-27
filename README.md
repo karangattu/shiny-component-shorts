@@ -10,7 +10,113 @@ https://github.com/user-attachments/assets/79519994-e8be-4450-91f2-549f5765c4fa
 
 ## How it works
 
-![Skill workflow at a glance](assets/process.jpg)
+```mermaid
+flowchart TD
+    A["User request"] --> B["Scope only the requested output"]
+    B --> C["Read the required references"]
+    C --> D["Research official Shiny documentation"]
+    D --> E["List genuinely visual behaviors"]
+
+    E --> F{"Does the behavior pass<br/>all creative checks?"}
+    F -- "No" --> R1["Reject or refine candidate"]
+    R1 --> E
+    F -- "Yes" --> G["Choose one hidden behavior"]
+
+    G --> H{"Proof shape"}
+    H --> H1["Direct comparison"]
+    H --> H2["Two-way proof"]
+    H1 --> I
+    H2 --> I
+
+    I["Create the idea package<br/>Angle · Hook · Mini-app · Variations<br/>Storyboard · Action → reaction plan"]
+
+    I --> J{"Multi-video series?"}
+    J -- "Yes" --> K["Score up to five distinct behaviors"]
+    K --> L["Order strongest first<br/>Assign visual and performance directions"]
+    L --> M["Use one directory per selected video"]
+    M --> N
+
+    J -- "No" --> N{"Requested deliverable?"}
+
+    N -- "Idea only" --> O["Return complete idea package<br/>Create no files or media"]
+
+    N -- "Runnable app" --> P["Build minimal app.py or app.R"]
+    P --> P1["Use realistic data and stable selectors"]
+    P1 --> P2["Run app and exercise the behavior"]
+
+    N -- "Existing app" --> Q["Inspect source, dependencies, and run instructions"]
+    Q --> Q1["Run and inspect the original app unchanged"]
+    Q1 --> Q2{"Is one behavior<br/>visually provable?"}
+    Q2 -- "No" --> Q3["Report strongest near-misses<br/>Do not manufacture interactions"]
+    Q2 -- "Yes" --> Q4["Keep original app as recording subject<br/>Create a sidecar production directory"]
+
+    N -- "Silent recording" --> S["Write storyboard and actions.yaml"]
+    Q4 --> S
+    P2 --> S
+    S --> S1["Write narration envelope<br/>Timing target only—no paid TTS"]
+    S1 --> S2["Run shared record_demo.py"]
+    S2 --> S3["Run validate_demo.py"]
+
+    N -- "Narrated or finished video" --> T["Write narration envelope and transcript"]
+    Q4 --> T
+    P2 --> T
+    T --> T1{"Narration source?"}
+    T1 -- "Generate TTS" --> T2["Generate and listen to narration.wav"]
+    T1 -- "Existing audio" --> T3["Import audio and match transcript"]
+    T2 --> T4
+    T3 --> T4
+
+    T4["Measure duration and sentence boundaries"]
+    T4 --> T5["Align actions.yaml to measured speech"]
+    T5 --> T6{"Multiple videos?"}
+
+    T6 -- "No" --> T7["Record and validate with --require-audio"]
+    T7 --> T8["Merge using merge_audio.py"]
+
+    T6 -- "Yes" --> U["Batch narration phase"]
+    U --> U1["Listen and inspect timing reports"]
+    U1 --> U2["Adjust actions.yaml"]
+    U2 --> U3["Approve exact timing inputs"]
+    U3 --> U4["Batch record · merge · validate"]
+
+    O --> V
+    P2 --> V
+    S3 --> V
+    T8 --> V
+    U4 --> V
+    Q3 --> Z
+
+    V{"Verification gate"}
+
+    V --> V1["Requested outputs exist and are non-empty"]
+    V1 --> V2["Behavior and selectors work"]
+    V2 --> V3["Validate resolution, cursor, timing, and media"]
+    V3 --> V4["Inspect first, reveal, code, and final frames"]
+    V4 --> V5["For audio: listen while watching"]
+
+    V5 --> W{"Every check passes?"}
+    W -- "No" --> X["Revise the weakest layer<br/>Concept · App · Actions · Timing · Audio"]
+    X --> N
+    W -- "Yes" --> Z["Report verified deliverables"]
+
+    GC["Global production constraints<br/>One trick · 3 meaningful reactions · 9:16 default<br/>Middle 60% app band · Shiny palette · Phone-readable"]
+    GC -. "Applies throughout" .-> I
+    GC -.-> P
+    GC -.-> S
+    GC -.-> T
+
+    classDef process fill:#007BC2,color:#FFFFFF,stroke:#005F96,stroke-width:2px;
+    classDef decision fill:#F9B928,color:#1D1F21,stroke:#9A6A00,stroke-width:2px;
+    classDef reject fill:#C10000,color:#FFFFFF,stroke:#830000,stroke-width:2px;
+    classDef success fill:#00891A,color:#FFFFFF,stroke:#005D12,stroke-width:2px;
+    classDef note fill:#F8F8F8,color:#1D1F21,stroke:#CDD4DA,stroke-width:2px;
+
+    class A,B,C,D,E,G,I,K,L,M,O,P,P1,P2,Q,Q1,Q4,S,S1,S2,S3,T,T1,T2,T3,T4,T5,T7,T8,U,U1,U2,U3,U4,V1,V2,V3,V4,V5 process;
+    class F,H,J,N,Q2,T6,V,W decision;
+    class R1,Q3,X reject;
+    class Z success;
+    class GC,H1,H2 note;
+```
 
 ## Quality control
 
