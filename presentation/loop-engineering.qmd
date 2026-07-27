@@ -5,6 +5,8 @@ author: "Karan Gathani · Posit"
 date: "2026-07-25"
 format:
   revealjs:
+    # served at the site root by .github/workflows/pages.yml
+    output-file: index.html
     theme: theme.scss
     slide-number: c/t
     width: 1280
@@ -17,7 +19,6 @@ format:
     highlight-style: monokai
     mermaid:
       theme: neutral
-    mermaid-format: svg
     title-slide-attributes:
       data-background-color: "#1D1F21"
     include-in-header:
