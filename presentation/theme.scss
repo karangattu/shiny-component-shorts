@@ -216,6 +216,36 @@ $code-color: #B8478A;
   // plain-text code blocks get no token colors; keep them light on dark
   pre code { color: #E8EAED; }
 
+  // ---- Mermaid diagrams: keep them inside the slide on a laptop ----
+  .diagram {
+    margin: 0.2em 0 0.4em;
+    text-align: center;
+
+    .cell, .cell-output-display, figure, figure > div, pre.mermaid {
+      width: 100%;
+      margin: 0;
+    }
+
+    svg {
+      width: 100%;
+      // mermaid pins an inline max-width at its natural size; let it scale up
+      max-width: none !important;
+      max-height: 460px;
+      height: auto;
+    }
+
+    // Mermaid measures label widths outside the slide, where the deck font is
+    // not inherited — so keep diagram text on the same font it was measured with.
+    svg, .nodeLabel, .edgeLabel, text, foreignObject div, foreignObject span {
+      font-family: system-ui, -apple-system, sans-serif !important;
+    }
+
+    // sub-pixel rounding can shave the last glyph inside a node box
+    foreignObject { overflow: visible; }
+
+    .edgeLabel { background: transparent; }
+  }
+
   // ---- Two-line footer kicker ----
   .kicker {
     position: absolute;

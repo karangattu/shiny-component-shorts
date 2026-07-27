@@ -15,6 +15,9 @@ format:
     progress: true
     hash: true
     highlight-style: monokai
+    mermaid:
+      theme: neutral
+    mermaid-format: svg
     title-slide-attributes:
       data-background-color: "#1D1F21"
     include-in-header:
@@ -109,7 +112,7 @@ Linger here. The point of this slide is dread — every one of these is easy alo
 
 :::: {.columns}
 ::: {.column width="55%"}
-**For the non-technical folks:** prompt engineering is writing *really good instructions* for an AI — like leaving an extremely detailed note for a house-sitter.
+Prompt engineering is writing *really good instructions* for an AI — like leaving an extremely detailed note for a house-sitter.
 
 You can't watch them work. You can't correct them halfway. Whatever you forgot to write down, they'll improvise.
 
@@ -220,7 +223,7 @@ This is the intellectual core of Act I. Cracks 1 and 2 can be mitigated with bet
 
 :::: {.columns}
 ::: {.column width="55%"}
-**Plain version:** an eval is a *report card* for AI output. You define what "good" means, generate a bunch of outputs, and score them.
+An eval is a *report card* for AI output. You define what "good" means, generate a bunch of outputs, and score them.
 
 It's quality inspection at the **end** of the assembly line: the inspector tells you which cars are lemons. The inspector does not build cars.
 :::
@@ -344,12 +347,72 @@ Deterministic checks live in **shared scripts** — same inspector, every video.
 This is the thesis slide of the talk. If people remember one contrast: phrasing rules vs. making violations impossible.
 :::
 
-## <i class="fa-solid fa-map"></i> This repo, at a glance
+## <i class="fa-solid fa-map"></i> Step 1 — earn the idea {.smaller}
 
-![](process.jpg){fig-align="center" height="540"}
+::: {.diagram}
+```{mermaid}
+%%{init: {"themeVariables": {"fontFamily": "system-ui, -apple-system, sans-serif", "fontSize": "17px"}}}%%
+flowchart LR
+    A["Request"] --> B["Read references<br/>+ Shiny docs"]
+    B --> C["List visual<br/>behaviors"]
+    C --> D{"Passes creative<br/>checks?"}
+    D -- "No" --> R["Reject or<br/>refine"]
+    R --> C
+    D -- "Yes" --> E["One trick<br/>+ proof shape"]
+    E --> F["Idea package"]
+
+    classDef step fill:#007BC2,color:#FFFFFF,stroke:#005F96,stroke-width:2px;
+    classDef gate fill:#F9B928,color:#1D1F21,stroke:#9A6A00,stroke-width:2px;
+    classDef bad fill:#C10000,color:#FFFFFF,stroke:#830000,stroke-width:2px;
+    class A,B,C,E,F step;
+    class D gate;
+    class R bad;
+```
+:::
+
+::: {.kicker}
+First chunk of the flowchart in the repo README. Nothing gets built until a behavior survives this.
+:::
 
 ::: notes
-Orient the audience: the skill (instructions the agent reads), the shared scripts (recorder, validator, TTS, merger), and per-video folders each containing an app, an actions file, and generated artifacts.
+Orient the audience: the skill (instructions the agent reads) starts every job here — research, candidates, creative filter. The loop can exit empty-handed at the red box.
+:::
+
+## <i class="fa-solid fa-map"></i> Step 2 — build only what was asked {.smaller}
+
+::: {.diagram}
+```{mermaid}
+%%{init: {"themeVariables": {"fontFamily": "system-ui, -apple-system, sans-serif", "fontSize": "17px"}}}%%
+flowchart LR
+    A["Idea package"] --> B{"Deliverable?"}
+    B -- "Idea only" --> C["Return package<br/>no files"]
+    B -- "App" --> D["Build + run app"]
+    B -- "Video" --> E["Storyboard<br/>+ actions.yaml"]
+    D --> E
+    E --> F["Narrate → measure<br/>→ record"]
+    C --> G{"Verification<br/>gate"}
+    F --> G
+    G -- "Fail" --> H["Revise weakest<br/>layer"]
+    H --> B
+    G -- "Pass" --> I["Verified<br/>deliverables"]
+
+    classDef step fill:#007BC2,color:#FFFFFF,stroke:#005F96,stroke-width:2px;
+    classDef gate fill:#F9B928,color:#1D1F21,stroke:#9A6A00,stroke-width:2px;
+    classDef bad fill:#C10000,color:#FFFFFF,stroke:#830000,stroke-width:2px;
+    classDef good fill:#00891A,color:#FFFFFF,stroke:#005D12,stroke-width:2px;
+    class A,C,D,E,F step;
+    class B,G gate;
+    class H bad;
+    class I good;
+```
+:::
+
+::: {.kicker}
+Shared scripts do the recording, validating, TTS, and merging — one set, every video.
+:::
+
+::: notes
+The skill, the shared scripts, and per-video folders each containing an app, an actions file, and generated artifacts. Note the backward arrow: a failed gate re-enters the pipeline rather than shipping.
 :::
 
 ## <i class="fa-solid fa-file-signature"></i> The master contract: `SKILL.md` {.smaller}
@@ -394,7 +457,7 @@ Before any code, the creative playbook forces a filter:
 <br>
 
 ::: {.card}
-**Non-technical translation:** the system is allowed to conclude *"this component doesn't have a good video in it."* A mega-prompt never says that — it always hands you *something*, confident to the last word.
+The system is allowed to conclude *"this component doesn't have a good video in it."* A mega-prompt never says that — it always hands you *something*, confident to the last word.
 :::
 
 ## <i class="fa-solid fa-palette"></i> Contract #2 — the frame is spoken for {.smaller}
@@ -750,7 +813,7 @@ Like a signature across the sealed flap of an envelope: reopen the envelope, bre
 ::::
 
 ::: notes
-Favorite slide for technical audiences. Non-technical framing: the envelope-flap signature. Technical term: content-addressed approval.
+Favorite slide for technical audiences. Plain framing: the envelope-flap signature. Technical term: content-addressed approval.
 :::
 
 ## <i class="fa-solid fa-layer-group"></i> Scaling it: the batch processor {.smaller}
@@ -816,12 +879,69 @@ The agent's "employee handbook" is itself under test. The loop has a loop around
 :::
 ::::
 
-## <i class="fa-solid fa-diagram-project"></i> The whole loop, on one slide
+## <i class="fa-solid fa-diagram-project"></i> Gate 1 — the concept {.smaller}
 
-![](quality_gate_loop.jpg){fig-align="center" height="540"}
+::: {.diagram}
+```{mermaid}
+%%{init: {"themeVariables": {"fontFamily": "system-ui, -apple-system, sans-serif", "fontSize": "17px"}}}%%
+flowchart LR
+    A["Visual<br/>behaviors"] --> B{"Creative score<br/>4 questions"}
+    B -- "No" --> C["Reject or<br/>replace"]
+    C --> A
+    B -- "Yes" --> D["Hook, storyboard,<br/>action → reaction"]
+    D --> E{"Concept gate"}
+    E -- "Needs explaining<br/>< 3 reactions<br/>> 1 trick" --> C
+    E -- "Pass" --> F["Start generating"]
+
+    classDef step fill:#007BC2,color:#FFFFFF,stroke:#005F96,stroke-width:2px;
+    classDef gate fill:#F9B928,color:#1D1F21,stroke:#9A6A00,stroke-width:2px;
+    classDef bad fill:#C10000,color:#FFFFFF,stroke:#830000,stroke-width:2px;
+    class A,D,F step;
+    class B,E gate;
+    class C bad;
+```
+:::
+
+::: {.kicker}
+No pixels are produced until the concept survives both yellow gates.
+:::
+
+## <i class="fa-solid fa-diagram-project"></i> Gate 2 — the artifact {.smaller}
+
+::: {.diagram}
+```{mermaid}
+%%{init: {"themeVariables": {"fontFamily": "system-ui, -apple-system, sans-serif", "fontSize": "17px"}}}%%
+flowchart LR
+    A["Generated<br/>artifact"] --> B{"Type?"}
+    B -- "Idea" --> C["Deliverables<br/>complete"]
+    B -- "App" --> D["Runs · selectors<br/>· readable"]
+    B -- "Recording" --> E["Timing · resolution<br/>· code card"]
+    B -- "Narrated" --> F["Audio quality<br/>· alignment"]
+    C --> G{"Acceptance<br/>gate"}
+    D --> G
+    E --> G
+    F --> G
+    G -- "Missing or unclear" --> H["Revise"]
+    H --> A
+    G -- "Pass" --> I["Approved<br/>artifact"]
+
+    classDef step fill:#007BC2,color:#FFFFFF,stroke:#005F96,stroke-width:2px;
+    classDef gate fill:#F9B928,color:#1D1F21,stroke:#9A6A00,stroke-width:2px;
+    classDef bad fill:#C10000,color:#FFFFFF,stroke:#830000,stroke-width:2px;
+    classDef good fill:#00891A,color:#FFFFFF,stroke:#005D12,stroke-width:2px;
+    class A,C,D,E,F step;
+    class B,G gate;
+    class H bad;
+    class I good;
+```
+:::
+
+::: {.kicker}
+Every backward arrow is a gate that failed and sent the work back — never to the viewer.
+:::
 
 ::: notes
-Trace one full journey out loud: idea → contract check → app → run it → narration envelope → TTS → measure → timing plan → human gate (hashes) → record (pre-flight, cursor, code card) → validate (timeline vs. windows) → merge (loudnorm) → cost report. Every arrow that points backward is a gate that failed and sent work back.
+Trace one full journey out loud: idea → contract check → app → run it → narration envelope → TTS → measure → timing plan → human gate (hashes) → record (pre-flight, cursor, code card) → validate (timeline vs. windows) → merge (loudnorm) → cost report.
 :::
 
 ## <i class="fa-solid fa-gem"></i> Everything you'd have taken for granted {.smaller}
