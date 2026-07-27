@@ -170,10 +170,10 @@ flowchart TD
 
 ### Legend
 
-Blue #007BC2: normal production steps
-Yellow #F9B928: decision gates
-Red #C10000: rejection and revision loops
-Green #00891A: approved output
+- **Blue** `#007BC2` — normal production steps
+- **Yellow** `#F9B928` — decision gates
+- **Red** `#C10000` — rejection and revision loops
+- **Green** `#00891A` — approved output
 
 ## What you can create
 
