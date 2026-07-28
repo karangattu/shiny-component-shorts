@@ -1,8 +1,8 @@
 ---
 title: "From Prompts to Loops"
-subtitle: "How we taught an AI agent to produce finished, narrated component videos — and why a really good prompt was never going to be enough"
+subtitle: "why a really good prompt was never going to be enough"
 author: "Karan Gathani · Posit"
-date: "2026-07-25"
+date: "2026-07-27"
 format:
   revealjs:
     # served at the site root by .github/workflows/pages.yml
@@ -33,7 +33,7 @@ format:
 
 :::: {.columns}
 ::: {.column width="55%"}
-One Shiny component. One hidden behavior. Thirty seconds.
+One Shiny component. One behavior. Thirty seconds.
 
 ::: {.feature}
 <i class="fa-solid fa-mobile-screen"></i> A vertical, phone-first recording of a **real running app**
@@ -303,8 +303,6 @@ With evals bolted onto one-shot prompting, your only move is:
 **The core diagnosis:**
 
 Evals put all the judgment at the **end**, after every decision has already been made.
-
-A report card doesn't teach. It just tells you which students to be sad about.
 :::
 :::
 ::::
@@ -362,17 +360,21 @@ flowchart LR
     D -- "Yes" --> E["One trick<br/>+ proof shape"]
     E --> F["Idea package"]
 
-    classDef step fill:#007BC2,color:#FFFFFF,stroke:#005F96,stroke-width:2px;
+    classDef agent fill:#007BC2,color:#FFFFFF,stroke:#005F96,stroke-width:2px;
     classDef gate fill:#F9B928,color:#1D1F21,stroke:#9A6A00,stroke-width:2px;
     classDef bad fill:#C10000,color:#FFFFFF,stroke:#830000,stroke-width:2px;
-    class A,B,C,E,F step;
+    class A,B,C,E,F agent;
     class D gate;
     class R bad;
 ```
 :::
 
+::: {.legend}
+[Agent]{.chip-agent} [Shared script]{.chip-script} [Gate]{.chip-gate} [Sent back]{.chip-reject} [Approved]{.chip-done}
+:::
+
 ::: {.kicker}
-First chunk of the flowchart in the repo README. Nothing gets built until a behavior survives this.
+First chunk of the README flowchart — all judgment, no scripts yet. Nothing gets built until a behavior survives this.
 :::
 
 ::: notes
@@ -387,36 +389,43 @@ Orient the audience: the skill (instructions the agent reads) starts every job h
 flowchart LR
     A["Idea package"] --> B{"Deliverable?"}
     B -- "Idea only" --> C["Return package<br/>no files"]
-    B -- "App" --> D["Build + run app"]
-    B -- "Video" --> E["Storyboard<br/>+ actions.yaml"]
+    B -- "App" --> D["Write app.py<br/>or app.R"]
+    B -- "Video" --> E["Write storyboard<br/>+ actions.yaml"]
     D --> E
-    E --> F["Narrate → measure<br/>→ record"]
-    C --> G{"Verification<br/>gate"}
-    F --> G
-    G -- "Fail" --> H["Revise weakest<br/>layer"]
-    H --> B
-    G -- "Pass" --> I["Verified<br/>deliverables"]
+    E --> F["generate_tts.py<br/>+ ffprobe timing"]
+    F --> G["record_demo.py<br/>+ merge_audio.py"]
+    C --> V{"validate_demo.py"}
+    G --> V
+    V -- "Fail" --> X["Revise weakest<br/>layer"]
+    X --> B
+    V -- "Pass" --> Z["Verified<br/>deliverables"]
 
-    classDef step fill:#007BC2,color:#FFFFFF,stroke:#005F96,stroke-width:2px;
+    classDef agent fill:#007BC2,color:#FFFFFF,stroke:#005F96,stroke-width:2px;
+    classDef script fill:#1D1F21,color:#FFFFFF,stroke:#000000,stroke-width:2px;
     classDef gate fill:#F9B928,color:#1D1F21,stroke:#9A6A00,stroke-width:2px;
     classDef bad fill:#C10000,color:#FFFFFF,stroke:#830000,stroke-width:2px;
     classDef good fill:#00891A,color:#FFFFFF,stroke:#005D12,stroke-width:2px;
-    class A,C,D,E,F step;
-    class B,G gate;
-    class H bad;
-    class I good;
+    class A,C,D,E agent;
+    class F,G script;
+    class B,V gate;
+    class X bad;
+    class Z good;
 ```
 :::
 
+::: {.legend}
+[Agent]{.chip-agent} [Shared script]{.chip-script} [Gate]{.chip-gate} [Sent back]{.chip-reject} [Approved]{.chip-done}
+:::
+
 ::: {.kicker}
-Shared scripts do the recording, validating, TTS, and merging — one set, every video.
+The agent writes; the black boxes are the repo's shared scripts — one set, every video.
 :::
 
 ::: notes
 The skill, the shared scripts, and per-video folders each containing an app, an actions file, and generated artifacts. Note the backward arrow: a failed gate re-enters the pipeline rather than shipping.
 :::
 
-## <i class="fa-solid fa-file-signature"></i> The master contract: `SKILL.md` {.smaller}
+## <i class="fa-solid fa-file-signature"></i> The core contract: `SKILL.md` {.smaller}
 
 :::: {.columns}
 ::: {.column width="55%"}
@@ -894,17 +903,21 @@ flowchart LR
     E -- "Needs explaining<br/>< 3 reactions<br/>> 1 trick" --> C
     E -- "Pass" --> F["Start generating"]
 
-    classDef step fill:#007BC2,color:#FFFFFF,stroke:#005F96,stroke-width:2px;
+    classDef agent fill:#007BC2,color:#FFFFFF,stroke:#005F96,stroke-width:2px;
     classDef gate fill:#F9B928,color:#1D1F21,stroke:#9A6A00,stroke-width:2px;
     classDef bad fill:#C10000,color:#FFFFFF,stroke:#830000,stroke-width:2px;
-    class A,D,F step;
+    class A,D,F agent;
     class B,E gate;
     class C bad;
 ```
 :::
 
+::: {.legend}
+[Agent]{.chip-agent} [Shared script]{.chip-script} [Gate]{.chip-gate} [Sent back]{.chip-reject} [Approved]{.chip-done}
+:::
+
 ::: {.kicker}
-No pixels are produced until the concept survives both yellow gates.
+No script can judge any of this — it is all agent judgment, gated by the creative playbook.
 :::
 
 ## <i class="fa-solid fa-diagram-project"></i> Gate 2 — the artifact {.smaller}
@@ -914,10 +927,10 @@ No pixels are produced until the concept survives both yellow gates.
 %%{init: {"themeVariables": {"fontFamily": "system-ui, -apple-system, sans-serif", "fontSize": "17px"}}}%%
 flowchart LR
     A["Generated<br/>artifact"] --> B{"Type?"}
-    B -- "Idea" --> C["Deliverables<br/>complete"]
-    B -- "App" --> D["Runs · selectors<br/>· readable"]
-    B -- "Recording" --> E["Timing · resolution<br/>· code card"]
-    B -- "Narrated" --> F["Audio quality<br/>· alignment"]
+    B -- "Idea" --> C["Agent re-reads<br/>its deliverables"]
+    B -- "App" --> D["Agent runs app<br/>+ exercises behavior"]
+    B -- "Recording" --> E["validate_demo.py<br/>timing · resolution"]
+    B -- "Narrated" --> F["validate_demo.py<br/>--require-audio"]
     C --> G{"Acceptance<br/>gate"}
     D --> G
     E --> G
@@ -926,19 +939,25 @@ flowchart LR
     H --> A
     G -- "Pass" --> I["Approved<br/>artifact"]
 
-    classDef step fill:#007BC2,color:#FFFFFF,stroke:#005F96,stroke-width:2px;
+    classDef agent fill:#007BC2,color:#FFFFFF,stroke:#005F96,stroke-width:2px;
+    classDef script fill:#1D1F21,color:#FFFFFF,stroke:#000000,stroke-width:2px;
     classDef gate fill:#F9B928,color:#1D1F21,stroke:#9A6A00,stroke-width:2px;
     classDef bad fill:#C10000,color:#FFFFFF,stroke:#830000,stroke-width:2px;
     classDef good fill:#00891A,color:#FFFFFF,stroke:#005D12,stroke-width:2px;
-    class A,C,D,E,F step;
+    class A,C,D agent;
+    class E,F script;
     class B,G gate;
     class H bad;
     class I good;
 ```
 :::
 
+::: {.legend}
+[Agent]{.chip-agent} [Shared script]{.chip-script} [Gate]{.chip-gate} [Sent back]{.chip-reject} [Approved]{.chip-done}
+:::
+
 ::: {.kicker}
-Every backward arrow is a gate that failed and sent the work back — never to the viewer.
+Here the checks are black boxes: the agent produced the artifact, but scripts decide whether it passes.
 :::
 
 ::: notes

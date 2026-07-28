@@ -175,6 +175,29 @@ $code-color: #B8478A;
   .chip-fail { background: #FBE3E4; color: #B3261E; }
   .chip-warn { background: #FBF1DC; color: #92600A; }
 
+  // ---- Diagram legend: chip fills match the mermaid classDefs ----
+  .legend {
+    text-align: center;
+    margin-top: 0.1em;
+
+    p { margin: 0; }
+
+    .chip-agent, .chip-script, .chip-gate, .chip-reject, .chip-done {
+      display: inline-block;
+      border-radius: 6px;
+      padding: 0.1em 0.6em;
+      margin: 0 0.18em;
+      font-size: 0.6em;
+      font-weight: 700;
+    }
+
+    .chip-agent  { background: #007BC2; color: #FFFFFF; }
+    .chip-script { background: #1D1F21; color: #FFFFFF; }
+    .chip-gate   { background: #F9B928; color: #1D1F21; }
+    .chip-reject { background: #C10000; color: #FFFFFF; }
+    .chip-done   { background: #00891A; color: #FFFFFF; }
+  }
+
   // ---- Tables ----
   table {
     font-size: 0.68em;

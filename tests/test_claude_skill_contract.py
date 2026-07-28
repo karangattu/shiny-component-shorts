@@ -508,10 +508,17 @@ class ClaudeValidatorContractTest(unittest.TestCase):
     def test_reference_demos_pass_the_claude_validator(self) -> None:
         for demo in ("slider-range-shorts", "toolbar-button-shorts"):
             project = ROOT / demo
-            if not project.is_dir():
+            if not (project / "artifacts" / "final_with_audio.mp4").exists():
                 continue
             errors, report = validator.validate_project(project, require_audio=True)
             self.assertEqual(errors, [], f"{demo} failed: {errors}")
+
+    def test_task_button_demos_pass_validator(self) -> None:
+        for demo in ("task-button-auto-reset", "task-button-manual-reset"):
+            project = ROOT / demo
+            self.assertTrue(project.is_dir(), f"Project dir {demo} missing")
+            errors, report = validator.validate_project(project, require_audio=True)
+            self.assertEqual(errors, [], f"{demo} validation failed: {errors}")
 
 
 if __name__ == "__main__":
