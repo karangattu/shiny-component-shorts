@@ -215,13 +215,13 @@ Everything is prompt-driven — the agent runs the recording, TTS, and validatio
 Open the repo root as the workspace, then:
 
 ```text
-Use the shiny-component-shorts skill to create a narrated vertical video about Shiny's date range selector in Python.
+Use the /shiny-component-shorts skill to create a narrated vertical video about Shiny's date range selector in Python.
 ```
 
 ### Codex
 
 ```text
-Use $shiny-component-shorts to create 5 mini-app video ideas for Shiny toolbar-select in Python.
+Use /shiny-component-shorts to create 5 mini-app video ideas for Shiny toolbar-select in Python.
 ```
 
 ### OpenCode
