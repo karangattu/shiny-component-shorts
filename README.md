@@ -99,6 +99,9 @@ flowchart TD
     X --> N
     W -- "Yes" --> Z["Report verified deliverables"]
 
+    CS["Changeset entry (PR · commit · SHA)<br/>Resolve with gh · read the changelog entry first<br/>Pick one user-facing change · install that build"]
+    CS -. "Alternate research path" .-> E
+
     GC["Global production constraints<br/>One trick · 3 meaningful reactions · 9:16 default<br/>Middle 60% app band · Shiny palette · Phone-readable"]
     GC -. "Applies throughout" .-> I
     GC -.-> P
@@ -115,7 +118,7 @@ flowchart TD
     class F,H,J,N,Q2,T6,V,W decision;
     class R1,Q3,X reject;
     class Z success;
-    class GC,H1,H2 note;
+    class CS,GC,H1,H2 note;
 ```
 
 ## Quality control
@@ -177,11 +180,12 @@ flowchart TD
 
 ## What you can create
 
-- Short Shiny mini-apps (Python or R)
+- Short Shiny mini-apps (Python or R), including [shinychat](https://github.com/posit-dev/shinychat) chat apps
 - 30-second video storyboards and narration scripts
 - Automated browser recordings with a VS Code-style code card
 - Narrated, finished vertical videos
 - Videos about an **existing** Shiny app, without modifying it
+- Videos about a **pull request, commit, or SHA** — one user-facing change from the diff
 
 ## Setup
 
@@ -235,6 +239,20 @@ OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1 opencode
 ```text
 Use the shiny-component-shorts skill to create a multi-video series for Shiny data grid in Python.
 ```
+
+### From a pull request, commit, or SHA
+
+Point the skill at a change instead of a component and it finds the one behavior in that diff worth 30 seconds:
+
+```text
+/shiny-component-shorts Make a video about https://github.com/posit-dev/py-shiny/pull/2051
+/shiny-component-shorts Make a vertical video about posit-dev/shinychat#221 in R
+/shiny-component-shorts What's demo-worthy in rstudio/shiny commit a1b2c3d?
+```
+
+It works for `rstudio/shiny`, `posit-dev/py-shiny`, and `posit-dev/shinychat` (both `pkg-py/` and `pkg-r/`). The agent resolves the ref with `gh`, reads the changelog entry before the code, ranks the public API surface above docs, tests, typing, and CI, and installs that exact build into a throwaway environment so the demo runs against the changed code rather than the released package. Unreleased changes are described as just landed, never as a version number that has not shipped. If the changeset is an internal refactor with nothing visible, the agent says so instead of manufacturing a demo.
+
+shinychat demos never call a real LLM — canned replies and canned streams keep recordings repeatable and key-free.
 
 ### Multi-video series
 

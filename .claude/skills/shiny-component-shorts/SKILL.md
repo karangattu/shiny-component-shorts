@@ -1,6 +1,6 @@
 ---
 name: shiny-component-shorts
-description: Create interactive Shiny Python or R mini-apps, 30-second "Did you know?" video concepts, Gemini 3.1 TTS narration and audio, storyboards, recording automation, and editing notes. Use when the user provides a Shiny component name, docs URL, or existing Shiny app path, or asks for a short demo or video around a Shiny UI feature.
+description: Create interactive Shiny Python, Shiny R, or shinychat mini-apps, 30-second "Did you know?" video concepts, Gemini 3.1 TTS narration and audio, storyboards, recording automation, and editing notes. Use when the user provides a Shiny or shinychat component name, docs URL, existing app path, pull request, commit URL, or commit SHA, or asks for a short demo or video around a Shiny UI feature or a change that just landed.
 ---
 
 # Shiny Component Shorts (Claude Code)
@@ -13,16 +13,17 @@ Create one-screen Shiny demos that make one hidden component behavior obvious in
 - Prove the trick on screen through a direct comparison or a two-way proof.
 - Use at least three meaningful actions and three visible state changes in recordings.
 - Prefer Python Shiny Express unless the user requests R or R is materially clearer.
+- Support Shiny for Python, R Shiny, and shinychat as demo targets; a chat demo follows every rule below and must never call a real LLM.
 - Default to a true 9:16 vertical composition (1440×2560). Use landscape only on explicit request.
 - Keep the app small, realistic, and understandable without narration.
 - Reserve the top 20% and bottom 20% of every frame for later branding; make the app fill the available horizontal space in the middle 60% height band.
 - Use only the Shiny preset palette, led by `#007BC2`, with `#1D1F21` text on light surfaces and `#FFFFFF` text on dark surfaces.
-- Use official Shiny documentation as the source of truth.
+- Use official Shiny and shinychat documentation as the source of truth, and the source at the requested ref when the request starts from a changeset.
 - Run the bundled shared scripts; never generate a demo-specific recorder or validator.
 - Never ship or record an app while a **Shiny Client Errors** panel is visible. Give every input a stable ID and use unique output IDs; any detected client-error panel is a blocking failure.
 - Treat runnable demo projects and their media as disposable outputs. Unless the user provides another destination, create them under `generated/demo-name/`, which is gitignored; never add generated demo directories or example-specific artifact tests to repository source.
 
-Read [references/creative-playbook.md](references/creative-playbook.md) before choosing the feature or writing the app. For recordings or editing, also read [references/short-form-pacing.md](references/short-form-pacing.md) and [references/recording-contract.md](references/recording-contract.md). For narration audio or cost reporting, read [references/tts-and-costs.md](references/tts-and-costs.md).
+Read [references/creative-playbook.md](references/creative-playbook.md) before choosing the feature or writing the app. For recordings or editing, also read [references/short-form-pacing.md](references/short-form-pacing.md) and [references/recording-contract.md](references/recording-contract.md). For narration audio or cost reporting, read [references/tts-and-costs.md](references/tts-and-costs.md). For a pull request, commit, SHA, or any shinychat demo, read [references/changeset-sourcing.md](references/changeset-sourcing.md).
 
 ## Choose the workflow
 
@@ -72,6 +73,17 @@ Use this workflow when the user provides a local path to an existing R Shiny or 
 4. Inventory surprising reactive behavior, server-driven updates, validation, layout changes, accessibility, or state synchronization already present in the app. Choose one behavior that passes the creative playbook's proof rule, has a concise existing source line, and supports three meaningful action → reaction beats.
 5. Keep the original app as the recording subject. Put `actions.yaml`, narration, and `artifacts/` in a sidecar such as `generated/demo-name/`. Run the recorder with that directory as `--project-dir`, the existing source directory as `--app-dir`, and the detected `--app-type r|python`; pass the same two directories to the validator.
 6. If no behavior passes the proof rule, report the strongest near-misses and why they are not visually provable; do not manufacture interactions or quietly rewrite the app.
+
+### Changeset: pull request, commit, or SHA
+
+Use this workflow when the user supplies a pull request, a commit URL, a bare SHA, or a release tag from `rstudio/shiny`, `posit-dev/py-shiny`, or `posit-dev/shinychat` and wants a video about what changed. Read [references/changeset-sourcing.md](references/changeset-sourcing.md) first.
+
+1. Resolve the reference to a repo plus a PR number or SHA with `gh`, then read the changelog or `NEWS.md` entry in the diff before the code. Detect the language from the changed package: `pkg-py/` is Python, `pkg-r/` is R.
+2. Find the one user-facing behavior in the diff. Public UI functions, server update functions, CSS, and bundled JS outrank docs, tests, typing, CI, and dependency bumps. One changeset is one video; list the other candidates instead of merging them.
+3. If nothing in the changeset is visually provable, say so, name the strongest near-misses, and offer a released behavior in the same component instead. Never manufacture a demo for an internal change.
+4. Install the changeset build into a throwaway environment for the demo and run the recorder with that environment's interpreter, because it also serves the app. Confirm the changed function, argument, and default in the installed build — not in the diff — before writing the app.
+5. Record the resolved repo, SHA, PR URL, and installed version in `changeset.md` beside the app. Do not name a release number in narration unless the release notes confirm the behavior shipped in it.
+6. Then continue with the requested deliverable: idea only, runnable app, silent recording, or narrated video.
 
 ### Silent recording
 

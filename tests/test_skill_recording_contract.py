@@ -45,6 +45,7 @@ class CodexSkillContractTest(unittest.TestCase):
             "recording-contract.md",
             "short-form-pacing.md",
             "tts-and-costs.md",
+            "changeset-sourcing.md",
         ):
             self.assertIn(reference, text)
             self.assertTrue((SKILL / "references" / reference).is_file())
@@ -158,6 +159,60 @@ class CodexSkillContractTest(unittest.TestCase):
             self.assertIn(marker, skill)
         self.assertIn("--app-dir", recording)
         self.assertIn("existing app remains unchanged", recording)
+
+    def test_changeset_workflow_covers_every_supported_repo(self) -> None:
+        skill = CODEX_SKILL.read_text(encoding="utf-8")
+        changeset = (SKILL / "references/changeset-sourcing.md").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("### Changeset: pull request, commit, or SHA", skill)
+        for repo in ("rstudio/shiny", "posit-dev/py-shiny", "posit-dev/shinychat"):
+            for source in (skill, changeset):
+                self.assertIn(repo, source)
+        for marker in (
+            "gh pr view",
+            "gh api repos/owner/repo/commits/<sha>",
+            "pkg-py",
+            "pkg-r",
+            "one video",
+            "not in the diff",
+        ):
+            self.assertIn(marker, skill + changeset)
+        self.assertIn("Never manufacture a demo for an internal change", skill)
+        self.assertIn("changeset.md", skill)
+
+    def test_changeset_demos_run_the_changed_build_not_the_release(self) -> None:
+        changeset = (SKILL / "references/changeset-sourcing.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("git+https://github.com/posit-dev/py-shiny@<sha>", changeset)
+        self.assertIn("not `#subdirectory=pkg-py`", changeset)
+        self.assertIn('pak::pak("posit-dev/shinychat/pkg-r@<sha>")', changeset)
+        self.assertIn("sys.executable -m shiny run", changeset)
+        self.assertIn(
+            ".agents/skills/shiny-component-shorts/scripts/record_demo.py", changeset
+        )
+        self.assertNotIn(".claude/skills", changeset)
+        self.assertIn("inspect.signature", changeset)
+        self.assertIn("just landed", changeset)
+
+    def test_shinychat_demos_stay_offline_and_keyless(self) -> None:
+        skill = CODEX_SKILL.read_text(encoding="utf-8")
+        changeset = (SKILL / "references/changeset-sourcing.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("never call a real LLM", skill)
+        self.assertIn("shinychat", skill)
+        for marker in (
+            "Never point a demo at a real LLM",
+            "append_message_stream",
+            "chat_append",
+            "Chat history requires a client",
+            "_user_input",
+            'width="100%"',
+        ):
+            self.assertIn(marker, changeset)
 
     def test_shiny_branding_safe_area_and_horizontal_code_contract(self) -> None:
         skill = CODEX_SKILL.read_text(encoding="utf-8")

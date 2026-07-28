@@ -7,6 +7,8 @@ When asked for Shiny component demos, use the `/shiny-component-shorts` skill.
 Defaults:
 - Prefer official Shiny documentation.
 - Prefer Python Shiny Express unless the user asks for R.
+- Demo targets are Shiny for Python, R Shiny, and shinychat; a chat demo never calls a real LLM.
+- A pull request, commit URL, or commit SHA is a valid request: demo one user-facing change from it.
 - One video = one feature.
 - Keep apps tiny, visual, and recordable.
 - Reserve the top 20% and bottom 20% of the frame for later branding and fill the middle band's horizontal space.
