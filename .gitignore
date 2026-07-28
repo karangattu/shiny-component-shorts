@@ -1,2 +1,6 @@
-/slider-range-shorts
+# Generated demo projects and media are disposable local outputs.
+/generated/
+/*-shorts/
+**/artifacts/
+
 *.pyc

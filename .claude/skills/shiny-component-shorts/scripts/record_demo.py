@@ -49,6 +49,46 @@ SUPPORTED_ACTIONS = frozenset(
     }
 )
 
+SHINY_CLIENT_ERROR_GUARD_JS = r"""(() => {
+    const marker = 'Shiny Client Errors';
+    const record = (text) => {
+        if (window.__demo_shiny_client_error__) return;
+        const start = text.indexOf(marker);
+        if (start !== -1) {
+            window.__demo_shiny_client_error__ = text.slice(start, start + 2000);
+        }
+    };
+    const inspect = (node) => record(
+        node.nodeType === Node.TEXT_NODE
+            ? node.data
+            : (node.innerText || node.textContent || '')
+    );
+    const capture = (mutations = []) => {
+        for (const mutation of mutations) {
+            if (mutation.type === 'characterData') inspect(mutation.target);
+            for (const node of mutation.addedNodes) inspect(node);
+        }
+        record(document.body?.innerText || '');
+    };
+    window.__demo_shiny_client_error__ = null;
+    new MutationObserver(capture).observe(document, {
+        childList: true,
+        characterData: true,
+        subtree: true,
+    });
+    document.addEventListener('DOMContentLoaded', capture, {once: true});
+})();"""
+
+SHINY_CLIENT_ERROR_SCAN_JS = r"""() => {
+    if (window.__demo_shiny_client_error__) {
+        return window.__demo_shiny_client_error__;
+    }
+    const marker = 'Shiny Client Errors';
+    const text = document.body?.innerText || '';
+    const start = text.indexOf(marker);
+    return start === -1 ? null : text.slice(start, start + 2000);
+}"""
+
 DEFAULT_BEATS = ("Reveal", "Proof", "Code", "Payoff")
 DEFAULT_ACCENT = "#007BC2"
 
@@ -621,6 +661,16 @@ def validate_action_shape(action: object) -> str:
     return name
 
 
+def assert_no_shiny_client_errors(page) -> None:
+    panel_text = page.evaluate(SHINY_CLIENT_ERROR_SCAN_JS)
+    if panel_text:
+        summary = " ".join(str(panel_text).split())
+        raise RuntimeError(
+            "Shiny client error panel detected; refusing to record. "
+            f"Fix the app and restart the recording. Panel text: {summary}"
+        )
+
+
 def run_actions(
     page,
     actions: list[dict],
@@ -783,6 +833,7 @@ def record_project(
                 record_video_size=size,
             )
             context.add_init_script(CURSOR_OVERLAY_JS)
+            context.add_init_script(SHINY_CLIENT_ERROR_GUARD_JS)
             if overlays is not None:
                 context.add_init_script(
                     f"({RETENTION_OVERLAY_JS})({json.dumps(overlays)})"
@@ -795,6 +846,7 @@ def record_project(
             page.goto(url)
             page.wait_for_load_state("networkidle")
             page.wait_for_timeout(3000)
+            assert_no_shiny_client_errors(page)
             missing = [
                 selector
                 for selector in collect_selectors(config["actions"])
@@ -813,6 +865,7 @@ def record_project(
                 orientation,
                 clock_zero=recording_started,
             )
+            assert_no_shiny_client_errors(page)
             context.close()
             video_source = Path(video.path())
             browser.close()

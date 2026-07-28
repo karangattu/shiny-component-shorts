@@ -515,7 +515,7 @@ the whole recent shape...
 ```
 
 ::: {.kicker}
-Real file: `value-box-sparkline-shorts/artifacts/narration.txt`. Even **silent** videos must write this envelope — because the script is also the timing plan.
+Generated file: `generated/demo-name/artifacts/narration.txt`. Even **silent** videos must write this envelope — because the script is also the timing plan.
 :::
 
 ::: notes

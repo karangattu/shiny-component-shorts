@@ -85,6 +85,16 @@ class ClaudeSkillContractTest(unittest.TestCase):
         self.assertIn("syntax-highlighted code card", readme)
         self.assertIn("real source context", readme)
 
+    def test_recording_contract_forbids_shiny_client_error_panels(self) -> None:
+        skill = SKILL_MD.read_text(encoding="utf-8")
+        recording = (SKILL / "references/recording-contract.md").read_text(
+            encoding="utf-8"
+        )
+        for source in (skill, recording):
+            self.assertIn("Shiny Client Errors", source)
+            self.assertIn("unique output IDs", source)
+            self.assertIn("blocking failure", source)
+
     def test_multi_video_series_requires_visual_variety(self) -> None:
         skill = SKILL_MD.read_text(encoding="utf-8")
         playbook = (SKILL / "references/creative-playbook.md").read_text(encoding="utf-8")
@@ -439,6 +449,40 @@ class ClaudeRecorderContractTest(unittest.TestCase):
         finally:
             recorder.human_click = original_click
         self.assertEqual(page.target.calls, 1)
+
+    def test_shiny_client_error_panel_stops_recording(self) -> None:
+        class Page:
+            def evaluate(self, script):
+                return (
+                    "Shiny Client Errors\nDuplicate output IDs were found\n"
+                    "The following IDs were used for more than one output: plot"
+                )
+
+        with self.assertRaisesRegex(RuntimeError, "Duplicate output IDs"):
+            recorder.assert_no_shiny_client_errors(Page())
+
+    def test_shiny_client_error_guard_remembers_a_removed_panel(self) -> None:
+        from playwright.sync_api import sync_playwright
+
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch()
+            context = browser.new_context()
+            context.add_init_script(recorder.SHINY_CLIENT_ERROR_GUARD_JS)
+            page = context.new_page()
+            page.set_content("<main>Demo</main>")
+            page.evaluate(
+                """() => {
+                    const panel = document.createElement('section');
+                    panel.textContent =
+                        'Shiny Client Errors Duplicate output IDs were found: plot';
+                    document.body.appendChild(panel);
+                    panel.remove();
+                }"""
+            )
+            with self.assertRaisesRegex(RuntimeError, "Duplicate output IDs"):
+                recorder.assert_no_shiny_client_errors(page)
+            context.close()
+            browser.close()
 
 
 class ClaudeValidatorContractTest(unittest.TestCase):

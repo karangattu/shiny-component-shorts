@@ -18,6 +18,8 @@ Create one-screen Shiny demos that make one hidden component behavior obvious in
 - Reserve the top 20% and bottom 20% of every frame for later branding; make the app fill the available horizontal space in the middle 60% height band.
 - Use only the Shiny preset palette, led by `#007BC2`, with `#1D1F21` text on light surfaces and `#FFFFFF` text on dark surfaces.
 - Use official Shiny documentation as the source of truth.
+- Never ship or record an app while a **Shiny Client Errors** panel is visible. Give every input a stable ID and use unique output IDs; any detected client-error panel is a blocking failure.
+- Treat runnable demo projects and their media as disposable outputs. Unless the user provides another destination, create them under `generated/demo-name/`, which is gitignored; never add generated demo directories or example-specific artifact tests to repository source.
 
 Read [references/creative-playbook.md](references/creative-playbook.md) before choosing the feature or writing the app. For recordings or editing, also read [references/short-form-pacing.md](references/short-form-pacing.md) and [references/recording-contract.md](references/recording-contract.md). For narration audio or cost reporting, read [references/tts-and-costs.md](references/tts-and-costs.md).
 
@@ -67,7 +69,7 @@ Use this workflow when the user provides a local path to an existing R Shiny or 
 2. Do not modify, copy, or restyle the existing app unless the user explicitly asks for source changes. Preserve its typography, palette, layout, data, and behavior; the four-font rotation applies only to newly created demos.
 3. Run the app locally in its declared environment and inspect the rendered UI. Do not expose secrets or trigger external writes, messages, purchases, destructive operations, or production-data mutations while exploring or recording.
 4. Inventory surprising reactive behavior, server-driven updates, validation, layout changes, accessibility, or state synchronization already present in the app. Choose one behavior that passes the creative playbook's proof rule, has a concise existing source line, and supports three meaningful action → reaction beats.
-5. Keep the original app as the recording subject. Put `actions.yaml`, narration, and `artifacts/` in a separate sidecar production directory. Run the recorder with that directory as `--project-dir`, the existing source directory as `--app-dir`, and the detected `--app-type r|python`; pass the same two directories to the validator.
+5. Keep the original app as the recording subject. Put `actions.yaml`, narration, and `artifacts/` in a sidecar such as `generated/demo-name/`. Run the recorder with that directory as `--project-dir`, the existing source directory as `--app-dir`, and the detected `--app-type r|python`; pass the same two directories to the validator.
 6. If no behavior passes the proof rule, report the strongest near-misses and why they are not visually provable; do not manufacture interactions or quietly rewrite the app.
 
 ### Silent recording
@@ -75,7 +77,7 @@ Use this workflow when the user provides a local path to an existing R Shiny or 
 Create this minimum structure:
 
 ```text
-demo-name/
+generated/demo-name/
 ├── app.py or app.R
 ├── actions.yaml
 └── artifacts/
@@ -92,7 +94,7 @@ Run the shared recorder; never generate a demo-specific recorder:
 
 ```bash
 python .agents/skills/shiny-component-shorts/scripts/record_demo.py \
-  --project-dir demo-name \
+  --project-dir generated/demo-name \
   --app-type python \
   --actions actions.yaml
 ```
@@ -101,7 +103,7 @@ Then validate it:
 
 ```bash
 python .agents/skills/shiny-component-shorts/scripts/validate_demo.py \
-  --project-dir demo-name
+  --project-dir generated/demo-name
 ```
 
 ### Batch processing (parallel, cached, and timing-safe)
@@ -111,7 +113,7 @@ Generate and measure narration for every selected demo first:
 ```bash
 python .agents/skills/shiny-component-shorts/scripts/batch_process.py \
   --phase narration \
-  --dirs "*-shorts" \
+  --dirs "generated/*-shorts" \
   --tts-concurrency 3
 ```
 
@@ -120,7 +122,7 @@ For each demo, listen to `artifacts/narration.wav`, inspect `artifacts/narration
 ```bash
 python .agents/skills/shiny-component-shorts/scripts/batch_process.py \
   --phase finish --approve-timing \
-  --dirs "*-shorts" \
+  --dirs "generated/*-shorts" \
   --record-concurrency 2 \
   --merge-concurrency 2 \
   --validate-concurrency 3
@@ -145,7 +147,7 @@ Generate the audio before recording so action timing follows the real narration 
 
 ```bash
 python .agents/skills/shiny-component-shorts/scripts/merge_audio.py \
-  --project-dir demo-name
+  --project-dir generated/demo-name
 ```
 
 It runs two-pass loudnorm to the -14 LUFS short-form target, applies a 70 Hz high-pass and short edge fades, encodes 48 kHz 192 kbps AAC, copies the video stream, and pads the audio so the video keeps its payoff. Do not hand-write a one-pass ffmpeg merge.
@@ -176,6 +178,7 @@ If the proposed action plan cannot produce three meaningful reactions from the s
 - Use realistic labels and uneven values; avoid lorem ipsum, `Item 1`, `foo`, or synthetic filler.
 - Give every control visible breathing room: nothing inside a control may touch its border. When restyling radios or checkboxes into segmented buttons or chips, hide the native input (stretch it invisibly across the whole hit area) instead of leaving the widget dot pressed against an edge, keep the label centered, and keep at least 10 px of padding on every side. Inspect a rendered screenshot of every custom-styled control before recording.
 - Add stable input IDs and selectors for every recorded target.
+- Give every Shiny output a unique output ID across the complete rendered page, including conditional UI and repeated components.
 - Do not use random Bootstrap-generated IDs.
 - Keep the code card verbatim from the app: every `before`, `text`, and `after` line must exist in the app source with its original relative indentation (the validator allows only one uniform dedent across the whole card). Copy lines exactly; never condense, reorder, or re-wrap them.
 - Do not add decorative controls just to create motion.
@@ -210,6 +213,7 @@ Keep narration around 60–85 spoken words. Make every sentence describe somethi
 - In horizontal mode, the `code` action must use the recorder's side-by-side layout so the app remains visible beside the code; do not cover the app with the code panel.
 - Keep the action sequence at least as long as the estimated narration. When it comes up short, lengthen the holds after reveals or add another proof beat; never pad the opening wait — that delays the first action past the narration's hook.
 - End with `screenshot: {path: "artifacts/final.png"}`.
+- Treat any **Shiny Client Errors** panel, including a duplicate-output-ID warning, as a blocking failure. Fix the app and restart the full recording; never dismiss or crop out the panel.
 - Let selector, server, browser, FFmpeg, and validation failures stop the workflow.
 - Never kill an unknown process to reclaim a port.
 
@@ -227,6 +231,7 @@ For a recording:
 - Run `validate_demo.py` successfully.
 - Confirm `artifacts/demo.mp4` is 1440×2560 unless landscape was explicitly requested.
 - Inspect the first, reveal, code, and final frames at phone size.
+- Confirm no **Shiny Client Errors** panel appears in any inspected frame; the shared recorder also fails when it detects one.
 - Confirm the visible cursor reaches each interactive target.
 - Confirm the narration would finish before the video ends.
 - For narrated videos, compare the validator's `action_timeline` against `narration_sentences` in its report; each visible reaction should begin at or slightly before the sentence that describes it.

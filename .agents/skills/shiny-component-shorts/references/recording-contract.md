@@ -8,7 +8,7 @@ Use the bundled recorder directly:
 
 ```bash
 python .agents/skills/shiny-component-shorts/scripts/record_demo.py \
-  --project-dir demo-name \
+  --project-dir generated/demo-name \
   --app-type python \
   --actions actions.yaml
 ```
@@ -28,11 +28,17 @@ The `code` action is orientation-aware. Vertical recordings anchor the panel nea
 
 The recorder refuses to start if its port is already occupied. Stop the known process yourself; never kill an unknown listener automatically.
 
+## Client-error safety contract
+
+No example may be recorded or delivered with a **Shiny Client Errors** panel visible. Assign unique output IDs across the complete rendered page, including conditional UI, modules, and repeated components. Exercise the full action sequence before accepting the app because some duplicate outputs appear only after reactive UI is inserted.
+
+The shared recorder checks for the panel after startup and after the action run. Detection is a blocking failure: fix the duplicate output IDs or other client error, restart the app, and record again from the beginning. Never click **Dismiss all**, hide the panel with CSS, crop it out, or cover it with the code card. During final review, inspect the first, reveal, code, and final frames and reject the video if the panel appears in any frame.
+
 For an existing app, create a sidecar production directory and keep the source separate:
 
 ```bash
 python .agents/skills/shiny-component-shorts/scripts/record_demo.py \
-  --project-dir videos/interesting-filter \
+  --project-dir generated/interesting-filter \
   --app-dir /path/to/existing-app \
   --app-type r \
   --actions actions.yaml
@@ -44,7 +50,7 @@ Validate the sidecar against the same source directory:
 
 ```bash
 python .agents/skills/shiny-component-shorts/scripts/validate_demo.py \
-  --project-dir videos/interesting-filter \
+  --project-dir generated/interesting-filter \
   --app-dir /path/to/existing-app
 ```
 
@@ -166,6 +172,7 @@ The validator requires `artifacts/narration.txt` to contain the complete `Audio 
 
 - The recorder waits three seconds after network idle for the Shiny WebSocket session.
 - A missing selector fails the run; update the app or action file rather than weakening the selector.
+- A **Shiny Client Errors** panel fails the run; repair the app instead of dismissing, hiding, cropping, or covering the panel.
 - Playwright uses UUID video names; the recorder moves the current run’s video to the requested name after closing the context.
 - Missing `ffmpeg` is a hard failure because MP4 is the deliverable.
 - The recorder terminates only the Shiny process it started.
@@ -175,7 +182,7 @@ The validator requires `artifacts/narration.txt` to contain the complete `Audio 
 
 ```bash
 python .agents/skills/shiny-component-shorts/scripts/validate_demo.py \
-  --project-dir demo-name
+  --project-dir generated/demo-name
 ```
 
 Use `--require-audio` for a narrated deliverable. Treat any validation error as incomplete work.

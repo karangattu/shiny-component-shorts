@@ -52,9 +52,9 @@ If `GEMINI_API_KEY` or `GOOGLE_API_KEY` is available, run:
 
 ```bash
 python .claude/skills/shiny-component-shorts/scripts/generate_tts.py \
-  --input demo-name/artifacts/narration.txt \
-  --output demo-name/artifacts/narration.wav \
-  --usage-output demo-name/artifacts/narration.usage.json
+  --input generated/demo-name/artifacts/narration.txt \
+  --output generated/demo-name/artifacts/narration.wav \
+  --usage-output generated/demo-name/artifacts/narration.usage.json
 ```
 
 The generator uses Gemini 3.1 Flash TTS Preview and chooses from the curated Kore, Erinome, Charon, and Achird voices unless `--voice` overrides it. Treat preview model names and prices as unstable.
@@ -68,8 +68,8 @@ When the user supplies existing narration — a WAV, MP3, or a previously narrat
 ```bash
 python .claude/skills/shiny-component-shorts/scripts/import_narration.py \
   --source path/to/narrated.mp4 \
-  --output demo-name/artifacts/narration.wav \
-  --usage-output demo-name/artifacts/narration.usage.json
+  --output generated/demo-name/artifacts/narration.wav \
+  --usage-output generated/demo-name/artifacts/narration.usage.json
 ```
 
 The script verifies the source has an audio stream, converts it to the pipeline's mono 24 kHz PCM WAV, and writes a `$0` usage report marked `Imported audio`. From there the workflow is identical to generated narration: listen to the WAV, measure its duration and sentence gaps, and time `actions.yaml` against it. Keep the `narration.txt` envelope's transcript matched to what the imported audio actually says, since the validator compares action timing against its sentence windows.
@@ -84,7 +84,7 @@ After verifying the WAV is non-empty and the video is long enough, run the bundl
 
 ```bash
 python .claude/skills/shiny-component-shorts/scripts/merge_audio.py \
-  --project-dir demo-name
+  --project-dir generated/demo-name
 ```
 
 The script measures the narration first, then applies loudnorm in linear two-pass mode so the -14 LUFS short-form target is hit accurately regardless of TTS voice. It also applies a 70 Hz high-pass and 150–250 ms edge fades to remove rumble and abrupt starts, encodes 48 kHz 192 kbps AAC, copies the video stream unchanged, and pads the audio so the clean recording keeps its final payoff when narration ends first.
