@@ -6,8 +6,10 @@ project-includes = [
     ".claude/skills/shiny-component-shorts/scripts",
 ]
 
-# tests/test_batch_process.py imports the batch scripts after a sys.path insert
+# tests/test_batch_process.py imports the batch scripts after a sys.path insert,
+# and the contract tests import tests/demo_project.py the same way
 search-path = [
     ".agents/skills/shiny-component-shorts/scripts",
+    "tests",
     ".",
 ]

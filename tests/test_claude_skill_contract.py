@@ -5,6 +5,9 @@ import unittest
 from pathlib import Path
 from typing import Any
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+import demo_project  # noqa: E402  (needs the path insert above)
 
 ROOT = Path(__file__).resolve().parents[1]
 SKILL = ROOT / ".claude/skills/shiny-component-shorts"
@@ -505,22 +508,36 @@ class ClaudeValidatorContractTest(unittest.TestCase):
 
         self.assertTrue(any("laughing or giggling" in error for error in errors))
 
-    def test_reference_demos_pass_the_claude_validator(self) -> None:
-        for demo in ("slider-range-shorts", "toolbar-button-shorts"):
-            project = ROOT / demo
-            if not (project / "artifacts" / "final_with_audio.mp4").exists():
-                continue
-            errors, report = validator.validate_project(project, require_audio=True)
-            self.assertEqual(errors, [], f"{demo} failed: {errors}")
+    def test_narrated_demo_passes_the_claude_validator(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            built = demo_project.build_demo_project(
+                Path(temp_dir), timeline=demo_project.default_timeline()
+            )
+            errors, report = validator.validate_project(built.project, require_audio=True)
 
-    def test_task_button_demos_pass_validator(self) -> None:
-        demos = ("task-button-auto-reset", "task-button-manual-reset")
-        if not all((ROOT / demo).is_dir() for demo in demos):
-            self.skipTest("Task button demos are not present in this checkout")
-        for demo in demos:
-            project = ROOT / demo
-            errors, report = validator.validate_project(project, require_audio=True)
-            self.assertEqual(errors, [], f"{demo} validation failed: {errors}")
+        self.assertEqual(errors, [])
+        self.assertGreaterEqual(report["meaningful_actions"], 3)
+        self.assertEqual(report["video"]["width"], 1440)
+        self.assertEqual(report["video"]["height"], 2560)
+        self.assertEqual(len(report["narration_sentences"]), len(built.windows))
+
+    def test_claude_validator_matches_the_shared_validator_verdict(self) -> None:
+        """Both skill copies must judge the same project identically."""
+        shared = load_module(
+            "shared_validate_demo",
+            ROOT / ".agents/skills/shiny-component-shorts/scripts/validate_demo.py",
+        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            built = demo_project.build_demo_project(
+                Path(temp_dir), resolution=(720, 1280)
+            )
+            claude_errors, _ = validator.validate_project(built.project)
+            shared_errors, _ = shared.validate_project(built.project)
+
+        self.assertEqual(claude_errors, shared_errors)
+        self.assertTrue(
+            any("expected 1440x2560" in error for error in claude_errors), claude_errors
+        )
 
 
 if __name__ == "__main__":

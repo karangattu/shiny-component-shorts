@@ -1,4 +1,5 @@
 import importlib.util
+import json
 import socket
 import sys
 import tempfile
@@ -7,6 +8,9 @@ import unittest
 from pathlib import Path
 from typing import Any
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+import demo_project  # noqa: E402  (needs the path insert above)
 
 ROOT = Path(__file__).resolve().parents[1]
 SKILL = ROOT / ".agents/skills/shiny-component-shorts"
@@ -439,28 +443,91 @@ class DemoValidatorContractTest(unittest.TestCase):
         self.assertTrue(any("narration.wav" in error for error in errors))
         self.assertTrue(any("final_with_audio.mp4" in error for error in errors))
 
-    def test_claude_reference_demos_pass_without_modification(self) -> None:
-        demos = [ROOT / "textarea-shorts", ROOT / "checkbox-group-shorts"]
-        if not all(demo.is_dir() for demo in demos):
-            self.skipTest("Claude reference demos are not present in this checkout")
-        for demo in demos:
-            with self.subTest(demo=demo.name):
-                errors, report = validator.validate_project(demo)
-                self.assertEqual(errors, [])
-                self.assertGreaterEqual(report["meaningful_actions"], 3)
-                self.assertEqual(report["video"]["width"], 1440)
-                self.assertEqual(report["video"]["height"], 2560)
+    def test_complete_vertical_demo_passes_every_check(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            built = demo_project.build_demo_project(
+                Path(temp_dir), timeline=demo_project.default_timeline()
+            )
+            for name in (
+                "app.py",
+                "actions.yaml",
+                "artifacts/narration.txt",
+                "artifacts/narration.wav",
+                "artifacts/demo.mp4",
+                "artifacts/final.png",
+                "artifacts/final_with_audio.mp4",
+            ):
+                self.assertTrue((built.project / name).is_file(), f"{name} missing")
+            errors, report = validator.validate_project(built.project, require_audio=True)
 
-    def test_new_generated_demos_pass_validation(self) -> None:
-        demos = [ROOT / "modal-shorts", ROOT / "tooltip-shorts"]
-        if not all(demo.is_dir() for demo in demos):
-            self.skipTest("New generated demos are not present in this checkout")
-        for demo in demos:
-            with self.subTest(demo=demo.name):
-                errors, report = validator.validate_project(demo, require_audio=True)
-                self.assertEqual(errors, [], f"{demo.name} validation failed: {errors}")
+        self.assertEqual(errors, [])
+        self.assertGreaterEqual(report["meaningful_actions"], 3)
+        self.assertEqual(report["video"]["width"], 1440)
+        self.assertEqual(report["video"]["height"], 2560)
+        self.assertAlmostEqual(
+            report["measured_narration_seconds"], built.narration_seconds, places=1
+        )
 
+    def test_sentence_windows_come_from_the_silences_in_the_wav(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            built = demo_project.build_demo_project(Path(temp_dir))
+            windows = validator.narration_sentence_windows(
+                built.artifacts / "narration.wav"
+            )
 
+        self.assertEqual(len(windows), len(built.windows))
+        for measured, expected in zip(windows, built.windows):
+            self.assertAlmostEqual(measured["start"], expected["start"], places=1)
+            self.assertAlmostEqual(measured["end"], expected["end"], places=1)
+
+    def test_horizontal_demo_requires_landscape_resolution(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            built = demo_project.build_demo_project(
+                Path(temp_dir), orientation="horizontal"
+            )
+            errors, report = validator.validate_project(built.project, require_audio=True)
+
+        self.assertEqual(errors, [])
+        self.assertEqual((report["video"]["width"], report["video"]["height"]), (2560, 1440))
+
+    def test_wrong_resolution_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            built = demo_project.build_demo_project(
+                Path(temp_dir), resolution=(720, 1280)
+            )
+            errors, _ = validator.validate_project(built.project)
+
+        self.assertTrue(
+            any("expected 1440x2560" in error for error in errors), errors
+        )
+
+    def test_video_must_outlive_the_narration_by_one_to_three_seconds(self) -> None:
+        for pad in (0.1, 5.0):
+            with self.subTest(pad=pad), tempfile.TemporaryDirectory() as temp_dir:
+                built = demo_project.build_demo_project(
+                    Path(temp_dir), video_pad_seconds=pad
+                )
+                errors, _ = validator.validate_project(built.project)
+                self.assertTrue(
+                    any("past the narration" in error for error in errors), errors
+                )
+
+    def test_actions_after_the_narration_ends_are_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            built = demo_project.build_demo_project(Path(temp_dir), timeline=[])
+            late = demo_project.default_timeline()
+            narration_end = built.windows[-1]["end"]
+            late.append(
+                {"action": "click", "start": narration_end + 1.0, "end": narration_end + 1.5}
+            )
+            (built.artifacts / "recording.json").write_text(
+                json.dumps({"action_timeline": late}), encoding="utf-8"
+            )
+            errors, _ = validator.validate_project(built.project)
+
+        self.assertTrue(
+            any("after the narration ends" in error for error in errors), errors
+        )
 
 
 class GeminiTTSContractTest(unittest.TestCase):
@@ -524,39 +591,13 @@ class GeminiTTSContractTest(unittest.TestCase):
         self.assertEqual(source, "Gemini Interactions API")
         self.assertEqual(interactions.kwargs["input"], "Read this")
 
-    def test_password_field_shorts_structure_and_validation(self) -> None:
-        project_dir = ROOT / "password-field-shorts"
-        if not project_dir.is_dir():
-            self.skipTest("Password field demo is not present in this checkout")
-        self.assertTrue(project_dir.is_dir())
-        self.assertTrue((project_dir / "app.py").is_file())
-        self.assertTrue((project_dir / "actions.yaml").is_file())
-        self.assertTrue((project_dir / "artifacts" / "narration.txt").is_file())
-        self.assertTrue((project_dir / "artifacts" / "narration.wav").is_file())
-        self.assertTrue((project_dir / "artifacts" / "demo.mp4").is_file())
-        self.assertTrue((project_dir / "artifacts" / "final_with_audio.mp4").is_file())
+    def test_missing_narrated_outputs_are_reported(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            built = demo_project.build_demo_project(Path(temp_dir), with_audio=False)
+            errors, _ = validator.validate_project(built.project, require_audio=True)
 
-        errors, report = validator.validate_project(project_dir, require_audio=True)
-        self.assertEqual(errors, [])
-        self.assertEqual(report["video"]["width"], 1440)
-        self.assertEqual(report["video"]["height"], 2560)
-
-    def test_accordion_panels_shorts_structure_and_validation(self) -> None:
-        project_dir = ROOT / "accordion-panels-shorts"
-        if not project_dir.is_dir():
-            self.skipTest("Accordion panels demo is not present in this checkout")
-        self.assertTrue(project_dir.is_dir())
-        self.assertTrue((project_dir / "app.py").is_file())
-        self.assertTrue((project_dir / "actions.yaml").is_file())
-        self.assertTrue((project_dir / "artifacts" / "narration.txt").is_file())
-        self.assertTrue((project_dir / "artifacts" / "narration.wav").is_file())
-        self.assertTrue((project_dir / "artifacts" / "demo.mp4").is_file())
-        self.assertTrue((project_dir / "artifacts" / "final_with_audio.mp4").is_file())
-
-        errors, report = validator.validate_project(project_dir, require_audio=True)
-        self.assertEqual(errors, [])
-        self.assertEqual(report["video"]["width"], 2560)
-        self.assertEqual(report["video"]["height"], 1440)
+        self.assertTrue(any("narration.wav" in error for error in errors), errors)
+        self.assertTrue(any("final_with_audio.mp4" in error for error in errors), errors)
 
 
 if __name__ == "__main__":
