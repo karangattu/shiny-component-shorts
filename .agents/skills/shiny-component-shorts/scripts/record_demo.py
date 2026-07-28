@@ -238,7 +238,7 @@ CODE_OVERLAY_JS = r"""async (cfg) => {
             + ['#C10000', '#F9B928', '#00891A'][index] + ';';
     });
     const windowTitle = document.createElement('div');
-    windowTitle.textContent = cfg.title + ' — Shiny component short — Visual Studio Code';
+    windowTitle.textContent = cfg.title + ' — Visual Studio Code';
     windowTitle.style.cssText = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center;';
     titlebar.append(traffic, windowTitle, document.createElement('span'));
     const workbench = document.createElement('div');

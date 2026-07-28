@@ -323,6 +323,8 @@ class SharedRecorderContractTest(unittest.TestCase):
             "cfg.startLine",
         ):
             self.assertIn(marker, source)
+        self.assertIn("cfg.title + ' — Visual Studio Code'", source)
+        self.assertNotIn("Shiny component short", source)
 
     def test_occupied_port_is_refused_without_killing_listener(self) -> None:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:

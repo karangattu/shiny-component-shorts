@@ -260,6 +260,8 @@ class ClaudeRecorderContractTest(unittest.TestCase):
             '"-crf"',
         ):
             self.assertIn(marker, source)
+        self.assertIn("cfg.title + ' — Visual Studio Code'", source)
+        self.assertNotIn("Shiny component short", source)
         self.assertNotIn("kill -9", source)
 
     def test_code_hold_formula(self) -> None:

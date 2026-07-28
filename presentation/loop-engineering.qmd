@@ -801,13 +801,13 @@ Also enforced, mechanically:
 :::
 ::::
 
-## <i class="fa-solid fa-fingerprint"></i> Lead-agent approval is versioned, not permanent {.smaller}
+## <i class="fa-solid fa-fingerprint"></i> Batch timing approval locks one exact input set {.smaller}
 
 :::: {.columns}
 ::: {.column width="55%"}
-One step is deliberately *not* automated: the lead agent must **listen** to the narration and review the timing plan before any recording happens.
+**Batch processing only:** before Phase `finish` records a series, the lead agent must **listen** to the narration and review the timing plan.
 
-Humans are not checking these intermediate inputs. Their review comes later, on the finished `final_with_audio.mp4`. The lead-agent approval is bound to **SHA-256 fingerprints** of exactly what was reviewed:
+This gate prevents the batch from recording against audio, timing, or actions that changed after review. Humans are not checking these intermediate inputs; they review the finished `final_with_audio.mp4`. The lead-agent approval is bound to **SHA-256 fingerprints** of exactly what was reviewed:
 
 ```json
 {
@@ -823,12 +823,12 @@ Humans are not checking these intermediate inputs. Their review comes later, on 
 ```
 :::
 ::: {.column width="45%"}
-Change **one byte** of the audio, the timing report, or the actions file — and the approval silently no longer matches. The batch processor demands a fresh review.
+Change **one byte** of the audio, the timing report, or the actions file — and Phase `finish` stops until the lead agent reviews the current inputs again.
 
 ::: {.card}
-Like a signature across the sealed flap of an envelope: reopen the envelope, break the signature.
+**Intent:** “These exact inputs are ready to record now.”
 
-**"The lead agent approved it" always means "the lead agent approved *this exact version*."** No stale sign-offs, ever.
+It is not a permanent sign-off, and it is not a human checkpoint.
 :::
 :::
 ::::
