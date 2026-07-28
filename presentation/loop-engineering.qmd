@@ -801,13 +801,13 @@ Also enforced, mechanically:
 :::
 ::::
 
-## <i class="fa-solid fa-fingerprint"></i> Human approval is versioned, not permanent {.smaller}
+## <i class="fa-solid fa-fingerprint"></i> Lead-agent approval is versioned, not permanent {.smaller}
 
 :::: {.columns}
 ::: {.column width="55%"}
-One step is deliberately *not* automated: a human (or the lead agent) must **listen** to the narration and review the timing plan before any recording happens.
+One step is deliberately *not* automated: the lead agent must **listen** to the narration and review the timing plan before any recording happens.
 
-But approvals go stale. So the approval is bound to **SHA-256 fingerprints** of exactly what was reviewed:
+Humans are not checking these intermediate inputs. Their review comes later, on the finished `final_with_audio.mp4`. The lead-agent approval is bound to **SHA-256 fingerprints** of exactly what was reviewed:
 
 ```json
 {
@@ -828,21 +828,18 @@ Change **one byte** of the audio, the timing report, or the actions file — and
 ::: {.card}
 Like a signature across the sealed flap of an envelope: reopen the envelope, break the signature.
 
-**"I approved it" always means "I approved *this exact version*."** No stale sign-offs, ever.
+**"The lead agent approved it" always means "the lead agent approved *this exact version*."** No stale sign-offs, ever.
 :::
 :::
 ::::
 
-::: notes
-Favorite slide for technical audiences. Plain framing: the envelope-flap signature. Technical term: content-addressed approval.
-:::
 
 ## <i class="fa-solid fa-layer-group"></i> Scale by reusing verified work {.smaller}
 
 For a 5-video series, `batch_process.py` runs the loop as a pipeline with **phases**:
 
 ::: {.feature}
-<i class="fa-solid fa-1"></i> **Phase `narration`:** generate + measure all audio (3 TTS calls in parallel). Then a human reviews timing per video → hash-sealed approval.
+<i class="fa-solid fa-1"></i> **Phase `narration`:** generate + measure all audio (3 TTS calls in parallel). Then the lead agent reviews timing per video → hash-sealed approval.
 :::
 ::: {.feature}
 <i class="fa-solid fa-2"></i> **Phase `finish`:** record (max 2 concurrent browsers — more causes dropped frames), merge audio, validate. **Validation re-runs even for cached recordings.**
@@ -972,7 +969,7 @@ Here the checks are black boxes: the agent produced the artifact, but scripts de
 :::
 
 ::: notes
-Trace one full journey out loud: idea → contract check → app → run it → narration envelope → TTS → measure → timing plan → human gate (hashes) → record (pre-flight, cursor, code card) → validate (timeline vs. windows) → merge (loudnorm) → cost report.
+Trace one full journey out loud: idea → contract check → app → run it → narration envelope → TTS → measure → timing plan → lead-agent gate (hashes) → record (pre-flight, cursor, code card) → validate (timeline vs. windows) → merge (loudnorm) → human reviews `final_with_audio.mp4`.
 :::
 
 ## <i class="fa-solid fa-gem"></i> A polished short is mostly invisible work {.smaller}
@@ -989,7 +986,7 @@ One finished 30-second short quietly contains **all** of this:
 :::
 ::: {.column width="50%"}
 - A reading-time formula deciding how long code stays up
-- Approvals that expire the instant anything they covered changes
+- Lead-agent approvals that expire the instant anything they covered changes
 - A recorder that would rather die loudly than kill your process
 - Audio mastered to the same loudness as everything else in the feed
 - A voice that is contractually forbidden from giggling
@@ -1012,7 +1009,7 @@ None of it is visible. All of it is why the video feels *made* rather than *gene
 | Failure | discovered by the viewer | caught by the next gate, named specifically |
 | Evals | report card after the fact | inspectors stationed inside the process |
 | Reproducibility | every run is a new adventure | shared scripts + caches + hashes |
-| Human review | read the final output and hope | scoped gates, sealed with content hashes |
+| Review ownership | human checks work in progress | lead agent gates intermediates; human reviews `final_with_audio.mp4` |
 | Cost of one more rule | crowds out the other 39 | one more check in a script — nothing forgotten |
 
 ## Make quality part of the process {.divider background-color="#1D1F21"}
@@ -1025,6 +1022,6 @@ None of it is visible. All of it is why the video feels *made* rather than *gene
 
 **Keep the inspector independent of the worker.** Shared scripts, never regenerated per task.
 
-**Automate the checks; hash-seal the judgment.** Humans stay in the loop exactly where taste lives — and their approval dies the moment the artifact changes.
+**Automate the checks; hash-seal the lead agent's judgment.** The lead agent owns intermediate QA; humans review only the finished `final_with_audio.mp4`.
 
 **Your evals were right all along.** They were just standing in the wrong place.
