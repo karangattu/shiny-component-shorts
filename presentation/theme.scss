@@ -141,6 +141,142 @@ $code-color: #B8478A;
   .muted { color: $ink-secondary; }
   .accent { color: $shiny-blue; }
 
+  // ---- Lightweight visual motifs ----
+  .storyboard {
+    background: $paper-alt;
+    border-top: 5px solid $shiny-blue;
+    border-radius: 10px;
+    padding: 0.8em 0.9em 0.75em;
+    margin: 0.3em 0 0.65em;
+  }
+
+  .storyboard-label {
+    color: $ink-secondary;
+    font-size: 0.72em;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-bottom: 0.7em;
+  }
+
+  .beat-line {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.25em 0.38em;
+    font-size: 0.78em;
+    font-weight: 750;
+    line-height: 1.55;
+  }
+
+  .beat {
+    color: $ink;
+    border-bottom: 3px solid $shiny-blue;
+    padding-bottom: 0.12em;
+  }
+
+  .beat-arrow {
+    color: $shiny-blue;
+    font-size: 1.15em;
+    line-height: 1;
+  }
+
+  .storyboard-note {
+    color: $ink-secondary;
+    font-size: 0.68em;
+    line-height: 1.35;
+    margin-top: 0.8em;
+  }
+
+  .loop-contrast {
+    border-top: 2px solid #E3E7EC;
+    border-bottom: 2px solid #E3E7EC;
+    color: $ink-secondary;
+    font-size: 0.88em;
+    line-height: 1.35;
+    margin: 0.35em 0;
+    padding: 0.5em 0;
+    text-align: center;
+
+    strong { color: $ink; }
+  }
+
+  .timing-visual {
+    background: $paper-alt;
+    border: 1px solid #E3E7EC;
+    border-left: 5px solid $shiny-blue;
+    border-radius: 10px;
+    margin: 0.15em 0 0.65em;
+    padding: 0.55em 0.7em 0.6em;
+  }
+
+  .timing-row {
+    display: grid;
+    grid-template-columns: 4.6em 1fr;
+    gap: 0.45em;
+    align-items: center;
+    margin: 0.35em 0;
+  }
+
+  .timing-label {
+    color: $ink-secondary;
+    font-size: 0.68em;
+    font-weight: 700;
+  }
+
+  .timing-track {
+    position: relative;
+    height: 1.7em;
+    background: #EDF3F8;
+    border-radius: 5px;
+    overflow: hidden;
+  }
+
+  .timing-segment {
+    position: absolute;
+    top: 0.15em;
+    bottom: 0.15em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 3px;
+    color: $ink;
+    font-size: 0.58em;
+    font-weight: 700;
+  }
+
+  .segment-one { left: 0; width: 42%; background: #BFE3F5; }
+  .segment-two { left: 43%; width: 14%; background: #F9E5AA; }
+  .segment-three { left: 58%; width: 42%; background: #BFE3F5; }
+
+  .timing-window {
+    position: absolute;
+    left: 29%;
+    width: 20%;
+    top: 0.2em;
+    bottom: 0.2em;
+    background: #F9B928;
+    border-radius: 3px;
+    opacity: 0.78;
+  }
+
+  .timing-marker {
+    position: absolute;
+    left: 43%;
+    top: 0.1em;
+    bottom: 0.1em;
+    width: 3px;
+    background: $ink;
+    border-radius: 2px;
+  }
+
+  .timing-caption {
+    color: $ink-secondary;
+    font-size: 0.62em;
+    line-height: 1.3;
+    margin-left: 5.05em;
+  }
+
   .small { font-size: 0.72em; }
   .tiny { font-size: 0.6em; color: $ink-secondary; }
 
