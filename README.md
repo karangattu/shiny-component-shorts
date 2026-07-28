@@ -8,6 +8,12 @@ https://github.com/user-attachments/assets/af6b0ec9-b78a-4f4b-a849-ad896d4500e6
 
 https://github.com/user-attachments/assets/79519994-e8be-4450-91f2-549f5765c4fa
 
+### using a PR as a reference
+
+[PR](https://github.com/posit-dev/shinychat/pull/269)
+
+https://github.com/user-attachments/assets/a3459a49-3647-4136-b171-1801008269f1
+
 ## How it works
 
 ```mermaid
