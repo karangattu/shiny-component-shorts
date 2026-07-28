@@ -1,11 +1,21 @@
 name: Contract tests
 
-on:
+'on':
   push:
+    paths-ignore:
+      - '**.md'
+      - 'presentation/**'
   pull_request:
+    paths-ignore:
+      - '**.md'
+      - 'presentation/**'
 
 permissions:
   contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   contract-tests:
@@ -19,6 +29,13 @@ jobs:
           python-version: "3.13"
           cache: pip
       - run: python -m pip install -r requirements.txt
+      - name: Cache Playwright Browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
       - name: Install Playwright Chromium
         run: python -m playwright install --with-deps chromium
       # the validator probes real media, so the demo fixtures need a real encoder
@@ -42,3 +59,4 @@ jobs:
           tests
           .claude/skills/shiny-component-shorts/scripts
           .agents/skills/shiny-component-shorts/scripts
+
