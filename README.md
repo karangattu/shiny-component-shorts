@@ -202,6 +202,8 @@ python -m playwright install chromium
 
 You also need `ffmpeg` and `ffprobe` on `PATH`.
 
+`shinychat` is not listed separately because Shiny for Python already depends on it. A few shinychat features — conversation history, message editing, sibling navigation — additionally require a client object, so those demos need `pip install chatlas` in the demo's own environment. It stays out of `requirements.txt` on purpose: it pulls an LLM SDK stack that the other demos never use, and the demos that do use it drive a canned offline client, never a real model.
+
 For narrated videos (optional — not needed for silent videos):
 
 ```bash

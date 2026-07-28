@@ -62,7 +62,22 @@ generated/demo-name/.venv/bin/python \
   --project-dir generated/demo-name --app-type python --actions actions.yaml
 ```
 
-For R, install the package build into the library the recorder's `Rscript` will use, then confirm with `packageVersion()`.
+R has no venv, so use a demo-local package library instead of mutating the user's R installation. `R_LIBS_USER` is prepended to `.libPaths()`, and the recorder inherits the environment when it launches `Rscript`, so exporting it is enough — no recorder flag is needed. The system library stays on the path as a fallback, so only the changed package gets installed:
+
+```bash
+mkdir -p generated/demo-name/.rlib
+export R_LIBS_USER="$PWD/generated/demo-name/.rlib"
+Rscript -e 'pak::pkg_install("posit-dev/shinychat/pkg-r@<sha>")'
+Rscript -e 'cat(.libPaths()[1], as.character(packageVersion("shinychat")), "\n")'
+
+python .agents/skills/shiny-component-shorts/scripts/record_demo.py \
+  --project-dir generated/demo-name --app-type r --actions actions.yaml
+```
+
+Install R dependencies as they are needed, one changeset at a time, and keep two rules:
+
+- Never install or upgrade into the user's global R library without asking first. A changeset demo must not leave their `shiny`, `shinychat`, or `ellmer` version different from how it started. Check what is already present with `packageVersion()` before installing anything.
+- R installs often build from source and can take several minutes, unlike the Python path. Install only the changed package plus anything genuinely missing; let the system library satisfy the rest.
 
 Before writing the app, prove the API exists in the installed build instead of trusting the diff:
 
@@ -101,7 +116,8 @@ observeEvent(input$review_chat_user_input, {
 
   `Chat.append_message_stream()` accepts any iterable or async iterable, so a generator yielding short slices with `asyncio.sleep(0.02)` reproduces token streaming exactly. In R, `chat_append()` takes a `coro::async_generator()` result, or a plain string for a non-streaming reply.
 
-- Some features are gated behind a real client rather than an `on_user_submit` handler. Conversation history is one: `Chat(history=...)` raises `ValueError: Chat history requires a client. Pass one to Chat(client=...)`, which also gates message editing and sibling navigation. Keep the demo keyless by subclassing `chatlas.Chat` with a `MagicMock()` provider and overriding `stream_async` to yield canned chunks — the pattern upstream uses in `pkg-py/tests/playwright/`. Expect a harmless server-side `UserWarning` about conversation-title generation, since the fake provider cannot write titles; it never reaches the browser.
+- `shinychat` needs no entry in `requirements.txt`: Shiny for Python depends on it, so `pip install -r requirements.txt` already provides it. Do not pin it there either — a pin would silently revert a changeset build the next time anyone reinstalls the baseline. Install the baseline first, then the changeset build over it.
+- Some features are gated behind a real client rather than an `on_user_submit` handler. Conversation history is one: `Chat(history=...)` raises `ValueError: Chat history requires a client. Pass one to Chat(client=...)`, which also gates message editing and sibling navigation. Those demos need `pip install chatlas` in the demo venv — it is deliberately not in `requirements.txt`, because it pulls an LLM SDK stack (`openai`, `google-auth`, `cryptography`, `rich`) that most demos never touch. Keep the demo keyless by subclassing `chatlas.Chat` with a `MagicMock()` provider and overriding `stream_async` to yield canned chunks — the pattern upstream uses in `pkg-py/tests/playwright/`. Expect a harmless server-side `UserWarning` about conversation-title generation, since the fake provider cannot write titles; it never reaches the browser.
 - The user's message arrives as `input[f"{id}_user_input"]` in Python and `input$<id>_user_input` in R.
 - The chat UI is one custom element, `shiny-chat-container`, with plain classes inside after the React rewrite. Working selectors, confirmed in a browser: `#<id>_user_input .tiptap` (the input is a TipTap contenteditable, not a textarea), `.shiny-chat-btn-send`, `.shiny-chat-user-message`, `.shiny-chat-messages-content`, and `aria-label` buttons such as `Edit message`, `Save and resend`, and `Previous version`. Most of these only exist after the first message or on hover, so declare them with `wait_for` or the recorder's selector pre-check fails the run.
 - `chat_ui()` defaults to `width="min(680px, 100%)"` and `fill=True`. For the vertical frame, set `width="100%"` and a fixed `height` so the transcript stays inside the middle 60% band instead of stretching into the reserved top and bottom areas.
