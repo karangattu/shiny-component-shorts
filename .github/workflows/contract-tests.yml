@@ -19,6 +19,8 @@ jobs:
           python-version: "3.13"
           cache: pip
       - run: python -m pip install -r requirements.txt
+      - name: Install Playwright Chromium
+        run: python -m playwright install --with-deps chromium
       # the validator probes real media, so the demo fixtures need a real encoder
       - name: Ensure ffmpeg is available
         run: ffmpeg -version >/dev/null 2>&1 || sudo apt-get install -y --no-install-recommends ffmpeg
