@@ -1017,26 +1017,3 @@ None of it is visible. All of it is why the video feels *made* rather than *gene
 **Automate the checks; hash-seal the judgment.** Humans stay in the loop exactly where taste lives — and their approval dies the moment the artifact changes.
 
 **Your evals were right all along.** They were just standing in the wrong place.
-
-## <i class="fa-solid fa-folder-open"></i> Go look for yourself {.smaller}
-
-Everything in this talk is in the repo, runnable:
-
-| Where | What |
-|---|---|
-| `.claude/skills/shiny-component-shorts/SKILL.md` | The master contract |
-| `references/recording-contract.md` | Timing math, action semantics, sentence windows |
-| `references/creative-playbook.md` | The proof rule and idea filters |
-| `scripts/record_demo.py` | Playwright recorder — cursor injection around line 57 |
-| `scripts/validate_demo.py` | Every gate from the validator slide |
-| `scripts/batch_process.py` | Phases, caching, hash-sealed approvals |
-| `*-shorts/actions.yaml` | Real timing contracts, comments and all |
-| `*-shorts/artifacts/` | Finished videos, timing JSON, cost reports |
-
-<br>
-
-**Thanks!** · Karan Gathani · `github.com/…/shiny-component-shorts`
-
-::: notes
-Invite people to open value-box-sparkline-shorts specifically — it has the complete artifact trail: narration envelope, timing JSON, hash approval, and the finished narrated MP4.
-:::
