@@ -8,6 +8,7 @@ from types import SimpleNamespace
 import unittest
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
@@ -461,6 +462,71 @@ class SharedRecorderContractTest(unittest.TestCase):
             context.close()
             browser.close()
 
+    def test_every_recording_is_stamped_with_the_shiny_wordmark(self) -> None:
+        asset = SKILL / "assets/shiny-logo.png"
+        self.assertTrue(asset.is_file())
+        self.assertGreater(asset.stat().st_size, 0)
+        self.assertEqual(recorder.resolve_logo_path(), asset.resolve())
+
+        vertical = recorder.logo_overlay_config("vertical", asset)
+        horizontal = recorder.logo_overlay_config("horizontal", asset)
+        self.assertTrue(vertical["src"].startswith("data:image/png;base64,"))
+        self.assertEqual((vertical["top"], vertical["left"]), ("4%", "4%"))
+        self.assertEqual(vertical["width"], 96)
+        self.assertEqual(horizontal["width"], 108)
+        self.assertEqual(vertical["color"], "#007BC2")
+        self.assertEqual(vertical["onDark"], "#FFFFFF")
+        with self.assertRaises(ValueError):
+            recorder.logo_overlay_config("square", asset)
+        with self.assertRaises(FileNotFoundError):
+            recorder.resolve_logo_path(Path("does-not-exist.png"))
+
+        source = RECORDER_PATH.read_text(encoding="utf-8")
+        self.assertIn(
+            'context.add_init_script(f"({LOGO_OVERLAY_JS})({json.dumps(logo)})")', source
+        )
+        self.assertIn('"logo": {', source)
+
+    def test_wordmark_is_shiny_blue_until_the_backdrop_swallows_it(self) -> None:
+        from playwright.sync_api import sync_playwright
+
+        logo = recorder.logo_overlay_config("vertical", recorder.resolve_logo_path())
+        painted = {}
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch()
+            context = browser.new_context(viewport={"width": 720, "height": 1280})
+            context.add_init_script(f"({recorder.LOGO_OVERLAY_JS})({json.dumps(logo)})")
+            page = context.new_page()
+            backdrops = (("light", "#F8F8F8"), ("dark", "#1D1F21"), ("blue", "#007BC2"))
+            for name, background in backdrops:
+                # Quoted so the color's `#` cannot be read as a URL fragment.
+                page.goto(
+                    "data:text/html,"
+                    + quote(
+                        f"<body style='margin:0;background:{background}'>"
+                        "<div style='height:1400px'></div></body>"
+                    )
+                )
+                page.wait_for_selector("#__demo_logo__", state="attached", timeout=5000)
+                page.wait_for_timeout(700)
+                painted[name] = page.eval_on_selector(
+                    "#__demo_logo__", "el => el.style.background"
+                )
+            box = page.eval_on_selector(
+                "#__demo_logo__", "el => el.getBoundingClientRect().toJSON()"
+            )
+            context.close()
+            browser.close()
+
+        self.assertEqual(painted["light"], "rgb(0, 123, 194)")
+        self.assertEqual(painted["dark"], "rgb(255, 255, 255)")
+        self.assertEqual(painted["blue"], "rgb(255, 255, 255)")
+        # Small, in proportion, and inside the reserved top-left branding band.
+        self.assertEqual(round(box["width"]), 96)
+        self.assertLess(box["height"], box["width"])
+        self.assertLess(box["bottom"], 1280 * 0.2)
+        self.assertLess(box["right"], 720 * 0.2)
+
     def test_cursor_overlay_cleanup_and_mp4_handling_are_bundled(self) -> None:
         source = RECORDER_PATH.read_text(encoding="utf-8")
         for marker in (
@@ -495,6 +561,21 @@ class DemoValidatorContractTest(unittest.TestCase):
             errors, _ = validator.validate_project(project, app_dir=app_dir)
 
         self.assertFalse(any("contain app.py or app.R" in error for error in errors))
+
+    def test_unbranded_recordings_are_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            built = demo_project.build_demo_project(
+                Path(temp_dir), timeline=demo_project.default_timeline()
+            )
+            recording_path = built.artifacts / "recording.json"
+            recording = json.loads(recording_path.read_text(encoding="utf-8"))
+            self.assertTrue(recording.pop("logo"))
+            recording_path.write_text(json.dumps(recording), encoding="utf-8")
+            errors, _ = validator.validate_project(built.project)
+
+        self.assertTrue(
+            any("no Shiny wordmark" in error for error in errors), errors
+        )
 
     def test_timing_estimator_includes_typing_and_code_reading(self) -> None:
         actions = [

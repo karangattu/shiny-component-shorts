@@ -278,7 +278,8 @@ Every recording must:
 - Use at least **3 meaningful interactions** and **3 visible state changes**
 - Reveal, contrast, and replay or reset the same hidden behavior — no long idle waits or static code cards
 - Default to a true 9:16 vertical composition with the app as the hero
-- Reserve the top and bottom 20% of the frame for later branding
+- Reserve the top and bottom 20% of the frame for branding
+- Carry the Shiny wordmark, which the recorder stamps small into the top-left of every frame in Shiny blue, switching to white where the backdrop would swallow it
 - Use the official Shiny palette (`#007BC2` blue, `#1D1F21` text on light, `#FFFFFF` text on dark)
 
 The storyboard follows `Problem → Reveal → Proof → Code → Payoff`, but those labels never appear on screen — the browser recording stays clean.

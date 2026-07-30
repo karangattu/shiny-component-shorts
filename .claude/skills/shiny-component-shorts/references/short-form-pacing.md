@@ -48,7 +48,7 @@ Design for the final orientation from the start.
 
 - Record vertical video at 1440×2560 and horizontal video at 2560×1440.
 - Compose against the logical 720×1280 or 1280×720 viewport; Chromium renders that layout at native 2× HiDPI resolution.
-- Leave the top 20% and bottom 20% visually empty for later branding. Put the app in the middle 60% height band and let it occupy all available horizontal space except 3–5% side gutters.
+- Leave the top 20% and bottom 20% visually empty for branding; the recorder's Shiny wordmark sits in the top-left of that band. Put the app in the middle 60% height band and let it occupy all available horizontal space except 3–5% side gutters.
 - Use one primary card or panel; avoid desktop sidebars and wide multi-column dashboards.
 - Make controls large enough for a phone screen and keep labels short.
 - Verify the first, middle, code, and final frames at actual phone size.

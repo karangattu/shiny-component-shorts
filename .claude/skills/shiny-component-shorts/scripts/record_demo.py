@@ -5,7 +5,9 @@ from __future__ import annotations
 
 import argparse
 import atexit
+import base64
 import json
+import mimetypes
 import random
 import shutil
 import socket
@@ -92,6 +94,14 @@ SHINY_CLIENT_ERROR_SCAN_JS = r"""() => {
 DEFAULT_BEATS = ("Reveal", "Proof", "Code", "Payoff")
 DEFAULT_ACCENT = "#007BC2"
 
+# Every recording carries the Shiny wordmark in the reserved top band.
+DEFAULT_LOGO_PATH = Path(__file__).resolve().parent.parent / "assets" / "shiny-logo.png"
+LOGO_WIDTHS = {"vertical": 96, "horizontal": 108}
+LOGO_INSET = {"top": "4%", "left": "4%"}
+LOGO_COLOR = DEFAULT_ACCENT
+LOGO_COLOR_ON_DARK = "#FFFFFF"
+LOGO_MIN_CONTRAST = 4.0
+
 CURSOR_OVERLAY_JS = r"""(() => {
     const install = () => {
         if (document.getElementById('__demo_cursor__')) return;
@@ -155,6 +165,71 @@ CURSOR_OVERLAY_JS = r"""(() => {
         install();
     }
 })();"""
+
+LOGO_OVERLAY_JS = r"""(cfg) => {
+    const install = () => {
+        if (document.getElementById('__demo_logo__')) return;
+        // The wordmark art is solid black, so it is painted as a mask over a
+        // brand-colored box instead of being drawn as an image.
+        const logo = document.createElement('div');
+        logo.id = '__demo_logo__';
+        logo.setAttribute('aria-label', 'Shiny');
+        const mask = `url("${cfg.src}") no-repeat center/contain`;
+        logo.style.cssText = `position:fixed;top:${cfg.top};left:${cfg.left};`
+            + `width:${cfg.width}px;height:${cfg.width}px;z-index:2147483644;`
+            + `-webkit-mask:${mask};mask:${mask};background:${cfg.color};`
+            + 'pointer-events:none;user-select:none;';
+        document.documentElement.appendChild(logo);
+
+        const art = new Image();
+        art.onload = () => {
+            logo.style.height =
+                `${cfg.width * art.naturalHeight / art.naturalWidth}px`;
+        };
+        art.src = cfg.src;
+
+        const channel = value => {
+            const scaled = value / 255;
+            return scaled <= .03928
+                ? scaled / 12.92
+                : Math.pow((scaled + .055) / 1.055, 2.4);
+        };
+        const luminance = ([r, g, b]) =>
+            .2126 * channel(r) + .7152 * channel(g) + .0722 * channel(b);
+        const contrast = (a, b) => (Math.max(a, b) + .05) / (Math.min(a, b) + .05);
+        const brand = luminance(cfg.color.match(/\w\w/g).map(part => parseInt(part, 16)));
+
+        const backdropLuminance = () => {
+            const box = logo.getBoundingClientRect();
+            const behind = document.elementsFromPoint(
+                box.left + box.width / 2, box.top + box.height / 2
+            );
+            for (const node of [...behind, document.body, document.documentElement]) {
+                if (!node) continue;
+                const rgba = getComputedStyle(node).backgroundColor.match(/[\d.]+/g);
+                if (!rgba || (rgba[3] !== undefined && parseFloat(rgba[3]) < .35)) continue;
+                return luminance(rgba.slice(0, 3).map(Number));
+            }
+            return 1;
+        };
+        // Shiny blue everywhere it reads; on dark or blue backdrops it would
+        // sink into the surface, so the mark goes to the light brand color.
+        const paint = () => {
+            const backdrop = backdropLuminance();
+            logo.style.background = contrast(brand, backdrop) >= cfg.minContrast
+                ? cfg.color
+                : cfg.onDark;
+        };
+        paint();
+        setInterval(paint, 400);
+    };
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', install, {once: true});
+    } else {
+        install();
+    }
+}"""
+
 
 CODE_OVERLAY_JS = r"""async (cfg) => {
     document.getElementById('__code_overlay__')?.remove();
@@ -471,6 +546,31 @@ def code_overlay_config(orientation: str, action: dict) -> dict:
     }
 
 
+def resolve_logo_path(override: Path | None = None) -> Path:
+    path = (override or DEFAULT_LOGO_PATH).resolve()
+    if not path.is_file() or path.stat().st_size == 0:
+        raise FileNotFoundError(
+            f"Brand logo is missing or empty: {path}. Every recording carries the "
+            "Shiny wordmark; restore the skill's assets/shiny-logo.png or pass --logo."
+        )
+    return path
+
+
+def logo_overlay_config(orientation: str, logo_path: Path) -> dict:
+    if orientation not in LOGO_WIDTHS:
+        raise ValueError(f"Unsupported orientation: {orientation}")
+    mime = mimetypes.guess_type(logo_path.name)[0] or "image/png"
+    encoded = base64.b64encode(logo_path.read_bytes()).decode("ascii")
+    return {
+        "src": f"data:{mime};base64,{encoded}",
+        "width": LOGO_WIDTHS[orientation],
+        "color": LOGO_COLOR,
+        "onDark": LOGO_COLOR_ON_DARK,
+        "minContrast": LOGO_MIN_CONTRAST,
+        **LOGO_INSET,
+    }
+
+
 def code_hold_ms(text: str, override: int | None = None, context: str = "") -> int:
     return override or max(
         5500, min(11000, 3200 + 55 * len(text) + 14 * len(context))
@@ -781,6 +881,7 @@ def record_project(
     orientation_override: str | None,
     app_dir: Path | None = None,
     port_override: int | None = None,
+    logo_override: Path | None = None,
 ) -> Path:
     from playwright.sync_api import ViewportSize, sync_playwright
 
@@ -814,6 +915,8 @@ def record_project(
 
     orientation = resolve_orientation(orientation_override, config)
     overlays = normalize_overlays(config)
+    logo_path = resolve_logo_path(logo_override)
+    logo = logo_overlay_config(orientation, logo_path)
     viewport = ViewportSize(width=720, height=1280)
     if orientation == "horizontal":
         viewport = ViewportSize(width=1280, height=720)
@@ -834,6 +937,7 @@ def record_project(
             )
             context.add_init_script(CURSOR_OVERLAY_JS)
             context.add_init_script(SHINY_CLIENT_ERROR_GUARD_JS)
+            context.add_init_script(f"({LOGO_OVERLAY_JS})({json.dumps(logo)})")
             if overlays is not None:
                 context.add_init_script(
                     f"({RETENTION_OVERLAY_JS})({json.dumps(overlays)})"
@@ -936,6 +1040,14 @@ def record_project(
                         }
                         for entry in timeline
                     ],
+                    "logo": {
+                        "source": logo_path.name,
+                        "width": logo["width"],
+                        "top": logo["top"],
+                        "left": logo["left"],
+                        "color": logo["color"],
+                        "color_on_dark": logo["onDark"],
+                    },
                     "orientation": orientation,
                     "overlays": overlays,
                     "scale_factor": 2,
@@ -963,6 +1075,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--actions", type=Path, default=Path("actions.yaml"))
     parser.add_argument("--orientation", choices=["vertical", "horizontal"], default=None)
     parser.add_argument("--port", type=int)
+    parser.add_argument(
+        "--logo",
+        type=Path,
+        help="Override the top-left brand logo; defaults to the skill's shiny-logo.png",
+    )
     return parser.parse_args()
 
 
@@ -978,7 +1095,13 @@ def main() -> int:
     if not actions_path.is_file():
         raise FileNotFoundError(f"Action file does not exist: {actions_path}")
     mp4_path = record_project(
-        project_dir, args.app_type, actions_path, args.orientation, app_dir, args.port
+        project_dir,
+        args.app_type,
+        actions_path,
+        args.orientation,
+        app_dir,
+        args.port,
+        args.logo,
     )
     print(f"Recorded: {mp4_path}")
     return 0

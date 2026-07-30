@@ -28,6 +28,12 @@ The `code` action is orientation-aware. Vertical recordings anchor the panel nea
 
 The recorder refuses to start if its port is already occupied. Stop the known process yourself; never kill an unknown listener automatically.
 
+## Brand logo
+
+Every recording carries the Shiny wordmark in the top-left of the reserved top 20% band. The recorder injects it as a fixed overlay before the app loads: 96 logical px wide in vertical recordings, 108 px in horizontal ones, inset 4% from the top and left edges, so it renders small but legible at phone size. The mark is painted in the Shiny primary `#007BC2`; when the backdrop behind it drops below 4:1 contrast — dark surfaces, and the primary blue itself — it switches to `#FFFFFF` so it never sinks into the app.
+
+Keep that corner clear: the top band is already reserved, so no app UI, no in-app logo of your own, and no code card competes with it. `artifacts/recording.json` records the stamped logo under `logo`, and the validator rejects a recording whose `recording.json` has no `logo` entry — that means the video predates the brand overlay and must be re-recorded. Pass `--logo path/to/file.png` only when a demo needs a different mark; the default asset lives at `.agents/skills/shiny-component-shorts/assets/shiny-logo.png`.
+
 ## Client-error safety contract
 
 No example may be recorded or delivered with a **Shiny Client Errors** panel visible. Assign unique output IDs across the complete rendered page, including conditional UI, modules, and repeated components. Exercise the full action sequence before accepting the app because some duplicate outputs appear only after reactive UI is inserted.

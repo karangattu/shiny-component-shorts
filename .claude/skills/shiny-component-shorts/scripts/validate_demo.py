@@ -386,6 +386,12 @@ def validate_project(
             recording = {}
             if recording_path.is_file():
                 recording = json.loads(recording_path.read_text(encoding="utf-8"))
+            if recording and not recording.get("logo"):
+                errors.append(
+                    "Recording carries no Shiny wordmark: artifacts/recording.json has "
+                    "no `logo` entry, so this video predates the brand overlay — "
+                    "re-record it with the bundled recorder"
+                )
             orientation = recording.get("orientation", config.get("orientation", "vertical"))
             expected = (1440, 2560) if orientation == "vertical" else (2560, 1440)
             if orientation not in {"vertical", "horizontal"}:

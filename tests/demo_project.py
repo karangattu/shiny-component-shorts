@@ -202,7 +202,13 @@ def build_demo_project(
 
     if timeline is not None:
         (artifacts / "recording.json").write_text(
-            json.dumps({"orientation": orientation, "action_timeline": timeline}),
+            json.dumps(
+                {
+                    "orientation": orientation,
+                    "action_timeline": timeline,
+                    "logo": {"source": "shiny-logo.png", "width": 96},
+                }
+            ),
             encoding="utf-8",
         )
 

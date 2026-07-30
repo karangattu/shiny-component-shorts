@@ -146,6 +146,7 @@ def recording_inputs(project_dir: Path) -> list[Path]:
         project_dir,
         [
             SCRIPTS_DIR / "record_demo.py",
+            SCRIPTS_DIR.parent / "assets" / "shiny-logo.png",
             artifacts / "narration.wav",
             artifacts / "narration-timing.json",
             artifacts / "timing-approval.json",
