@@ -328,11 +328,11 @@ class ClaudeRecorderContractTest(unittest.TestCase):
         vertical = recorder.logo_overlay_config("vertical", asset)
         horizontal = recorder.logo_overlay_config("horizontal", asset)
         self.assertTrue(vertical["src"].startswith("data:image/png;base64,"))
-        self.assertEqual((vertical["top"], vertical["left"]), ("4%", "4%"))
-        self.assertEqual(vertical["width"], 96)
-        self.assertEqual(horizontal["width"], 108)
-        self.assertEqual(vertical["color"], "#007BC2")
-        self.assertEqual(vertical["onDark"], "#FFFFFF")
+        self.assertEqual((vertical["top"], vertical["left"]), ("4%", "8%"))
+        self.assertEqual(vertical["width"], 168)
+        self.assertEqual(horizontal["width"], 190)
+        self.assertEqual(vertical["darkThreshold"], 0.5)
+        self.assertNotIn("color", vertical)
         with self.assertRaises(ValueError):
             recorder.logo_overlay_config("square", asset)
         with self.assertRaises(FileNotFoundError):
@@ -353,6 +353,7 @@ class ClaudeRecorderContractTest(unittest.TestCase):
         self.assertEqual(recorder.LOGO_OVERLAY_JS, shared.LOGO_OVERLAY_JS)
         self.assertEqual(recorder.LOGO_WIDTHS, shared.LOGO_WIDTHS)
         self.assertEqual(recorder.LOGO_INSET, shared.LOGO_INSET)
+        self.assertEqual(recorder.LOGO_DARK_THRESHOLD, shared.LOGO_DARK_THRESHOLD)
         self.assertEqual(
             recorder.resolve_logo_path().read_bytes(),
             shared.resolve_logo_path().read_bytes(),

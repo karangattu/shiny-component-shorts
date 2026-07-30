@@ -471,11 +471,11 @@ class SharedRecorderContractTest(unittest.TestCase):
         vertical = recorder.logo_overlay_config("vertical", asset)
         horizontal = recorder.logo_overlay_config("horizontal", asset)
         self.assertTrue(vertical["src"].startswith("data:image/png;base64,"))
-        self.assertEqual((vertical["top"], vertical["left"]), ("4%", "4%"))
-        self.assertEqual(vertical["width"], 96)
-        self.assertEqual(horizontal["width"], 108)
-        self.assertEqual(vertical["color"], "#007BC2")
-        self.assertEqual(vertical["onDark"], "#FFFFFF")
+        self.assertEqual((vertical["top"], vertical["left"]), ("4%", "8%"))
+        self.assertEqual(vertical["width"], 168)
+        self.assertEqual(horizontal["width"], 190)
+        self.assertEqual(vertical["darkThreshold"], 0.5)
+        self.assertNotIn("color", vertical)
         with self.assertRaises(ValueError):
             recorder.logo_overlay_config("square", asset)
         with self.assertRaises(FileNotFoundError):
@@ -487,7 +487,7 @@ class SharedRecorderContractTest(unittest.TestCase):
         )
         self.assertIn('"logo": {', source)
 
-    def test_wordmark_is_shiny_blue_until_the_backdrop_swallows_it(self) -> None:
+    def test_wordmark_renders_as_is_and_only_flips_on_dark_backdrops(self) -> None:
         from playwright.sync_api import sync_playwright
 
         logo = recorder.logo_overlay_config("vertical", recorder.resolve_logo_path())
@@ -510,22 +510,25 @@ class SharedRecorderContractTest(unittest.TestCase):
                 page.wait_for_selector("#__demo_logo__", state="attached", timeout=5000)
                 page.wait_for_timeout(700)
                 painted[name] = page.eval_on_selector(
-                    "#__demo_logo__", "el => el.style.background"
+                    "#__demo_logo__", "el => el.style.filter"
                 )
             box = page.eval_on_selector(
                 "#__demo_logo__", "el => el.getBoundingClientRect().toJSON()"
             )
+            tag = page.eval_on_selector("#__demo_logo__", "el => el.tagName")
             context.close()
             browser.close()
 
-        self.assertEqual(painted["light"], "rgb(0, 123, 194)")
-        self.assertEqual(painted["dark"], "rgb(255, 255, 255)")
-        self.assertEqual(painted["blue"], "rgb(255, 255, 255)")
-        # Small, in proportion, and inside the reserved top-left branding band.
-        self.assertEqual(round(box["width"]), 96)
+        # The artwork ships untouched except where a dark backdrop hides it.
+        self.assertEqual(tag, "IMG")
+        self.assertEqual(painted["light"], "none")
+        self.assertEqual(painted["dark"], "invert(1)")
+        self.assertEqual(painted["blue"], "invert(1)")
+        # Phone-legible, in proportion, inside the reserved top-left band.
+        self.assertEqual(round(box["width"]), 168)
         self.assertLess(box["height"], box["width"])
         self.assertLess(box["bottom"], 1280 * 0.2)
-        self.assertLess(box["right"], 720 * 0.2)
+        self.assertLess(box["right"], 720 * 0.4)
 
     def test_cursor_overlay_cleanup_and_mp4_handling_are_bundled(self) -> None:
         source = RECORDER_PATH.read_text(encoding="utf-8")

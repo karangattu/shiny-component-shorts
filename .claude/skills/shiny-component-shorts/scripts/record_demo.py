@@ -96,11 +96,9 @@ DEFAULT_ACCENT = "#007BC2"
 
 # Every recording carries the Shiny wordmark in the reserved top band.
 DEFAULT_LOGO_PATH = Path(__file__).resolve().parent.parent / "assets" / "shiny-logo.png"
-LOGO_WIDTHS = {"vertical": 96, "horizontal": 108}
-LOGO_INSET = {"top": "4%", "left": "4%"}
-LOGO_COLOR = DEFAULT_ACCENT
-LOGO_COLOR_ON_DARK = "#FFFFFF"
-LOGO_MIN_CONTRAST = 4.0
+LOGO_WIDTHS = {"vertical": 168, "horizontal": 190}
+LOGO_INSET = {"top": "4%", "left": "8%"}
+LOGO_DARK_THRESHOLD = 0.5
 
 CURSOR_OVERLAY_JS = r"""(() => {
     const install = () => {
@@ -169,24 +167,14 @@ CURSOR_OVERLAY_JS = r"""(() => {
 LOGO_OVERLAY_JS = r"""(cfg) => {
     const install = () => {
         if (document.getElementById('__demo_logo__')) return;
-        // The wordmark art is solid black, so it is painted as a mask over a
-        // brand-colored box instead of being drawn as an image.
-        const logo = document.createElement('div');
+        const logo = document.createElement('img');
         logo.id = '__demo_logo__';
-        logo.setAttribute('aria-label', 'Shiny');
-        const mask = `url("${cfg.src}") no-repeat center/contain`;
+        logo.src = cfg.src;
+        logo.alt = 'Shiny';
         logo.style.cssText = `position:fixed;top:${cfg.top};left:${cfg.left};`
-            + `width:${cfg.width}px;height:${cfg.width}px;z-index:2147483644;`
-            + `-webkit-mask:${mask};mask:${mask};background:${cfg.color};`
+            + `width:${cfg.width}px;height:auto;z-index:2147483644;`
             + 'pointer-events:none;user-select:none;';
         document.documentElement.appendChild(logo);
-
-        const art = new Image();
-        art.onload = () => {
-            logo.style.height =
-                `${cfg.width * art.naturalHeight / art.naturalWidth}px`;
-        };
-        art.src = cfg.src;
 
         const channel = value => {
             const scaled = value / 255;
@@ -196,8 +184,6 @@ LOGO_OVERLAY_JS = r"""(cfg) => {
         };
         const luminance = ([r, g, b]) =>
             .2126 * channel(r) + .7152 * channel(g) + .0722 * channel(b);
-        const contrast = (a, b) => (Math.max(a, b) + .05) / (Math.min(a, b) + .05);
-        const brand = luminance(cfg.color.match(/\w\w/g).map(part => parseInt(part, 16)));
 
         const backdropLuminance = () => {
             const box = logo.getBoundingClientRect();
@@ -212,13 +198,11 @@ LOGO_OVERLAY_JS = r"""(cfg) => {
             }
             return 1;
         };
-        // Shiny blue everywhere it reads; on dark or blue backdrops it would
-        // sink into the surface, so the mark goes to the light brand color.
+        // The artwork renders as it ships. Its ink is black, so the only
+        // treatment is a flip to white where a dark backdrop would hide it.
         const paint = () => {
-            const backdrop = backdropLuminance();
-            logo.style.background = contrast(brand, backdrop) >= cfg.minContrast
-                ? cfg.color
-                : cfg.onDark;
+            logo.style.filter =
+                backdropLuminance() < cfg.darkThreshold ? 'invert(1)' : 'none';
         };
         paint();
         setInterval(paint, 400);
@@ -564,9 +548,7 @@ def logo_overlay_config(orientation: str, logo_path: Path) -> dict:
     return {
         "src": f"data:{mime};base64,{encoded}",
         "width": LOGO_WIDTHS[orientation],
-        "color": LOGO_COLOR,
-        "onDark": LOGO_COLOR_ON_DARK,
-        "minContrast": LOGO_MIN_CONTRAST,
+        "darkThreshold": LOGO_DARK_THRESHOLD,
         **LOGO_INSET,
     }
 
@@ -1045,8 +1027,6 @@ def record_project(
                         "width": logo["width"],
                         "top": logo["top"],
                         "left": logo["left"],
-                        "color": logo["color"],
-                        "color_on_dark": logo["onDark"],
                     },
                     "orientation": orientation,
                     "overlays": overlays,

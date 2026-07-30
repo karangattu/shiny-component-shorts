@@ -30,7 +30,7 @@ The recorder refuses to start if its port is already occupied. Stop the known pr
 
 ## Brand logo
 
-Every recording carries the Shiny wordmark in the top-left of the reserved top 20% band. The recorder injects it as a fixed overlay before the app loads: 96 logical px wide in vertical recordings, 108 px in horizontal ones, inset 4% from the top and left edges, so it renders small but legible at phone size. The mark is painted in the Shiny primary `#007BC2`; when the backdrop behind it drops below 4:1 contrast — dark surfaces, and the primary blue itself — it switches to `#FFFFFF` so it never sinks into the app.
+Every recording carries the Shiny wordmark in the top-left of the reserved top 20% band. The recorder injects it as a fixed overlay before the app loads: 168 logical px wide in vertical recordings, 190 px in horizontal ones, inset 4% from the top and 8% from the left edge, sized to stay legible on a phone screen. The artwork renders as it ships, untinted; because its ink is black, the only treatment is a flip to white on backdrops whose relative luminance falls under 0.5 — dark surfaces, and the `#007BC2` primary — so it never disappears into the app.
 
 Keep that corner clear: the top band is already reserved, so no app UI, no in-app logo of your own, and no code card competes with it. `artifacts/recording.json` records the stamped logo under `logo`, and the validator rejects a recording whose `recording.json` has no `logo` entry — that means the video predates the brand overlay and must be re-recorded. Pass `--logo path/to/file.png` only when a demo needs a different mark; the default asset lives at `.claude/skills/shiny-component-shorts/assets/shiny-logo.png`.
 
