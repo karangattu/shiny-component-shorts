@@ -31,8 +31,9 @@ Read [references/creative-playbook.md](references/creative-playbook.md) before c
 Every turn re-reads the whole session, so a long one keeps paying for its own history. None of the rules below change what ships; they change what it costs to ship.
 
 - One video per session. When a video is finished and reported, `/clear` and start the next one rather than continuing in the same session.
-- Run each video's record → inspect → fix loop in a subagent, even for a single video. Hand it the video directory, the recorder and validator commands, and the acceptance checks; take back the verdict and the fixes it applied, not its transcript.
-- Preflight with `record_demo.py --dry-run` before every full recording. A missing selector, a dead app, or a client-error panel then costs one page load instead of a recording, an encode, a validation, and a frame review.
+- Before writing `actions.yaml` or dispatching a subagent, verify every selector the storyboard needs yourself with a throwaway script against the running app — and go past "is it attached": confirm the actual interaction semantics the storyboard depends on (does a control open on hover, click, or both; does a popover stay open or dismiss on the next action) and disambiguate any selector that matches more than one element (for example `:nth-match()` when several targets share a class). Rediscovering one of these live inside a recording subagent costs a full record → encode → validate cycle per miss, not a page load.
+- Run `record_demo.py --dry-run` yourself once the app and a first-draft `actions.yaml` exist, before dispatching the recording subagent. Hand the subagent a clean preflight and a verified selector list, not selector discovery.
+- Run each video's audio → timing → record → validate → merge → review loop in a subagent, even for a single video. Hand it the video directory, the recorder and validator commands, the acceptance checks, and the selectors and interaction facts already verified above; take back the verdict and the fixes it applied, not its transcript. It should still re-run `--dry-run` itself after any further change to the app or `actions.yaml`.
 - Inspect frames through one phone-size sheet from `review_frames.py`, never through four full-resolution PNGs.
 - Read a file once. When you need it again, re-read the range you need instead of the whole script.
 

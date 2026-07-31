@@ -64,6 +64,45 @@ def find_transcript(project_dir: Path, session: str | None) -> Path:
     return candidates[-1]
 
 
+def subagent_transcripts(project_dir: Path, session_stem: str) -> list[Path]:
+    """Any Agent-tool subagents dispatched from this session log to a sibling
+    <project_dir>/<session>/subagents/*.jsonl, not a top-level *.jsonl, so the
+    top-level glob in find_transcript() never sees them. Their token usage is
+    real spend against the same account and has to be added in by hand, or a
+    session that delegated heavily to subagents looks far cheaper than it was.
+    """
+    subdir = project_dir / session_stem / "subagents"
+    if not subdir.is_dir():
+        return []
+    return sorted(subdir.glob("*.jsonl"))
+
+
+def accumulate(transcript: Path, totals: dict[tuple[str, str], dict[str, int]], scope: str) -> None:
+    by_id: dict[str, dict] = {}
+    with transcript.open() as fh:
+        for line in fh:
+            try:
+                rec = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            msg = rec.get("message") or {}
+            usage = msg.get("usage")
+            model = msg.get("model")
+            if not usage or not model or model == "<synthetic>":
+                continue
+            by_id[msg.get("id") or rec.get("uuid", "")] = {"model": model, "usage": usage}
+
+    for entry in by_id.values():
+        u = entry["usage"]
+        t = totals.setdefault(
+            (entry["model"], scope), {"input": 0, "cache_write": 0, "cache_read": 0, "output": 0}
+        )
+        t["input"] += u.get("input_tokens", 0) or 0
+        t["cache_write"] += u.get("cache_creation_input_tokens", 0) or 0
+        t["cache_read"] += u.get("cache_read_input_tokens", 0) or 0
+        t["output"] += u.get("output_tokens", 0) or 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Estimate the Claude API list-price cost of a Claude Code session."
@@ -80,37 +119,19 @@ def main() -> int:
 
     transcript = find_transcript(args.project_dir.expanduser(), args.session)
 
-    # Dedupe by message id: transcripts can carry several records per assistant
-    # message (progressive writes); the last one has the final usage.
-    by_id: dict[str, dict] = {}
-    with transcript.open() as fh:
-        for line in fh:
-            try:
-                rec = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            msg = rec.get("message") or {}
-            usage = msg.get("usage")
-            model = msg.get("model")
-            if not usage or not model or model == "<synthetic>":
-                continue
-            by_id[msg.get("id") or rec.get("uuid", "")] = {"model": model, "usage": usage}
+    # Dedupe by message id within each transcript: a transcript can carry several
+    # records per assistant message (progressive writes); the last one wins.
+    totals: dict[tuple[str, str], dict[str, int]] = {}
+    accumulate(transcript, totals, "session")
 
-    totals: dict[str, dict[str, int]] = {}
-    for entry in by_id.values():
-        u = entry["usage"]
-        t = totals.setdefault(
-            entry["model"], {"input": 0, "cache_write": 0, "cache_read": 0, "output": 0}
-        )
-        t["input"] += u.get("input_tokens", 0) or 0
-        t["cache_write"] += u.get("cache_creation_input_tokens", 0) or 0
-        t["cache_read"] += u.get("cache_read_input_tokens", 0) or 0
-        t["output"] += u.get("output_tokens", 0) or 0
+    subagents = subagent_transcripts(args.project_dir.expanduser(), transcript.stem)
+    for sub in subagents:
+        accumulate(sub, totals, "subagent")
 
     rows = []
     grand_total = 0.0
     unpriced = []
-    for model, t in sorted(totals.items()):
+    for (model, scope), t in sorted(totals.items()):
         prices = price_for(model)
         if prices is None:
             unpriced.append(model)
@@ -123,11 +144,12 @@ def main() -> int:
             + t["output"] * out
         ) / 1_000_000
         grand_total += cost
-        rows.append({"model": model, **t, "estimated_cost_usd": round(cost, 4)})
+        rows.append({"model": model, "scope": scope, **t, "estimated_cost_usd": round(cost, 4)})
 
     report = {
         "transcript": str(transcript),
         "session": transcript.stem,
+        "subagent_transcripts": [str(p) for p in subagents],
         "pricing_checked": PRICING_CHECKED,
         "currency": "USD",
         "models": rows,
@@ -141,12 +163,14 @@ def main() -> int:
         return 0
 
     print(f"Claude session cost estimate — {transcript.stem}")
+    if subagents:
+        print(f"Includes {len(subagents)} subagent transcript(s) dispatched from this session")
     print(f"Pricing checked {PRICING_CHECKED} (USD, list prices)\n")
-    print("| Model | Input | Cache write | Cache read | Output | Est. cost |")
-    print("| --- | ---: | ---: | ---: | ---: | ---: |")
+    print("| Model | Scope | Input | Cache write | Cache read | Output | Est. cost |")
+    print("| --- | --- | ---: | ---: | ---: | ---: | ---: |")
     for r in rows:
         print(
-            f"| {r['model']} | {r['input']:,} | {r['cache_write']:,} "
+            f"| {r['model']} | {r['scope']} | {r['input']:,} | {r['cache_write']:,} "
             f"| {r['cache_read']:,} | {r['output']:,} | ${r['estimated_cost_usd']:.4f} |"
         )
     print(f"\nEstimated list-price total: ${grand_total:.4f}")
