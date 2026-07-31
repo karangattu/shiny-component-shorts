@@ -1,4 +1,7 @@
+import contextlib
 import importlib.util
+import io
+import json
 import sys
 import tempfile
 import unittest
@@ -14,6 +17,7 @@ SKILL = ROOT / ".claude/skills/shiny-component-shorts"
 SKILL_MD = SKILL / "SKILL.md"
 RECORDER_PATH = SKILL / "scripts/record_demo.py"
 VALIDATOR_PATH = SKILL / "scripts/validate_demo.py"
+REVIEW_PATH = SKILL / "scripts/review_frames.py"
 
 BASE_ACTIONS = {
     "wait_for",
@@ -42,6 +46,20 @@ def load_module(name: str, path: Path) -> Any:
 
 recorder = load_module("claude_record_demo", RECORDER_PATH)
 validator = load_module("claude_validate_demo", VALIDATOR_PATH)
+review = load_module("claude_review_frames", REVIEW_PATH)
+
+
+def run_main(module: Any, argv: list[str]) -> tuple[int, str]:
+    """Run a script's main() with argv, capturing what it prints."""
+    original_argv = sys.argv
+    printed = io.StringIO()
+    try:
+        sys.argv = argv
+        with contextlib.redirect_stdout(printed):
+            exit_code = module.main()
+    finally:
+        sys.argv = original_argv
+    return exit_code, printed.getvalue()
 
 
 class ClaudeSkillContractTest(unittest.TestCase):
@@ -232,6 +250,30 @@ class ClaudeSkillContractTest(unittest.TestCase):
         self.assertIn("side-by-side", recording)
         self.assertIn("Do not laugh, giggle, or chuckle", tts)
 
+    def test_skill_budgets_the_session_as_well_as_the_video(self) -> None:
+        skill = SKILL_MD.read_text(encoding="utf-8")
+        recording = (SKILL / "references/recording-contract.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("## Session and context budget", skill)
+        for marker in (
+            "video per session",
+            "subagent",
+            "--dry-run",
+            "review_frames.py",
+            "artifacts/validation.json",
+        ):
+            self.assertIn(marker, skill)
+        for marker in (
+            "## Preflight",
+            "## Review sheet",
+            "artifacts/preflight.png",
+            "artifacts/review.png",
+            "artifacts/validation.json",
+        ):
+            self.assertIn(marker, recording)
+        self.assertTrue(REVIEW_PATH.is_file())
+
     def test_skill_mandates_clean_recordings_and_loudness_normalization(self) -> None:
         text = SKILL_MD.read_text(encoding="utf-8")
         self.assertIn("clean browser recording", text)
@@ -292,6 +334,80 @@ class ClaudeRecorderContractTest(unittest.TestCase):
             recorder.validate_action_shape({"unknown": "#x"})
         with self.assertRaises(ValueError):
             recorder.validate_action_shape({"click": "#a", "wait": 500})
+
+    def test_dry_run_preflights_instead_of_recording(self) -> None:
+        clean = {
+            "app_dir": "/tmp/app",
+            "app_type": "python",
+            "url": "http://127.0.0.1:8000",
+            "orientation": "vertical",
+            "selectors": ["#seven"],
+            "deferred": ["#label"],
+            "screenshot": "artifacts/preflight.png",
+            "phone_screenshot": "artifacts/preflight-phone.png",
+            "app_log": "artifacts/preflight-app.log",
+            "problems": [],
+        }
+        broken = {**clean, "problems": ["Selectors not found on the initial page: #x"]}
+
+        for report, expected_code, expected_text in (
+            (clean, 0, "Preflight OK"),
+            (broken, 1, "Preflight FAILED"),
+        ):
+            with self.subTest(problems=report["problems"]), tempfile.TemporaryDirectory() as temp_dir:
+                project = Path(temp_dir)
+                (project / "app.py").write_text("# app\n", encoding="utf-8")
+                (project / "actions.yaml").write_text("actions: []\n", encoding="utf-8")
+                calls = []
+                original_preflight = recorder.preflight_project
+                original_record = recorder.record_project
+                try:
+                    recorder.preflight_project = (
+                        lambda *args: calls.append(args) or report
+                    )
+                    recorder.record_project = lambda *args: self.fail(
+                        "--dry-run must not record"
+                    )
+                    exit_code, printed = run_main(
+                        recorder,
+                        ["record_demo.py", "--project-dir", str(project), "--dry-run"],
+                    )
+                finally:
+                    recorder.preflight_project = original_preflight
+                    recorder.record_project = original_record
+
+                self.assertEqual(exit_code, expected_code)
+                self.assertEqual(len(calls), 1)
+                self.assertIn(expected_text, printed)
+                self.assertFalse((project / "artifacts" / "demo.mp4").exists())
+
+    def test_preflight_reports_action_problems_before_starting_a_browser(self) -> None:
+        run = {"orientation": "vertical", "overlays": None}
+        actions = [
+            {"click": "#go"},
+            {"press": "#notes"},
+            {"caption": "hello"},
+            {"code": {"title": "app.py"}},
+        ]
+        problems = recorder.action_shape_problems(actions, run)
+
+        self.assertEqual(len(problems), 3, problems)
+        self.assertIn("Action 2", problems[0])
+        self.assertIn("selector", problems[0])
+        self.assertIn("Action 3", problems[1])
+        self.assertIn("overlays", problems[1])
+        self.assertIn("Action 4", problems[2])
+        self.assertEqual(recorder.action_shape_problems([{"click": "#go"}], run), [])
+
+    def test_preflight_defers_wait_for_targets_and_sizes_the_viewport(self) -> None:
+        actions = [
+            {"wait_for": "#async-panel"},
+            {"click": "#toggle"},
+            {"wait_for": "#async-panel"},
+        ]
+        self.assertEqual(recorder.deferred_selectors(actions), ["#async-panel"])
+        self.assertEqual(recorder.viewport_size("vertical"), (720, 1280))
+        self.assertEqual(recorder.viewport_size("horizontal"), (1280, 720))
 
     def test_recorder_source_includes_overlay_and_reliability_machinery(self) -> None:
         source = RECORDER_PATH.read_text(encoding="utf-8")
@@ -662,6 +778,54 @@ class ClaudeValidatorContractTest(unittest.TestCase):
         self.assertEqual(report["video"]["height"], 2560)
         self.assertEqual(len(report["narration_sentences"]), len(built.windows))
 
+    def test_console_gets_a_summary_and_the_full_report_goes_to_a_file(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            built = demo_project.build_demo_project(
+                Path(temp_dir), timeline=demo_project.default_timeline()
+            )
+            argv = [
+                "validate_demo.py",
+                "--project-dir",
+                str(built.project),
+                "--require-audio",
+            ]
+            exit_code, printed = run_main(validator, argv)
+            _, as_json = run_main(validator, argv + ["--json"])
+            report_path = built.artifacts / "validation.json"
+            report = json.loads(report_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(exit_code, 0)
+        # Everything is still recorded, just not in the reader's face.
+        self.assertIn("action_timeline", report)
+        self.assertIn("narration_sentences", report)
+        self.assertNotIn("action_timeline", printed)
+        self.assertIn("validation.json", printed)
+        self.assertLess(len(printed), len(as_json))
+        self.assertIn("action_timeline", as_json)
+        # The timing comparison arrives resolved instead of as two arrays.
+        self.assertIn("timing (visible action → narration sentence)", printed)
+        self.assertIn("sentence 1", printed)
+
+    def test_timing_lines_flag_an_action_outside_every_sentence(self) -> None:
+        report = {
+            "action_timeline": [
+                {"action": "click", "start": 0.2, "end": 1.0},
+                {"action": "wait", "start": 1.0, "end": 2.0},
+                {"action": "code", "start": 30.0, "end": 40.0},
+            ],
+            "narration_sentences": [
+                {"start": 0.0, "end": 3.0},
+                {"start": 3.6, "end": 6.2},
+            ],
+        }
+        lines = validator.timing_lines(report)
+
+        # Waits are not visible reactions, so they stay out of the comparison.
+        self.assertEqual(len(lines), 2)
+        self.assertIn("sentence 1", lines[0])
+        self.assertIn("no sentence", lines[1])
+        self.assertEqual(validator.timing_lines({}), [])
+
     def test_claude_validator_matches_the_shared_validator_verdict(self) -> None:
         """Both skill copies must judge the same project identically."""
         shared = load_module(
@@ -679,6 +843,74 @@ class ClaudeValidatorContractTest(unittest.TestCase):
         self.assertTrue(
             any("expected 1440x2560" in error for error in claude_errors), claude_errors
         )
+
+
+class ClaudeReviewSheetTest(unittest.TestCase):
+    def test_marks_follow_the_recorded_reveal_and_code_beats(self) -> None:
+        timeline = [
+            {"action": "wait", "start": 0.0, "end": 1.0},
+            {"action": "click", "start": 1.0, "end": 2.0},
+            {"action": "click", "start": 4.0, "end": 5.0},
+            {"action": "code", "start": 10.0, "end": 20.0},
+        ]
+        marks = dict(review.review_marks(timeline, 30.0))
+
+        self.assertEqual(marks["first"], 0.4)
+        # Just after the first reaction completes, and inside the code hold.
+        self.assertEqual(marks["reveal"], 2.6)
+        self.assertEqual(marks["code"], 16.0)
+        self.assertEqual(marks["final"], 29.7)
+
+    def test_marks_fall_back_to_even_spacing_without_a_timeline(self) -> None:
+        marks = review.review_marks([], 30.0)
+
+        self.assertEqual(
+            [name for name, _ in marks], ["first", "reveal", "code", "final"]
+        )
+        self.assertEqual(dict(marks)["reveal"], 10.0)
+        self.assertEqual(dict(marks)["code"], 20.0)
+
+    def test_sheet_tiles_every_required_frame_at_phone_width(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            built = demo_project.build_demo_project(
+                Path(temp_dir), timeline=demo_project.default_timeline()
+            )
+            with contextlib.redirect_stdout(io.StringIO()):
+                exit_code = review.main(["--project-dir", str(built.project)])
+            sheet = built.artifacts / "review.png"
+            width, height = review.frame_size(sheet)
+
+        self.assertEqual(exit_code, 0)
+        tile_height = round(review.PHONE_WIDTH * 2560 / 1440)
+        # Four 9:16 frames in a 2x2 grid, each at phone width.
+        self.assertEqual((width, height), (2 * review.PHONE_WIDTH, 2 * tile_height))
+
+    def test_sheet_accepts_explicit_images(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            built = demo_project.build_demo_project(Path(temp_dir))
+            with contextlib.redirect_stdout(io.StringIO()):
+                exit_code = review.main(
+                    [
+                        "--project-dir",
+                        str(built.project),
+                        "--images",
+                        "artifacts/final.png",
+                        "--output",
+                        "artifacts/one.png",
+                    ]
+                )
+            width, _ = review.frame_size(built.artifacts / "one.png")
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(width, review.PHONE_WIDTH)
+
+    def test_missing_recording_fails_without_a_traceback(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with contextlib.redirect_stdout(io.StringIO()) as printed:
+                exit_code = review.main(["--project-dir", temp_dir])
+
+        self.assertEqual(exit_code, 1)
+        self.assertIn("Could not build the review sheet", printed.getvalue())
 
 
 if __name__ == "__main__":

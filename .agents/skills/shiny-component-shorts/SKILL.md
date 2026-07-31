@@ -25,6 +25,16 @@ Create one-screen Shiny demos that make one hidden component behavior obvious in
 
 Read [references/creative-playbook.md](references/creative-playbook.md) before choosing the feature or writing the app. For recordings or editing, also read [references/short-form-pacing.md](references/short-form-pacing.md) and [references/recording-contract.md](references/recording-contract.md). For narration audio or cost reporting, read [references/tts-and-costs.md](references/tts-and-costs.md). For a pull request, commit, SHA, or any shinychat demo, read [references/changeset-sourcing.md](references/changeset-sourcing.md).
 
+## Session and context budget
+
+Every turn re-reads the whole session, so a long one keeps paying for its own history. None of the rules below change what ships; they change what it costs to ship.
+
+- Produce one video per session. When a video is finished and reported, start the next one in a fresh session rather than continuing in this one.
+- Run each video's record → inspect → fix loop in a subagent when the runtime supports subagents, even for a single video. Hand it the video directory, the recorder and validator commands, and the acceptance checks; take back the verdict and the fixes it applied, not its transcript.
+- Preflight with `record_demo.py --dry-run` before every full recording. A missing selector, a dead app, or a client-error panel then costs one page load instead of a recording, an encode, a validation, and a frame review.
+- Inspect frames through one phone-size sheet from `review_frames.py`, never through four full-resolution PNGs.
+- Read a file once. When you need it again, re-read the range you need instead of the whole script.
+
 ## Choose the workflow
 
 Create only what the user requested.
@@ -103,7 +113,17 @@ generated/demo-name/
 
 Write the complete narration prompt envelope defined in the creative playbook even for a silent recording, so action timing has a concrete target. Do not write only the transcript, and do not call a paid TTS API unless audio is requested. When no audio was requested, do not check for, mention, or ask the user for `GEMINI_API_KEY` or `GOOGLE_API_KEY` — the narration envelope exists only as a timing target. Silent projects run `record_demo.py` and `validate_demo.py` directly (without `--require-audio`); do not route them through the batch finish phase, which requires narration audio.
 
-Run the shared recorder; never generate a demo-specific recorder:
+Preflight first — it starts the app, resolves every selector, checks for a client-error panel, and writes `artifacts/preflight.png` plus a phone-size copy, without recording anything:
+
+```bash
+python .agents/skills/shiny-component-shorts/scripts/record_demo.py \
+  --project-dir generated/demo-name \
+  --app-type python \
+  --actions actions.yaml \
+  --dry-run
+```
+
+Fix every reported problem, then run the shared recorder with the same arguments minus `--dry-run`; never generate a demo-specific recorder:
 
 ```bash
 python .agents/skills/shiny-component-shorts/scripts/record_demo.py \
@@ -116,6 +136,15 @@ Then validate it:
 
 ```bash
 python .agents/skills/shiny-component-shorts/scripts/validate_demo.py \
+  --project-dir generated/demo-name
+```
+
+The validator prints a summary and writes the full report to `artifacts/validation.json`; read that file only when the summary is not enough.
+
+Then build the review sheet and inspect that single image:
+
+```bash
+python .agents/skills/shiny-component-shorts/scripts/review_frames.py \
   --project-dir generated/demo-name
 ```
 
@@ -147,7 +176,7 @@ To lock a specific voice or model for one video, add an optional `tts-settings.j
 
 To reuse existing narration instead of generating TTS for one video, set `{"audio_source": "path/to/narrated.mp4"}` in that video's `tts-settings.json` (a WAV, MP3, or narrated video file; relative paths resolve against the video directory). The narration phase then extracts and measures that audio via `import_narration.py` with no Gemini call and no API key, and includes the source file in the cache key. `audio_source` cannot be combined with `voice` or `model`.
 
-After the batch succeeds, each assigned agent must still inspect the first, reveal, code, and final frames at phone size and listen to the final video. The lead agent accepts the series only after every subagent reports those checks and the lead confirms every requested output independently.
+After the batch succeeds, each assigned agent must still inspect the first, reveal, code, and final frames at phone size — through that video's `review_frames.py` sheet — and listen to the final video. The lead agent accepts the series only after every subagent reports those checks and the lead confirms every requested output independently.
 
 ### Narrated or finished video
 
@@ -156,7 +185,7 @@ Generate the audio before recording so action timing follows the real narration 
 1. Write `artifacts/narration.txt` and generate `artifacts/narration.wav` (see [references/tts-and-costs.md](references/tts-and-costs.md)); verify the WAV is non-empty and listen for defects before recording anything. When the user supplies existing narration — a WAV or a previously narrated video — import it with `import_narration.py` instead of calling TTS (see the same reference); the transcript in `narration.txt` must match what that audio actually says.
 2. Measure the audio: exact duration with `ffprobe`, sentence boundaries with `ffmpeg -af silencedetect` (see the recording contract's Timing section).
 3. Author or adjust `actions.yaml` against those measurements: the first meaningful action must be underway during the hook's first sentence, each visible reaction must begin at or slightly before the sentence that describes it, and the video must run one to three seconds past the narration.
-4. Record and validate with `--require-audio`, then merge with the bundled script:
+4. Preflight with `record_demo.py --dry-run`, then record and validate with `--require-audio`, then merge with the bundled script:
 
 ```bash
 python .agents/skills/shiny-component-shorts/scripts/merge_audio.py \
@@ -216,6 +245,7 @@ Keep narration around 60–85 spoken words. Make every sentence describe somethi
 ## Recording rules
 
 - Author `actions.yaml` from the storyboard, not after recording.
+- Run `record_demo.py --dry-run` before every full take; it resolves every selector against the loaded page and lists the ones that are missing. Fix the app or the selector, never loosen a selector to something unstable.
 - Keep storyboard beat names out of `actions.yaml`; they are not recorded actions.
 - Use `type` for text visibly entered by a person and `fill` only for clearing or paste-like actions.
 - Keep ordinary waits between 500 and 3000 ms.
@@ -243,11 +273,11 @@ For a recording:
 
 - Run `validate_demo.py` successfully.
 - Confirm `artifacts/demo.mp4` is 1440×2560 unless landscape was explicitly requested.
-- Inspect the first, reveal, code, and final frames at phone size.
-- Confirm no **Shiny Client Errors** panel appears in any inspected frame; the shared recorder also fails when it detects one.
+- Build `artifacts/review.png` with `review_frames.py` and inspect that one sheet: it holds the first, reveal, code, and final frames at phone size.
+- Confirm no **Shiny Client Errors** panel appears in any tile; the shared recorder also fails when it detects one.
 - Confirm the visible cursor reaches each interactive target.
 - Confirm the narration would finish before the video ends.
-- For narrated videos, compare the validator's `action_timeline` against `narration_sentences` in its report; each visible reaction should begin at or slightly before the sentence that describes it.
+- For narrated videos, read the validator's `timing (visible action → narration sentence)` lines; each visible reaction should land in the sentence that describes it. A `no sentence` landing means that action drifted outside the spoken track.
 
 For audio:
 

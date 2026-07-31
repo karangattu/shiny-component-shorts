@@ -16,6 +16,7 @@ import sys
 import time
 import urllib.request
 from pathlib import Path
+from typing import IO
 from urllib.parse import urlsplit
 
 import yaml
@@ -598,7 +599,14 @@ def wait_for_server(url: str, timeout: float = 30.0) -> None:
     raise RuntimeError(f"Shiny server never became reachable at {url}")
 
 
-def start_app(project_dir: Path, app_type: str, host: str, port: int) -> subprocess.Popen:
+def start_app(
+    project_dir: Path,
+    app_type: str,
+    host: str,
+    port: int,
+    output: IO[str] | None = None,
+) -> subprocess.Popen:
+    """Start the app; `output` redirects its server log to a file instead of here."""
     if app_type == "python":
         cmd = [
             sys.executable,
@@ -617,7 +625,12 @@ def start_app(project_dir: Path, app_type: str, host: str, port: int) -> subproc
             "-e",
             f'shiny::runApp(".", host="{host}", port={port}, launch.browser=FALSE)',
         ]
-    proc = subprocess.Popen(cmd, cwd=project_dir)
+    if output is None:
+        proc = subprocess.Popen(cmd, cwd=project_dir)
+    else:
+        proc = subprocess.Popen(
+            cmd, cwd=project_dir, stdout=output, stderr=subprocess.STDOUT
+        )
     _active_processes.add(proc)
     return proc
 
@@ -629,10 +642,11 @@ def start_app_with_retry(
     port: int,
     url: str,
     attempts: int = 3,
+    output: IO[str] | None = None,
 ) -> subprocess.Popen:
     last_error: Exception | None = None
     for attempt in range(1, attempts + 1):
-        proc = start_app(project_dir, app_type, host, port)
+        proc = start_app(project_dir, app_type, host, port, output)
         try:
             wait_for_server(url, timeout=20.0)
             return proc
@@ -856,21 +870,17 @@ def terminate_process(proc: subprocess.Popen) -> None:
         proc.wait(timeout=5)
 
 
-def record_project(
-    project_dir: Path,
-    app_type: str,
+def viewport_size(orientation: str) -> tuple[int, int]:
+    return (1280, 720) if orientation == "horizontal" else (720, 1280)
+
+
+def prepare_run(
     actions_path: Path,
     orientation_override: str | None,
-    app_dir: Path | None = None,
-    port_override: int | None = None,
-    logo_override: Path | None = None,
-) -> Path:
-    from playwright.sync_api import ViewportSize, sync_playwright
-
-    project_dir = project_dir.resolve()
-    app_dir = (app_dir or project_dir).resolve()
-    if not app_dir.is_dir():
-        raise FileNotFoundError(f"App directory does not exist: {app_dir}")
+    port_override: int | None,
+    logo_override: Path | None,
+) -> dict:
+    """Resolve everything a recording or a preflight needs from actions.yaml."""
     config = yaml.safe_load(actions_path.read_text(encoding="utf-8"))
     if not isinstance(config, dict) or not isinstance(config.get("actions"), list):
         raise ValueError("actions.yaml must contain an `actions` list")
@@ -896,13 +906,208 @@ def record_project(
             )
 
     orientation = resolve_orientation(orientation_override, config)
-    overlays = normalize_overlays(config)
     logo_path = resolve_logo_path(logo_override)
-    logo = logo_overlay_config(orientation, logo_path)
-    viewport = ViewportSize(width=720, height=1280)
-    if orientation == "horizontal":
-        viewport = ViewportSize(width=1280, height=720)
-    size = ViewportSize(width=viewport["width"] * 2, height=viewport["height"] * 2)
+    return {
+        "config": config,
+        "url": url,
+        "bind_host": bind_host,
+        "port": port,
+        "orientation": orientation,
+        "overlays": normalize_overlays(config),
+        "logo": logo_overlay_config(orientation, logo_path),
+        "logo_path": logo_path,
+    }
+
+
+def deferred_selectors(actions: list[dict]) -> list[str]:
+    """Targets declared as asynchronous through a `wait_for` action."""
+    return sorted(
+        {
+            action["wait_for"]
+            for action in actions
+            # Runs before shape validation, so ignore anything not a selector.
+            if isinstance(action, dict) and isinstance(action.get("wait_for"), str)
+        }
+    )
+
+
+def action_shape_problems(actions: list[dict], run: dict) -> list[str]:
+    """Everything wrong with the action list that no browser is needed to see."""
+    problems: list[str] = []
+    for index, action in enumerate(actions, start=1):
+        try:
+            name = validate_action_shape(action)
+            if name == "code":
+                code_overlay_config(run["orientation"], action[name])
+            elif name in {"caption", "beat", "label"} and run["overlays"] is None:
+                raise ValueError(
+                    f"the {name!r} action requires an `overlays` block in actions.yaml"
+                )
+            elif name in {"drag", "select_option", "fill", "type", "press"}:
+                if not isinstance(action[name], dict) or "selector" not in action[name]:
+                    raise ValueError(f"the {name!r} action needs a `selector`")
+        except (ValueError, KeyError, TypeError) as exc:
+            problems.append(f"Action {index}: {exc}")
+    return problems
+
+
+def phone_preview(screenshot_path: Path) -> Path | None:
+    """Best-effort phone-size copy of the frame, cheap for a reviewer to open."""
+    script = Path(__file__).resolve().parent / "review_frames.py"
+    if not script.is_file():
+        return None
+    output = screenshot_path.with_name("preflight-phone.png")
+    completed = subprocess.run(
+        [
+            sys.executable,
+            str(script),
+            "--project-dir",
+            str(screenshot_path.parent.parent),
+            "--images",
+            str(screenshot_path),
+            "--output",
+            str(output),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    return output if completed.returncode == 0 and output.is_file() else None
+
+
+def preflight_project(
+    project_dir: Path,
+    app_type: str,
+    actions_path: Path,
+    orientation_override: str | None,
+    app_dir: Path | None = None,
+    port_override: int | None = None,
+    logo_override: Path | None = None,
+) -> dict:
+    """Start the app, resolve every selector, and screenshot — without recording.
+
+    A full take costs a browser run, an encode, a validation, and a frame
+    review; catching a missing selector or a client-error panel here costs one
+    page load. `problems` is empty when the actions file is ready to record.
+    """
+    from playwright.sync_api import ViewportSize, sync_playwright
+
+    project_dir = project_dir.resolve()
+    app_dir = (app_dir or project_dir).resolve()
+    if not app_dir.is_dir():
+        raise FileNotFoundError(f"App directory does not exist: {app_dir}")
+
+    run = prepare_run(actions_path, orientation_override, port_override, logo_override)
+    actions = run["config"]["actions"]
+    report: dict = {
+        "app_dir": str(app_dir),
+        "app_type": app_type,
+        "url": run["url"],
+        "orientation": run["orientation"],
+        "selectors": [],
+        "deferred": deferred_selectors(actions),
+        "screenshot": None,
+        "phone_screenshot": None,
+        "app_log": None,
+        "problems": action_shape_problems(actions, run),
+    }
+    if report["problems"]:
+        # A malformed action list cannot be checked against a live page.
+        return report
+
+    checked = collect_selectors(actions)
+    width, height = viewport_size(run["orientation"])
+    artifacts = project_dir / "artifacts"
+    artifacts.mkdir(parents=True, exist_ok=True)
+    screenshot_path = artifacts / "preflight.png"
+    log_path = artifacts / "preflight-app.log"
+    report["app_log"] = str(log_path)
+
+    # The app's server log belongs in a file, not in the preflight report.
+    with log_path.open("w", encoding="utf-8") as log:
+        try:
+            proc = start_app_with_retry(
+                app_dir, app_type, run["bind_host"], run["port"], run["url"], output=log
+            )
+        except RuntimeError as exc:
+            report["problems"].append(f"{exc}; app output in {log_path}")
+            return report
+        try:
+            with sync_playwright() as playwright:
+                browser = playwright.chromium.launch(
+                    args=["--force-device-scale-factor=2", "--high-dpi-support=1"]
+                )
+                context = browser.new_context(
+                    viewport=ViewportSize(width=width, height=height)
+                )
+                context.add_init_script(CURSOR_OVERLAY_JS)
+                context.add_init_script(SHINY_CLIENT_ERROR_GUARD_JS)
+                context.add_init_script(
+                    f"({LOGO_OVERLAY_JS})({json.dumps(run['logo'])})"
+                )
+                if run["overlays"] is not None:
+                    context.add_init_script(
+                        f"({RETENTION_OVERLAY_JS})({json.dumps(run['overlays'])})"
+                    )
+                page = context.new_page()
+                page.goto(run["url"])
+                page.wait_for_load_state("networkidle")
+                page.wait_for_timeout(3000)
+                try:
+                    assert_no_shiny_client_errors(page)
+                except RuntimeError as exc:
+                    report["problems"].append(str(exc))
+                missing = [
+                    selector
+                    for selector in checked
+                    if page.locator(selector).count() == 0
+                ]
+                report["selectors"] = [
+                    selector for selector in checked if selector not in missing
+                ]
+                if missing:
+                    report["problems"].append(
+                        "Selectors not found on the initial page: " + ", ".join(missing)
+                    )
+                page.screenshot(path=str(screenshot_path))
+                context.close()
+                browser.close()
+        finally:
+            terminate_process(proc)
+
+    report["screenshot"] = str(screenshot_path)
+    preview = phone_preview(screenshot_path)
+    report["phone_screenshot"] = str(preview) if preview is not None else None
+    return report
+
+
+def record_project(
+    project_dir: Path,
+    app_type: str,
+    actions_path: Path,
+    orientation_override: str | None,
+    app_dir: Path | None = None,
+    port_override: int | None = None,
+    logo_override: Path | None = None,
+) -> Path:
+    from playwright.sync_api import ViewportSize, sync_playwright
+
+    project_dir = project_dir.resolve()
+    app_dir = (app_dir or project_dir).resolve()
+    if not app_dir.is_dir():
+        raise FileNotFoundError(f"App directory does not exist: {app_dir}")
+
+    run = prepare_run(actions_path, orientation_override, port_override, logo_override)
+    config = run["config"]
+    url = run["url"]
+    bind_host = run["bind_host"]
+    port = run["port"]
+    orientation = run["orientation"]
+    overlays = run["overlays"]
+    logo_path = run["logo_path"]
+    logo = run["logo"]
+    width, height = viewport_size(orientation)
+    viewport = ViewportSize(width=width, height=height)
+    size = ViewportSize(width=width * 2, height=height * 2)
 
     artifacts = project_dir / "artifacts"
     artifacts.mkdir(parents=True, exist_ok=True)
@@ -1060,7 +1265,41 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         help="Override the top-left brand logo; defaults to the skill's shiny-logo.png",
     )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Start the app, resolve every selector, and screenshot without recording",
+    )
     return parser.parse_args()
+
+
+def print_preflight(project_dir: Path, report: dict) -> None:
+    verdict = "FAILED" if report["problems"] else "OK"
+    print(f"Preflight {verdict} — {project_dir}")
+    print(
+        f"  app: {report['app_type']} at {report['url']} "
+        f"({report['orientation']}, {report['app_dir']})"
+    )
+    if report["selectors"]:
+        print(
+            f"  selectors resolved: {len(report['selectors'])} "
+            f"({', '.join(report['selectors'])})"
+        )
+    if report["deferred"]:
+        print(f"  deferred to wait_for: {', '.join(report['deferred'])}")
+    if report["screenshot"]:
+        print(f"  frame: {report['screenshot']}")
+    if report["phone_screenshot"]:
+        print(f"  phone size: {report['phone_screenshot']}")
+    if report["problems"] and report["app_log"]:
+        print(f"  app log: {report['app_log']}")
+    for problem in report["problems"]:
+        print(f"  - {problem}")
+    print(
+        "Fix these before recording."
+        if report["problems"]
+        else "No client-error panel, every selector resolves. Ready to record."
+    )
 
 
 def main() -> int:
@@ -1074,6 +1313,22 @@ def main() -> int:
     actions_path = args.actions if args.actions.is_absolute() else project_dir / args.actions
     if not actions_path.is_file():
         raise FileNotFoundError(f"Action file does not exist: {actions_path}")
+    if args.dry_run:
+        try:
+            report = preflight_project(
+                project_dir,
+                args.app_type,
+                actions_path,
+                args.orientation,
+                app_dir,
+                args.port,
+                args.logo,
+            )
+        except (RuntimeError, ValueError, FileNotFoundError) as exc:
+            print(f"Preflight FAILED — {project_dir}\n  - {exc}")
+            return 1
+        print_preflight(project_dir, report)
+        return 1 if report["problems"] else 0
     mp4_path = record_project(
         project_dir,
         args.app_type,

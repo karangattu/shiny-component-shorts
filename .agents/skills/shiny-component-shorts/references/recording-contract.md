@@ -28,6 +28,28 @@ The `code` action is orientation-aware. Vertical recordings anchor the panel nea
 
 The recorder refuses to start if its port is already occupied. Stop the known process yourself; never kill an unknown listener automatically.
 
+## Preflight
+
+`--dry-run` runs everything the recorder does before the first action and nothing after it: it loads `actions.yaml`, rejects malformed actions and code cards, starts the app, waits for the Shiny session, scans for a **Shiny Client Errors** panel, resolves every selector on the loaded page, and screenshots the composition.
+
+```bash
+python .agents/skills/shiny-component-shorts/scripts/record_demo.py \
+  --project-dir generated/demo-name \
+  --app-type python \
+  --actions actions.yaml \
+  --dry-run
+```
+
+It records no video, writes no `demo.mp4`, `recording.json`, or `final.png`, and exits non-zero when anything is wrong. It writes three artifacts instead:
+
+- `artifacts/preflight.png` — the composition at recording viewport, for checking gutters, the empty top and bottom bands, and control padding.
+- `artifacts/preflight-phone.png` — the same frame at phone width; read this one.
+- `artifacts/preflight-app.log` — the app's server output, reported only when the preflight fails.
+
+Selectors named by a `wait_for` action are exempt: declaring them there says they appear asynchronously after an interaction, so the preflight lists them as deferred instead of demanding them on the initial page.
+
+Run it before every full take, and after every app or selector change. A take that dies on a missing selector costs a browser run, an encode, a validation, and a frame review; the preflight costs one page load.
+
 ## Brand logo
 
 Every recording carries the Shiny wordmark in the top-left of the reserved top 20% band. The recorder injects it as a fixed overlay before the app loads: 168 logical px wide in vertical recordings, 190 px in horizontal ones, inset 4% from the top and 8% from the left edge, sized to stay legible on a phone screen. The artwork renders as it ships, untinted; because its ink is black, the only treatment is a flip to white on backdrops whose relative luminance falls under 0.5 — dark surfaces, and the `#007BC2` primary — so it never disappears into the app.
@@ -172,7 +194,22 @@ The validator requires `artifacts/narration.txt` to contain the complete `Audio 
 - `artifacts/demo.mp4` is the clean browser deliverable.
 - `artifacts/recording.json` records the resolved orientation, dimensions, trimmed preamble, and an `action_timeline` of per-action start/end timestamps relative to the trimmed video; the validator compares that timeline against the narration's sentence windows and rejects a first meaningful action that starts after the first sentence ends.
 - `artifacts/final.png` captures the ending state.
+- `artifacts/validation.json` is the validator's full report; the console gets a summary.
+- `artifacts/review.png` is the phone-size review sheet.
 - Edited and narrated outputs use separate filenames and never replace `demo.mp4`.
+
+## Review sheet
+
+The gate asks whether the video reads on a phone, so review it at phone width. `review_frames.py` samples the first, reveal, code, and final frames — using `action_timeline` from `recording.json` to find the reveal and code beats, and `final.png` for the payoff — scales each to 390 logical px, and tiles them into one image:
+
+```bash
+python .agents/skills/shiny-component-shorts/scripts/review_frames.py \
+  --project-dir generated/demo-name
+```
+
+It prints which tile is which and writes `artifacts/review.png` (780×1386 for a vertical demo). Inspect that one sheet rather than opening four 1440×2560 frames: it answers the same questions — legibility, cursor position, client-error panels, code card placement — at the size a viewer actually sees.
+
+Use `--images a.png b.png` to tile specific frames instead, `--output` for another path, and `--width` to change the tile width.
 
 ## Troubleshooting
 
@@ -192,3 +229,5 @@ python .agents/skills/shiny-component-shorts/scripts/validate_demo.py \
 ```
 
 Use `--require-audio` for a narrated deliverable. Treat any validation error as incomplete work.
+
+The console output is a summary: action counts, video dimensions and duration, narration length, and one line per visible action naming the narration sentence it lands in — the comparison this contract's Timing section asks for, already resolved. `no sentence` means that action drifted outside the spoken track. The complete report, including the raw `action_timeline` and `narration_sentences` arrays, goes to `artifacts/validation.json`; `--json` prints it to the console instead.

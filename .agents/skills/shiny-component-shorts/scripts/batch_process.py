@@ -39,6 +39,7 @@ def new_result(project_dir: Path) -> dict:
         "tts": "SKIPPED",
         "merge": "SKIPPED",
         "validate": "SKIPPED",
+        "review_sheet": None,
         "errors": [],
         "duration": 0.0,
     }
@@ -372,6 +373,22 @@ def merge_project(project_dir: Path, result: dict, force: bool) -> dict:
     return result
 
 
+def build_review_sheet(project_dir: Path) -> str | None:
+    """Leave one phone-size sheet per video so the frame review is one image."""
+    completed = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPTS_DIR / "review_frames.py"),
+            "--project-dir",
+            str(project_dir),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    sheet = project_dir / "artifacts" / "review.png"
+    return str(sheet) if completed.returncode == 0 and sheet.is_file() else None
+
+
 def validate_project(project_dir: Path, result: dict) -> dict:
     try:
         command = [
@@ -385,6 +402,7 @@ def validate_project(project_dir: Path, result: dict) -> dict:
         if completed.returncode != 0:
             raise RuntimeError(completed.stdout or completed.stderr or "Validation failed")
         result["validate"] = "PASSED"
+        result["review_sheet"] = build_review_sheet(project_dir)
     except Exception as exc:
         result["validate"] = "FAILED"
         result["errors"].append(f"Validation failed: {exc}")
@@ -454,6 +472,8 @@ def print_summary(results: list[dict]) -> None:
             f"{result['name']}: TTS={result['tts']} Record={result['record']} "
             f"Merge={result['merge']} Validate={result['validate']}"
         )
+        if result.get("review_sheet"):
+            print(f"  review sheet: {result['review_sheet']}")
         for error in result["errors"]:
             print(f"  - {error}")
 

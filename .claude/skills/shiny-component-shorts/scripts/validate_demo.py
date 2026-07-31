@@ -502,18 +502,97 @@ def validate_project(
     return errors, report
 
 
+def write_report(project_dir: Path, report: dict) -> Path | None:
+    """Park the full report beside the media instead of in the reader's face."""
+    if not project_dir.is_dir():
+        return None
+    path = project_dir / "artifacts" / "validation.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return path
+
+
+def timing_lines(report: dict) -> list[str]:
+    """Each visible action against the narration sentence it lands in.
+
+    This is the comparison the verification gate asks for, resolved here so
+    nobody has to eyeball two arrays of timestamps.
+    """
+    timeline = report.get("action_timeline") or []
+    windows = report.get("narration_sentences") or []
+    if not timeline or not windows:
+        return []
+    lines: list[str] = []
+    for entry in timeline:
+        action = entry.get("action")
+        if action not in MEANINGFUL_ACTIONS and action != "code":
+            continue
+        start = float(entry.get("start", 0.0))
+        index = next(
+            (
+                number
+                for number, window in enumerate(windows, start=1)
+                # A reaction may lead its sentence by up to a second.
+                if window["start"] - 1.0 <= start <= window["end"]
+            ),
+            None,
+        )
+        landing = f"sentence {index}" if index else "no sentence"
+        lines.append(f"  {action:<14} {start:6.2f}s  {landing}")
+    return lines
+
+
+def summary_lines(report: dict) -> list[str]:
+    lines = [
+        f"actions: {report.get('meaningful_actions', 0)} meaningful, "
+        f"~{report.get('estimated_action_seconds', 0)}s, "
+        f"opening wait {report.get('opening_wait_ms', 0)} ms"
+    ]
+    video = report.get("video")
+    if video:
+        lines.append(
+            f"video: {video['width']}x{video['height']}, {video['duration']:.2f}s"
+        )
+    measured = report.get("measured_narration_seconds")
+    estimated = report.get("estimated_narration_seconds")
+    if measured or estimated:
+        source = "measured" if measured else "estimated"
+        lines.append(
+            f"narration: {report.get('narration_words', '?')} words, "
+            f"{report.get('narration_tags', '?')} tags, "
+            f"{measured or estimated:.2f}s ({source})"
+        )
+    timing = timing_lines(report)
+    if timing:
+        lines.append("timing (visible action → narration sentence):")
+        lines.extend(timing)
+    return lines
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--project-dir", type=Path, required=True)
     parser.add_argument("--app-dir", type=Path)
     parser.add_argument("--require-audio", action="store_true")
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Print the full report instead of the summary",
+    )
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
     errors, report = validate_project(args.project_dir, args.require_audio, args.app_dir)
-    print(json.dumps(report, indent=2, sort_keys=True))
+    report_path = write_report(args.project_dir, report)
+    if args.json:
+        print(json.dumps(report, indent=2, sort_keys=True))
+    else:
+        for line in summary_lines(report):
+            print(line)
+        if report_path is not None:
+            print(f"full report: {report_path}")
     for warning in report.get("warnings", []):
         print(f"WARNING: {warning}")
     if errors:

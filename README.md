@@ -288,6 +288,16 @@ During the code beat, a syntax-highlighted code card styled like a real VS Code 
 
 Narration is speech only — laughing, giggling, and other non-speech sounds are rejected by validation. Detailed pacing rules live in each skill's `references/` directory.
 
+## Fast, cheap iteration
+
+A full take is a browser run, an encode, a validation, and a frame review, so the pipeline front-loads the cheap checks:
+
+- **Preflight** — `record_demo.py --dry-run` starts the app, resolves every selector, scans for a **Shiny Client Errors** panel, and screenshots the composition without recording. Missing selectors surface in seconds instead of after a full take.
+- **Review sheet** — `review_frames.py` tiles the first, reveal, code, and final frames into one `artifacts/review.png` at phone width, which is the size the video is actually judged at.
+- **Validation summary** — the validator prints a short summary, including which narration sentence each visible action lands in, and writes the full report to `artifacts/validation.json`.
+
+The skill also asks the agent to keep one video per session and to run the record → inspect → fix loop in a subagent, so a long production run does not keep re-reading its own history.
+
 ## Narration options
 
 Just describe what you want in the prompt:

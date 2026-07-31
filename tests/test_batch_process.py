@@ -216,8 +216,11 @@ class BatchProcessTest(unittest.TestCase):
 
             self.assertEqual(result["record"], "CACHED")
             self.assertEqual(result["validate"], "PASSED")
-            self.assertEqual(mock_run.call_count, 1)
-            self.assertIn("validate_demo.py", str(mock_run.call_args.args[0]))
+            commands = [str(call.args[0]) for call in mock_run.call_args_list]
+            # The recording came from cache; validation and the review sheet did not.
+            self.assertEqual(len(commands), 2)
+            self.assertIn("validate_demo.py", commands[0])
+            self.assertIn("review_frames.py", commands[1])
 
     @patch("subprocess.run")
     def test_merge_invokes_quality_preserving_shared_script(self, mock_run: MagicMock) -> None:
