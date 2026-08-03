@@ -1,18 +1,158 @@
 # Shiny Component Shorts
 
-Generate 30-second videos about Shiny components. One video = one useful, surprising behavior — not a tutorial.
+Generate 30-second videos about [Shiny](https://shiny.posit.co) components. One video = one useful, surprising behavior — not a tutorial.
 
-## Example finished short
+This repo is an **agent skill**: a set of instructions and helper scripts that AI coding agents — Claude Code, Google Antigravity, Codex, or OpenCode — load to plan, build, record, and validate these videos for you. You never write the pipeline yourself. You describe what you want in a prompt, and the agent plans the video, writes the mini-app, records the browser interaction, adds narration, and validates the result.
+
+## Contents
+
+- [Example shorts](#example-shorts)
+- [What you can create](#what-you-can-create)
+- [Quick start](#quick-start)
+- [Setup](#setup)
+- [Usage](#usage)
+- [Repository layout](#repository-layout)
+- [How it works](#how-it-works)
+- [Quality control](#quality-control)
+- [Video format](#video-format)
+- [Fast, cheap iteration](#fast-cheap-iteration)
+- [Narration options](#narration-options)
+- [Glossary](#glossary)
+- [Troubleshooting](#troubleshooting)
+- [Cost reporting](#cost-reporting)
+
+## Example shorts
+
+Three finished examples — two prompted from a component, one from a pull request.
 
 https://github.com/user-attachments/assets/af6b0ec9-b78a-4f4b-a849-ad896d4500e6
 
+*A 30-second short demonstrating one hidden Shiny behavior.*
+
 https://github.com/user-attachments/assets/79519994-e8be-4450-91f2-549f5765c4fa
 
-### using a PR as a reference
+*A second example short.*
 
-[PR](https://github.com/posit-dev/shinychat/pull/269)
+### From a pull request as the reference
+
+[posit-dev/shinychat#269](https://github.com/posit-dev/shinychat/pull/269) — one user-facing change from the diff, demoed in 30 seconds:
 
 https://github.com/user-attachments/assets/a3459a49-3647-4136-b171-1801008269f1
+
+## What you can create
+
+- Short Shiny mini-apps (Python or R), including [shinychat](https://github.com/posit-dev/shinychat) chat apps
+- 30-second video storyboards and narration scripts
+- Automated browser recordings with a VS Code-style code card
+- Narrated, finished vertical videos
+- Videos about an **existing** Shiny app, without modifying it
+- Videos about a **pull request, commit, or SHA** — one user-facing change from the diff
+
+New to Shiny? It's Posit's framework for data-driven web apps. This skill works with both [Shiny for Python](https://shiny.posit.co/py/) and [R Shiny](https://shiny.posit.co/r/).
+
+## Quick start
+
+1. Install the dependencies — see [Setup](#setup).
+2. Open this repo as the workspace in any supported agent: Claude Code, Google Antigravity, Codex, or OpenCode.
+3. Ask for a short, for example:
+
+   ```text
+   /shiny-component-shorts Create a vertical video about Shiny's date range picker in Python.
+   ```
+
+4. The agent creates everything under `generated/<demo-name>/` (gitignored): the mini-app, `actions.yaml`, narration, and an `artifacts/` folder with the finished videos (`demo.mp4` for silent recordings, `final_with_audio.mp4` for narrated ones), `review.png`, and `validation.json`.
+
+## Setup
+
+```bash
+python -m pip install -r requirements.txt
+python -m playwright install chromium
+```
+
+You also need `ffmpeg` and `ffprobe` on `PATH`.
+
+`shinychat` is not listed separately because Shiny for Python already depends on it. A few shinychat features — conversation history, message editing, sibling navigation — additionally require a client object, so those demos need `pip install chatlas` in the demo's own environment. It stays out of `requirements.txt` on purpose: it pulls an LLM SDK stack that the other demos never use, and the demos that do use it drive a canned offline client, never a real model.
+
+For narrated videos (optional — not needed for silent videos):
+
+```bash
+python3 -m pip install google-genai
+export GEMINI_API_KEY="your-key"   # GOOGLE_API_KEY also works; never commit either
+```
+
+## Usage
+
+Everything is prompt-driven — the agent runs the recording, TTS, and validation scripts for you. The same skill ships in `.claude/` (Claude Code) and `.agents/` (Antigravity, Codex, OpenCode).
+
+### Claude Code
+
+```text
+/shiny-component-shorts toolbar-select in Python
+/shiny-component-shorts Create 5 did-you-know video ideas for Shiny data grid. Include runnable mini apps.
+```
+
+### Google Antigravity
+
+Open the repo root as the workspace, then:
+
+```text
+Use the /shiny-component-shorts skill to create a narrated vertical video about Shiny's date range selector in Python.
+```
+
+### Codex
+
+```text
+Use /shiny-component-shorts to create 5 mini-app video ideas for Shiny toolbar-select in Python.
+```
+
+### OpenCode
+
+Disable Claude-compatible skill discovery so only the `.agents` copy loads:
+
+```bash
+OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1 opencode
+```
+
+```text
+Use the shiny-component-shorts skill to create a multi-video series for Shiny data grid in Python.
+```
+
+### From a pull request, commit, or SHA
+
+Point the skill at a change instead of a component and it finds the one behavior in that diff worth 30 seconds:
+
+```text
+/shiny-component-shorts Make a video about https://github.com/posit-dev/py-shiny/pull/2051
+/shiny-component-shorts Make a vertical video about posit-dev/shinychat#221 in R
+/shiny-component-shorts What's demo-worthy in rstudio/shiny commit a1b2c3d?
+```
+
+It works for `rstudio/shiny`, `posit-dev/py-shiny`, and `posit-dev/shinychat` (both `pkg-py/` and `pkg-r/`). The agent resolves the ref with `gh`, reads the changelog entry before the code, ranks the public API surface above docs, tests, typing, and CI, and installs that exact build into a throwaway environment so the demo runs against the changed code rather than the released package. Unreleased changes are described as just landed, never as a version number that has not shipped. If the changeset is an internal refactor with nothing visible, the agent says so instead of manufacturing a demo.
+
+shinychat demos never call a real LLM — canned replies and canned streams keep recordings repeatable and key-free.
+
+### Multi-video series
+
+Ask for multiple videos about one component and the skill uses its series workflow:
+
+- At most **5 videos per component**, each proving a distinct hidden behavior
+- Fewer ideas are returned when the component lacks enough strong, visual behaviors
+- One lead agent locks the research and series direction; up to three subagents build videos in isolated directories
+- TTS, recording, audio merging, and validation run through a cached, timing-safe batch processor
+
+## Repository layout
+
+```text
+├── .agents/skills/shiny-component-shorts/   skill source for Antigravity, Codex, and OpenCode
+│   ├── SKILL.md                             the instructions agents load
+│   ├── references/                          creative playbook, pacing, recording, and TTS rules
+│   └── scripts/                             record_demo.py, validate_demo.py, batch_process.py, ...
+├── .claude/                                 the same skill, for Claude Code
+├── presentation/                            a talk about this pipeline (Quarto)
+├── tests/                                   contract tests for the skill and the scripts
+├── generated/                               demo output — created by the pipeline, gitignored
+└── requirements.txt
+```
 
 ## How it works
 
@@ -197,93 +337,6 @@ flowchart TD
 - **Red** `#C10000` — rejection and revision loops
 - **Green** `#00891A` — approved output
 
-## What you can create
-
-- Short Shiny mini-apps (Python or R), including [shinychat](https://github.com/posit-dev/shinychat) chat apps
-- 30-second video storyboards and narration scripts
-- Automated browser recordings with a VS Code-style code card
-- Narrated, finished vertical videos
-- Videos about an **existing** Shiny app, without modifying it
-- Videos about a **pull request, commit, or SHA** — one user-facing change from the diff
-
-## Setup
-
-```bash
-python -m pip install -r requirements.txt
-python -m playwright install chromium
-```
-
-You also need `ffmpeg` and `ffprobe` on `PATH`.
-
-`shinychat` is not listed separately because Shiny for Python already depends on it. A few shinychat features — conversation history, message editing, sibling navigation — additionally require a client object, so those demos need `pip install chatlas` in the demo's own environment. It stays out of `requirements.txt` on purpose: it pulls an LLM SDK stack that the other demos never use, and the demos that do use it drive a canned offline client, never a real model.
-
-For narrated videos (optional — not needed for silent videos):
-
-```bash
-python3 -m pip install google-genai
-export GEMINI_API_KEY="your-key"   # GOOGLE_API_KEY also works; never commit either
-```
-
-## Usage
-
-Everything is prompt-driven — the agent runs the recording, TTS, and validation scripts for you. The same skill ships in `.claude/` (Claude Code) and `.agents/` (Antigravity, Codex, OpenCode).
-
-### Claude Code
-
-```text
-/shiny-component-shorts toolbar-select in Python
-/shiny-component-shorts Create 5 did-you-know video ideas for Shiny data grid. Include runnable mini apps.
-```
-
-### Google Antigravity
-
-Open the repo root as the workspace, then:
-
-```text
-Use the /shiny-component-shorts skill to create a narrated vertical video about Shiny's date range selector in Python.
-```
-
-### Codex
-
-```text
-Use /shiny-component-shorts to create 5 mini-app video ideas for Shiny toolbar-select in Python.
-```
-
-### OpenCode
-
-Disable Claude-compatible skill discovery so only the `.agents` copy loads:
-
-```bash
-OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1 opencode
-```
-
-```text
-Use the shiny-component-shorts skill to create a multi-video series for Shiny data grid in Python.
-```
-
-### From a pull request, commit, or SHA
-
-Point the skill at a change instead of a component and it finds the one behavior in that diff worth 30 seconds:
-
-```text
-/shiny-component-shorts Make a video about https://github.com/posit-dev/py-shiny/pull/2051
-/shiny-component-shorts Make a vertical video about posit-dev/shinychat#221 in R
-/shiny-component-shorts What's demo-worthy in rstudio/shiny commit a1b2c3d?
-```
-
-It works for `rstudio/shiny`, `posit-dev/py-shiny`, and `posit-dev/shinychat` (both `pkg-py/` and `pkg-r/`). The agent resolves the ref with `gh`, reads the changelog entry before the code, ranks the public API surface above docs, tests, typing, and CI, and installs that exact build into a throwaway environment so the demo runs against the changed code rather than the released package. Unreleased changes are described as just landed, never as a version number that has not shipped. If the changeset is an internal refactor with nothing visible, the agent says so instead of manufacturing a demo.
-
-shinychat demos never call a real LLM — canned replies and canned streams keep recordings repeatable and key-free.
-
-### Multi-video series
-
-Ask for multiple videos about one component and the skill uses its series workflow:
-
-- At most **5 videos per component**, each proving a distinct hidden behavior
-- Fewer ideas are returned when the component lacks enough strong, visual behaviors
-- One lead agent locks the research and series direction; up to three subagents build videos in isolated directories
-- TTS, recording, audio merging, and validation run through a cached, timing-safe batch processor
-
 ## Video format
 
 Every recording must:
@@ -338,6 +391,27 @@ Just describe what you want in the prompt:
 - **Pin a voice or model** — add a per-video `tts-settings.json` with `{"voice": "Kore"}` and the agent uses it for that video.
 
 For narrated videos, the agent generates the audio first, measures it, and only records after the action timing is reviewed against the real narration — so reactions land on the sentences that describe them. Audio is merged with two-pass loudness normalization to the -14 LUFS short-form target.
+
+## Glossary
+
+- **actions.yaml** — the timed action script that drives a recording: every click, hover, type, wait, and code reveal. The storyboard becomes this file; the recorder and the validator both read it.
+- **Code card** — the VS Code-style panel shown during the code beat, with the decisive line highlighted and the surrounding source dimmed.
+- **Narration envelope** — the full narration prompt (script, pacing, and timing guidance) written before any recording; for silent videos it serves as the timing target only.
+- **Proof shape** — how a video proves the behavior: a **direct comparison** (two states of the same control) or a **two-way proof** (change it forward, then change it back).
+- **Beats** — the five-part storyboard structure: `Problem → Reveal → Proof → Code → Payoff`.
+- **Sidecar directory** — for videos about an existing app: `actions.yaml`, narration, and artifacts live in `generated/demo-name/` while the original app is never modified.
+- **Changeset** — a pull request, commit, or SHA that a video is made from; the video demos exactly one user-facing change in it.
+- **Preflight** — a dry run of the recorder that starts the app and resolves every selector without recording anything.
+- **Shiny Client Errors panel** — an error overlay Shiny shows for client-side errors; any recording with one visible fails validation.
+
+## Troubleshooting
+
+- **Narrated video fails with a missing API key** — the Gemini key is only needed for generated narration. Use a silent video, or reuse existing narration from a WAV or MP4 (see [Narration options](#narration-options)).
+- **`record_demo.py --dry-run` reports missing selectors** — the app or `actions.yaml` changed. Fix the app or the selector; never loosen a selector to something unstable.
+- **A Shiny Client Errors panel is visible** — this is a blocking failure. Fix the app, then re-record from scratch.
+- **`ffmpeg` not found** — install `ffmpeg` and `ffprobe` and make sure both are on `PATH`.
+- **Port already in use when a demo starts** — the recorder picks a free port on its own; never kill an unknown process to reclaim one.
+- **Never commit API keys** — `GEMINI_API_KEY` and `GOOGLE_API_KEY` are secrets. Set them in your environment or an agent secrets store, never in a file in the repo.
 
 ## Cost reporting
 
