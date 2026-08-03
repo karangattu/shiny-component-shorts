@@ -144,7 +144,7 @@ flowchart TD
     B --> C["Research official Shiny documentation"]
     C --> D["List genuinely visual behaviors"]
 
-    D --> E{"Creative score<br/>passes all 4 questions?"}
+    D --> E{"Creative checks<br/>passed?"}
     E -- "No" --> F["Reject or replace the behavior"]
     F --> D
     E -- "Yes" --> G["Choose proof shape<br/>Direct comparison or two-way proof"]
@@ -173,17 +173,15 @@ flowchart TD
     Q --> J
     P -- "Pass" --> R["Approved content artifact"]
 
-    style A fill:#007BC2,color:#FFFFFF
-    style B fill:#007BC2,color:#FFFFFF
-    style C fill:#007BC2,color:#FFFFFF
-    style D fill:#007BC2,color:#FFFFFF
-    style E fill:#F9B928,color:#1D1F21
-    style I fill:#F9B928,color:#1D1F21
-    style K fill:#F9B928,color:#1D1F21
-    style P fill:#F9B928,color:#1D1F21
-    style F fill:#C10000,color:#FFFFFF
-    style Q fill:#C10000,color:#FFFFFF
-    style R fill:#00891A,color:#FFFFFF
+    classDef process fill:#007BC2,color:#FFFFFF,stroke:#005F96,stroke-width:2px;
+    classDef decision fill:#F9B928,color:#1D1F21,stroke:#9A6A00,stroke-width:2px;
+    classDef reject fill:#C10000,color:#FFFFFF,stroke:#830000,stroke-width:2px;
+    classDef success fill:#00891A,color:#FFFFFF,stroke:#005D12,stroke-width:2px;
+
+    class A,B,C,D,G,H,J,L,M,N,O process;
+    class E,I,K,P decision;
+    class F,Q reject;
+    class R success;
 ```
 
 ### Legend
