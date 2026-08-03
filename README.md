@@ -42,10 +42,11 @@ flowchart TD
     subgraph BLD["2 · Build"]
         direction TB
         I --> J{"Multi-video series?"}
-        J -- "Yes" --> K["Score up to five distinct behaviors"]
-        K --> L["Order strongest first<br/>Assign visual and performance directions"]
-        L --> M["One directory per video"]
-        M --> N
+        J -- "Yes" --> K["Lead agent<br/>scores up to five distinct behaviors"]
+        K --> L["Lead agent<br/>orders strongest first, assigns<br/>visual + performance directions"]
+        L --> M["Lead agent dispatches subagents<br/>one isolated directory per video<br/>up to three at once"]
+        M --> M2["Each subagent builds and verifies<br/>only its assigned video"]
+        M2 --> N
 
         J -- "No" --> N{"Deliverable?"}
 
@@ -123,17 +124,22 @@ flowchart TD
     GC -.-> S
     GC -.-> T
 
+    SER["Series orchestration<br/>Lead agent: research · scoring · ordering ·<br/>visual + performance directions · final acceptance<br/>Subagents: build and verify one isolated video each<br/>Batch processor: TTS · record · merge · validate"]
+    SER -. "Lead agent" .-> K
+    SER -. "Subagents" .-> M2
+    SER -. "Batch processor" .-> U
+
     classDef process fill:#007BC2,color:#FFFFFF,stroke:#005F96,stroke-width:2px;
     classDef decision fill:#F9B928,color:#1D1F21,stroke:#9A6A00,stroke-width:2px;
     classDef reject fill:#C10000,color:#FFFFFF,stroke:#830000,stroke-width:2px;
     classDef success fill:#00891A,color:#FFFFFF,stroke:#005D12,stroke-width:2px;
     classDef note fill:#F8F8F8,color:#1D1F21,stroke:#CDD4DA,stroke-width:2px;
 
-    class A,B,C,D,E,G,I,K,L,M,O,P,P1,P2,Q,Q1,Q4,S,S1,S2,S3,T,T2,T3,T4,T5,T7,T8,U,U1,U2,U3,U4,V1,V2,V3,V4,V5 process;
+    class A,B,C,D,E,G,I,K,L,M,M2,O,P,P1,P2,Q,Q1,Q4,S,S1,S2,S3,T,T2,T3,T4,T5,T7,T8,U,U1,U2,U3,U4,V1,V2,V3,V4,V5 process;
     class F,H,J,N,Q2,T1,T6,V,W decision;
     class R1,Q3,X reject;
     class Z success;
-    class CS,GC note;
+    class CS,GC,SER note;
 ```
 
 ## Quality control
