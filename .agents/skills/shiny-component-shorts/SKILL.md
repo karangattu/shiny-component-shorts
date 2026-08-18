@@ -96,6 +96,18 @@ Use this workflow when the user supplies a pull request, a commit URL, a bare SH
 5. Record the resolved repo, SHA, PR URL, and installed version in `changeset.md` beside the app. Do not name a release number in narration unless the release notes confirm the behavior shipped in it.
 6. Then continue with the requested deliverable: idea only, runnable app, silent recording, or narrated video.
 
+### Don't do this, do this instead
+
+Use this workflow when contrasting a common Shiny anti-pattern or legacy workaround with modern, idiomatic Shiny components (e.g. standard buttons vs. async task buttons, manual JS/CSS vs. native layout parameters).
+
+1. Frame the hook around a recognizable developer mistake or pain point (*"Stop writing boilerplate just to..."* or *"Don't do this in Shiny..."*).
+2. Structure the app as either a dual-card comparison (Classic/Anti-pattern card vs. Modern/Idiomatic card) or a clean mode-switched state.
+3. Follow the 3-beat interaction arc:
+   - **Beat 1 (The Trap)**: Trigger the anti-pattern (e.g., rapid double-clicks causing duplicate submissions or clunky layout overflows).
+   - **Beat 2 (The Fix)**: Interact with the modern Shiny component (e.g., automatic loading spinner and lock with `input_task_button`).
+   - **Beat 3 (The Proof)**: Prove identical state resolution with zero boilerplate, followed by a code card comparing `before` (anti-pattern) to `text` (idiomatic Shiny).
+4. Keep the visual styling strictly within the Shiny Bootstrap preset palette with light or dark mode and accessible contrast.
+
 ### Silent recording
 
 Create this minimum structure:

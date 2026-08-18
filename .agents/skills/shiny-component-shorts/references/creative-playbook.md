@@ -34,6 +34,18 @@ Use two-way proof when:
 
 Avoid adding a server-update button when server updates are unrelated to the hidden feature.
 
+### Anti-pattern comparison (Don't do this -> Do this instead)
+
+Contrast a classic, buggy, or overly manual pattern with its modern idiomatic Shiny replacement.
+
+Reference pattern: standard action buttons allow accidental double-clicks during long tasks and require custom spinner CSS or manual disable observers. An `input_task_button` provides automatic spinner animations and self-disables during execution out of the box.
+
+Use anti-pattern comparison when:
+
+- a modern Shiny component replaces boilerplate observer logic, manual CSS, or custom JavaScript;
+- triggering the classic anti-pattern demonstrates a clear visual bug or friction (e.g. duplicate calls, broken scrolling);
+- the modern component fixes the bug with a single clean declaration or parameter.
+
 ## Choosing the feature
 
 Score candidate features on four questions:

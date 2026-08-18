@@ -90,6 +90,14 @@ class ClaudeSkillContractTest(unittest.TestCase):
         self.assertIn("claude_session_cost.py", text)
         self.assertTrue((SKILL / "scripts/claude_session_cost.py").is_file())
 
+    def test_dont_do_this_workflow_is_documented(self) -> None:
+        skill = SKILL_MD.read_text(encoding="utf-8")
+        playbook = (SKILL / "references/creative-playbook.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("Don't do this, do this instead", skill)
+        self.assertIn("Anti-pattern comparison (Don't do this -> Do this instead)", playbook)
+
     def test_contextual_code_window_is_documented_across_repo_contracts(self) -> None:
         skill = SKILL_MD.read_text(encoding="utf-8")
         recording = (SKILL / "references/recording-contract.md").read_text(

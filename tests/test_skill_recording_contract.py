@@ -82,6 +82,14 @@ class CodexSkillContractTest(unittest.TestCase):
         self.assertIn("three meaningful actions", text)
         self.assertIn("Default to a true 9:16 vertical composition", text)
 
+    def test_dont_do_this_workflow_is_documented(self) -> None:
+        skill = CODEX_SKILL.read_text(encoding="utf-8")
+        playbook = (SKILL / "references/creative-playbook.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("Don't do this, do this instead", skill)
+        self.assertIn("Anti-pattern comparison (Don't do this -> Do this instead)", playbook)
+
     def test_recording_contract_forbids_shiny_client_error_panels(self) -> None:
         skill = CODEX_SKILL.read_text(encoding="utf-8")
         recording = (SKILL / "references/recording-contract.md").read_text(
