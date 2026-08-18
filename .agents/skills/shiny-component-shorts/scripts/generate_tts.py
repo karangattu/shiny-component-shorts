@@ -7,6 +7,7 @@ import argparse
 import base64
 import json
 import os
+import re
 import secrets
 import sys
 import wave
@@ -17,6 +18,39 @@ DEFAULT_VOICES = ("Kore", "Erinome", "Charon", "Achird")
 INPUT_USD_PER_MILLION_TOKENS = 1.0
 OUTPUT_USD_PER_MILLION_TOKENS = 20.0
 PRICING_URL = "https://ai.google.dev/gemini-api/docs/pricing"
+
+TAG_RE = re.compile(r"\[[^\]]+\]")
+WORD_RE = re.compile(r"\b[\w’'-]+\b")
+FORBIDDEN_VOCALIZATION_RE = re.compile(
+    r"\[[^\]]*\b(?:laugh(?:ing|ter|s)?|giggl(?:e|es|ing)|chuckl(?:e|es|ing))\b[^\]]*\]",
+    re.IGNORECASE,
+)
+
+
+def validate_narration_prompt(prompt_text: str) -> list[str]:
+    errors = []
+    forbidden_cues = FORBIDDEN_VOCALIZATION_RE.findall(prompt_text)
+    if forbidden_cues:
+        errors.append(
+            "Narration must not contain laughing or giggling cues: "
+            + ", ".join(forbidden_cues)
+        )
+    markers = ("Audio profile:", "Scene:", "Director's notes:", "Transcript:")
+    missing_markers = [marker for marker in markers if marker not in prompt_text]
+    if missing_markers:
+        errors.append(
+            "Narration prompt is missing required sections: " + ", ".join(missing_markers)
+        )
+    else:
+        transcript = prompt_text.split("Transcript:", 1)[1]
+        tags = len(TAG_RE.findall(transcript))
+        spoken = TAG_RE.sub("", transcript)
+        words = len(WORD_RE.findall(spoken))
+        if not 60 <= words <= 85:
+            errors.append(f"Narration must contain 60–85 spoken words; found {words}")
+        if not 3 <= tags <= 6:
+            errors.append(f"Narration must contain 3–6 audio tags; found {tags}")
+    return errors
 
 
 def write_wave(path: Path, pcm: bytes) -> None:
@@ -156,14 +190,6 @@ def main() -> int:
     args = parse_args()
     voice = args.voice or secrets.choice(DEFAULT_VOICES)
 
-    if not (os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")):
-        print(
-            "Missing GEMINI_API_KEY or GOOGLE_API_KEY. Set one in the shell "
-            "that launches your agent harness.",
-            file=sys.stderr,
-        )
-        return 2
-
     if not args.input.is_file():
         print(f"Input file does not exist: {args.input}", file=sys.stderr)
         return 2
@@ -171,6 +197,21 @@ def main() -> int:
     prompt = args.input.read_text(encoding="utf-8").strip()
     if not prompt:
         print(f"Input file is empty: {args.input}", file=sys.stderr)
+        return 2
+
+    validation_errors = validate_narration_prompt(prompt)
+    if validation_errors:
+        print(f"Invalid narration prompt in {args.input}:", file=sys.stderr)
+        for err in validation_errors:
+            print(f"  - {err}", file=sys.stderr)
+        return 2
+
+    if not (os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")):
+        print(
+            "Missing GEMINI_API_KEY or GOOGLE_API_KEY. Set one in the shell "
+            "that launches your agent harness.",
+            file=sys.stderr,
+        )
         return 2
 
     try:

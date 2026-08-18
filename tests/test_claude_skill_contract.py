@@ -18,6 +18,7 @@ SKILL_MD = SKILL / "SKILL.md"
 RECORDER_PATH = SKILL / "scripts/record_demo.py"
 VALIDATOR_PATH = SKILL / "scripts/validate_demo.py"
 REVIEW_PATH = SKILL / "scripts/review_frames.py"
+TTS_PATH = SKILL / "scripts/generate_tts.py"
 
 BASE_ACTIONS = {
     "wait_for",
@@ -47,6 +48,7 @@ def load_module(name: str, path: Path) -> Any:
 recorder = load_module("claude_record_demo", RECORDER_PATH)
 validator = load_module("claude_validate_demo", VALIDATOR_PATH)
 review = load_module("claude_review_frames", REVIEW_PATH)
+tts = load_module("claude_generate_tts", TTS_PATH)
 
 
 def run_main(module: Any, argv: list[str]) -> tuple[int, str]:
@@ -911,6 +913,51 @@ class ClaudeReviewSheetTest(unittest.TestCase):
 
         self.assertEqual(exit_code, 1)
         self.assertIn("Could not build the review sheet", printed.getvalue())
+
+    def test_logo_overlay_contains_content_collision_detection(self) -> None:
+        self.assertIn("hasCollision", recorder.LOGO_OVERLAY_JS)
+        self.assertIn("elementsFromPoint", recorder.LOGO_OVERLAY_JS)
+        self.assertIn("logo.style.opacity = '0'", recorder.LOGO_OVERLAY_JS)
+        self.assertIn("logo.style.opacity = '1'", recorder.LOGO_OVERLAY_JS)
+
+    def test_recorder_uses_fast_encoding_preset(self) -> None:
+        script_text = RECORDER_PATH.read_text(encoding="utf-8")
+        self.assertIn('"-preset"', script_text)
+        self.assertIn('"fast"', script_text)
+
+    def test_generate_tts_validates_prompt_statically(self) -> None:
+        valid_prompt = (
+            "Audio profile:\nA clear developer voice.\n\n"
+            "Scene:\nTesting the app.\n\n"
+            "Director's notes:\nFast pace, no laughing.\n\n"
+            "Transcript:\n"
+            "Why is your Shiny text box three lines tall? [short pause] "
+            "Typing more lines makes this field grow smoothly while the other scrolls inside the container. "
+            "Clearing it returns the box to its starting size. [medium pause] "
+            "Here is the exact code that controls the auto resize behavior in your dashboard. "
+            "Notice how simple this one parameter makes your layout and design. [slightly firmer] "
+            "That is the whole change."
+        )
+        self.assertEqual(tts.validate_narration_prompt(valid_prompt), [])
+
+        laugh_prompt = valid_prompt.replace("[short pause]", "[laughs]")
+        errors = tts.validate_narration_prompt(laugh_prompt)
+        self.assertTrue(any("laughing or giggling" in e for e in errors))
+
+    def test_validate_demo_supports_timing_simulation(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            built = demo_project.build_demo_project(Path(temp_dir), with_audio=False)
+            (built.project / "artifacts" / "demo.mp4").unlink(missing_ok=True)
+            (built.project / "artifacts" / "final.png").unlink(missing_ok=True)
+
+            errors, report = validator.validate_project(
+                built.project, simulate_timing=True
+            )
+            self.assertTrue(report.get("simulated_timing"))
+            self.assertIn("action_timeline", report)
+            self.assertIn("narration_sentences", report)
+            summary = validator.summary_lines(report)
+            self.assertTrue(any("simulated timing" in line for line in summary))
 
 
 if __name__ == "__main__":

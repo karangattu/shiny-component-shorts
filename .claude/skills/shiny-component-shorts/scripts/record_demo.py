@@ -174,7 +174,7 @@ LOGO_OVERLAY_JS = r"""(cfg) => {
         logo.alt = 'Shiny';
         logo.style.cssText = `position:fixed;top:${cfg.top};left:${cfg.left};`
             + `width:${cfg.width}px;height:auto;z-index:2147483644;`
-            + 'pointer-events:none;user-select:none;';
+            + 'pointer-events:none;user-select:none;transition:opacity 180ms ease;';
         document.documentElement.appendChild(logo);
 
         const channel = value => {
@@ -185,6 +185,45 @@ LOGO_OVERLAY_JS = r"""(cfg) => {
         };
         const luminance = ([r, g, b]) =>
             .2126 * channel(r) + .7152 * channel(g) + .0722 * channel(b);
+
+        const hasCollision = () => {
+            const box = logo.getBoundingClientRect();
+            if (!box.width || !box.height) return false;
+            const samples = [
+                [box.left + box.width * 0.15, box.top + box.height * 0.2],
+                [box.left + box.width * 0.5, box.top + box.height * 0.5],
+                [box.left + box.width * 0.85, box.top + box.height * 0.8],
+                [box.left + box.width * 0.15, box.top + box.height * 0.8],
+                [box.left + box.width * 0.85, box.top + box.height * 0.2],
+            ];
+            for (const [sx, sy] of samples) {
+                if (sx < 0 || sy < 0 || sx > window.innerWidth || sy > window.innerHeight) continue;
+                const behind = document.elementsFromPoint(sx, sy);
+                for (const node of behind) {
+                    if (!node || node === logo || node === document.body || node === document.documentElement) continue;
+                    if (node.id === '__demo_cursor__' || node.classList?.contains('__demo_cursor_ripple__')) continue;
+                    const tag = node.tagName?.toUpperCase() || '';
+                    if (['H1','H2','H3','H4','H5','H6','P','SPAN','LABEL','BUTTON','INPUT','SELECT','TEXTAREA','CANVAS','SVG','IMG','A','TABLE','TH','TD','UL','OL','LI','PRE','CODE','I','B','STRONG','EM'].includes(tag)) {
+                        return true;
+                    }
+                    if (node.classList?.contains('card') || node.classList?.contains('card-body') || node.classList?.contains('card-header') || node.classList?.contains('navbar') || node.classList?.contains('modal') || node.classList?.contains('alert')) {
+                        return true;
+                    }
+                    const cs = getComputedStyle(node);
+                    const bg = cs.backgroundColor;
+                    const hasBg = bg && !['rgba(0, 0, 0, 0)', 'transparent'].includes(bg);
+                    const hasBorder = (parseFloat(cs.borderTopWidth) || 0) > 0 || (parseFloat(cs.borderBottomWidth) || 0) > 0 || (parseFloat(cs.borderLeftWidth) || 0) > 0 || (parseFloat(cs.borderRightWidth) || 0) > 0;
+                    const hasShadow = cs.boxShadow && cs.boxShadow !== 'none';
+                    if ((hasBg || hasBorder || hasShadow) && node.offsetWidth > 0 && node.offsetHeight > 0) {
+                        if (node.offsetWidth >= window.innerWidth * 0.95 && node.offsetHeight >= window.innerHeight * 0.95 && !hasBorder && !hasShadow) {
+                            continue;
+                        }
+                        return true;
+                    }
+                }
+            }
+            return false;
+        };
 
         const backdropLuminance = () => {
             const box = logo.getBoundingClientRect();
@@ -199,11 +238,14 @@ LOGO_OVERLAY_JS = r"""(cfg) => {
             }
             return 1;
         };
-        // The artwork renders as it ships. Its ink is black, so the only
-        // treatment is a flip to white where a dark backdrop would hide it.
         const paint = () => {
-            logo.style.filter =
-                backdropLuminance() < cfg.darkThreshold ? 'invert(1)' : 'none';
+            if (hasCollision()) {
+                logo.style.opacity = '0';
+            } else {
+                logo.style.opacity = '1';
+                logo.style.filter =
+                    backdropLuminance() < cfg.darkThreshold ? 'invert(1)' : 'none';
+            }
         };
         paint();
         setInterval(paint, 400);
@@ -1205,7 +1247,7 @@ def record_project(
                 "-crf",
                 "17",
                 "-preset",
-                "slow",
+                "fast",
                 "-pix_fmt",
                 "yuv420p",
                 "-movflags",

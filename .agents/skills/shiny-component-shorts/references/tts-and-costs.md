@@ -57,7 +57,7 @@ python .agents/skills/shiny-component-shorts/scripts/generate_tts.py \
   --usage-output generated/demo-name/artifacts/narration.usage.json
 ```
 
-The generator uses Gemini 3.1 Flash TTS Preview and chooses from the curated Kore, Erinome, Charon, and Achird voices unless `--voice` overrides it. Treat preview model names and prices as unstable.
+The generator statically validates the prompt (envelope structure, 60–85 words, 3–6 tags, and absence of laughter cues) before calling the API to prevent wasted spend. It uses Gemini 3.1 Flash TTS Preview and chooses from the curated Kore, Erinome, Charon, and Achird voices unless `--voice` overrides it. Treat preview model names and prices as unstable.
 
 If both key variables exist and authentication fails, note that the Google SDK may prioritize `GOOGLE_API_KEY`; do not reveal either value.
 

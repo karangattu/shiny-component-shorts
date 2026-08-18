@@ -13,8 +13,8 @@ ROOT_DIR = Path(__file__).resolve().parents[1]
 SCRIPTS_DIR = ROOT_DIR / ".agents" / "skills" / "shiny-component-shorts" / "scripts"
 sys.path.insert(0, str(SCRIPTS_DIR))
 
-import batch_process
-import build_cache
+import batch_process  # noqa: E402
+import build_cache  # noqa: E402
 
 
 def make_project(root: Path, name: str = "video") -> Path:

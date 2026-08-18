@@ -16,8 +16,8 @@ from typing import Callable
 
 SCRIPTS_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPTS_DIR))
-import build_cache
-import validate_demo
+import build_cache  # noqa: E402
+import validate_demo  # noqa: E402
 
 
 BASE_PORT = 8000

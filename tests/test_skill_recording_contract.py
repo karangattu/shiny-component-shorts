@@ -1010,6 +1010,58 @@ class GeminiTTSContractTest(unittest.TestCase):
         self.assertTrue(any("narration.wav" in error for error in errors), errors)
         self.assertTrue(any("final_with_audio.mp4" in error for error in errors), errors)
 
+    def test_logo_overlay_contains_content_collision_detection(self) -> None:
+        self.assertIn("hasCollision", recorder.LOGO_OVERLAY_JS)
+        self.assertIn("elementsFromPoint", recorder.LOGO_OVERLAY_JS)
+        self.assertIn("logo.style.opacity = '0'", recorder.LOGO_OVERLAY_JS)
+        self.assertIn("logo.style.opacity = '1'", recorder.LOGO_OVERLAY_JS)
+
+    def test_recorder_uses_fast_encoding_preset(self) -> None:
+        script_text = RECORDER_PATH.read_text(encoding="utf-8")
+        self.assertIn('"-preset"', script_text)
+        self.assertIn('"fast"', script_text)
+
+    def test_generate_tts_validates_prompt_statically(self) -> None:
+        valid_prompt = (
+            "Audio profile:\nA clear developer voice.\n\n"
+            "Scene:\nTesting the app.\n\n"
+            "Director's notes:\nFast pace, no laughing.\n\n"
+            "Transcript:\n"
+            "Why is your Shiny text box three lines tall? [short pause] "
+            "Typing more lines makes this field grow smoothly while the other scrolls inside the container. "
+            "Clearing it returns the box to its starting size. [medium pause] "
+            "Here is the exact code that controls the auto resize behavior in your dashboard. "
+            "Notice how simple this one parameter makes your layout and design. [slightly firmer] "
+            "That is the whole change."
+        )
+        self.assertEqual(tts.validate_narration_prompt(valid_prompt), [])
+
+        laugh_prompt = valid_prompt.replace("[short pause]", "[laughs]")
+        errors = tts.validate_narration_prompt(laugh_prompt)
+        self.assertTrue(any("laughing or giggling" in e for e in errors))
+
+        short_prompt = (
+            "Audio profile:\nVoice.\n\nScene:\nScene.\n\nDirector's notes:\nNotes.\n\n"
+            "Transcript:\nToo short text [short pause] [medium pause] [long pause]."
+        )
+        errors = tts.validate_narration_prompt(short_prompt)
+        self.assertTrue(any("60–85 spoken words" in e for e in errors))
+
+    def test_validate_demo_supports_timing_simulation(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            built = demo_project.build_demo_project(Path(temp_dir), with_audio=False)
+            (built.project / "artifacts" / "demo.mp4").unlink(missing_ok=True)
+            (built.project / "artifacts" / "final.png").unlink(missing_ok=True)
+
+            errors, report = validator.validate_project(
+                built.project, simulate_timing=True
+            )
+            self.assertTrue(report.get("simulated_timing"))
+            self.assertIn("action_timeline", report)
+            self.assertIn("narration_sentences", report)
+            summary = validator.summary_lines(report)
+            self.assertTrue(any("simulated timing" in line for line in summary))
+
 
 if __name__ == "__main__":
     unittest.main()

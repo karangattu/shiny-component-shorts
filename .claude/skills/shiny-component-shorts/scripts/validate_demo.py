@@ -223,10 +223,81 @@ def code_block_source_errors(
     return problems
 
 
+def project_simulated_timeline(actions: list[dict]) -> list[dict]:
+    timeline: list[dict] = []
+    current_ms = 0.0
+    for action in actions:
+        if not isinstance(action, dict) or len(action) != 1:
+            continue
+        name, value = next(iter(action.items()))
+        started = current_ms
+        if name == "wait" and isinstance(value, (int, float)):
+            current_ms += value
+        elif name in {"click", "select_option", "hover", "fill", "press"}:
+            current_ms += 1000
+        elif name == "drag":
+            current_ms += 1500
+        elif name == "type" and isinstance(value, dict):
+            current_ms += len(str(value.get("value", ""))) * int(value.get("delay", 45)) + 1000
+        elif name == "code" and isinstance(value, dict):
+            text = str(value.get("text", "")).rstrip("\n")
+            context = str(value.get("before", "")) + str(value.get("after", ""))
+            current_ms += len(text) * int(value.get("type_ms", 22))
+            current_ms += code_hold_ms(text, value.get("duration"), context)
+        elif name == "screenshot":
+            current_ms += 100
+        timeline.append(
+            {
+                "action": name,
+                "start": round(started / 1000.0, 2),
+                "end": round(current_ms / 1000.0, 2),
+            }
+        )
+    return timeline
+
+
+def load_or_estimate_sentence_windows(project_dir: Path) -> list[dict] | None:
+    timing_file = project_dir / "artifacts" / "narration-timing.json"
+    if timing_file.is_file():
+        try:
+            data = json.loads(timing_file.read_text(encoding="utf-8"))
+            if "sentence_windows" in data:
+                return data["sentence_windows"]
+        except (json.JSONDecodeError, OSError):
+            pass
+
+    wav_file = project_dir / "artifacts" / "narration.wav"
+    if wav_file.is_file() and wav_file.stat().st_size > 0:
+        windows = narration_sentence_windows(wav_file)
+        if windows:
+            return windows
+
+    txt_file = project_dir / "artifacts" / "narration.txt"
+    if txt_file.is_file() and txt_file.stat().st_size > 0:
+        text = txt_file.read_text(encoding="utf-8")
+        if "Transcript:" in text:
+            transcript = text.split("Transcript:", 1)[1]
+            spoken = TAG_RE.sub("", transcript)
+            sentences = [s.strip() for s in re.split(r"[.!?]+", spoken) if s.strip()]
+            if sentences:
+                total_words = len(WORD_RE.findall(spoken))
+                duration = max(10.0, total_words / 2.5 + 2.0)
+                windows = []
+                cursor = 0.0
+                for s in sentences:
+                    w_count = len(WORD_RE.findall(s))
+                    s_dur = max(1.5, round(w_count / 2.5, 2))
+                    windows.append({"start": round(cursor, 2), "end": round(min(duration, cursor + s_dur), 2)})
+                    cursor += s_dur + 0.4
+                return windows
+    return None
+
+
 def validate_project(
     project_dir: Path,
     require_audio: bool = False,
     app_dir: Path | None = None,
+    simulate_timing: bool = False,
 ) -> tuple[list[str], dict]:
     project_dir = project_dir.resolve()
     app_dir = (app_dir or project_dir).resolve()
@@ -378,64 +449,81 @@ def validate_project(
                     f"with buffer ({narration_seconds:.2f}s)"
                 )
 
-    if require_nonempty(video_path, errors):
-        try:
-            video = probe_video(video_path)
-            report["video"] = video
-            recording_path = project_dir / "artifacts" / "recording.json"
-            recording = {}
-            if recording_path.is_file():
-                recording = json.loads(recording_path.read_text(encoding="utf-8"))
-            if recording and not recording.get("logo"):
-                errors.append(
-                    "Recording carries no Shiny wordmark: artifacts/recording.json has "
-                    "no `logo` entry, so this video predates the brand overlay — "
-                    "re-record it with the bundled recorder"
-                )
-            orientation = recording.get("orientation", config.get("orientation", "vertical"))
-            expected = (1440, 2560) if orientation == "vertical" else (2560, 1440)
-            if orientation not in {"vertical", "horizontal"}:
-                errors.append(f"Unsupported orientation in actions.yaml: {orientation}")
-            elif (video["width"], video["height"]) != expected:
-                errors.append(
-                    f"Video is {video['width']}x{video['height']}; expected "
-                    f"{expected[0]}x{expected[1]} for {orientation}"
-                )
-            if video.get("bit_rate") is not None and video["bit_rate"] < 50_000:
-                warnings.append(
-                    f"Video bitrate is only {video['bit_rate'] / 1000:.0f} kbps; "
-                    "screen recordings this sparse usually indicate a broken encode"
-                )
-            measured_narration = report.get("measured_narration_seconds")
-            if measured_narration:
-                overrun = video["duration"] - measured_narration
-                if not 0.75 <= overrun <= 3.5:
-                    errors.append(
-                        f"Video runs {overrun:.2f}s past the narration "
-                        f"({video['duration']:.2f}s video vs {measured_narration:.2f}s "
-                        "audio); the payoff needs 1–3 s of screen time after the last "
-                        "sentence — adjust the closing holds, never the opening wait"
-                    )
-            elif narration_seconds and video["duration"] + 0.25 < narration_seconds:
-                errors.append(
-                    f"Video ({video['duration']:.2f}s) is shorter than narration "
-                    f"with buffer ({narration_seconds:.2f}s)"
-                )
-        except (KeyError, ValueError, RuntimeError, subprocess.CalledProcessError, json.JSONDecodeError) as exc:
-            errors.append(f"Cannot validate video: {exc}")
-
     timeline: list = []
-    timeline_path = project_dir / "artifacts" / "recording.json"
-    if timeline_path.is_file():
-        try:
-            timeline = json.loads(timeline_path.read_text(encoding="utf-8")).get(
-                "action_timeline", []
-            )
-        except json.JSONDecodeError:
-            timeline = []
-    sentence_windows = narration_sentence_windows(
-        project_dir / "artifacts" / "narration.wav"
-    )
+    sentence_windows: list[dict] | None = None
+    if not simulate_timing:
+        if require_nonempty(video_path, errors):
+            try:
+                video = probe_video(video_path)
+                report["video"] = video
+                recording_path = project_dir / "artifacts" / "recording.json"
+                recording = {}
+                if recording_path.is_file():
+                    recording = json.loads(recording_path.read_text(encoding="utf-8"))
+                if recording and not recording.get("logo"):
+                    errors.append(
+                        "Recording carries no Shiny wordmark: artifacts/recording.json has "
+                        "no `logo` entry, so this video predates the brand overlay — "
+                        "re-record it with the bundled recorder"
+                    )
+                orientation = recording.get("orientation", config.get("orientation", "vertical"))
+                expected = (1440, 2560) if orientation == "vertical" else (2560, 1440)
+                if orientation not in {"vertical", "horizontal"}:
+                    errors.append(f"Unsupported orientation in actions.yaml: {orientation}")
+                elif (video["width"], video["height"]) != expected:
+                    errors.append(
+                        f"Video is {video['width']}x{video['height']}; expected "
+                        f"{expected[0]}x{expected[1]} for {orientation}"
+                    )
+                if video.get("bit_rate") is not None and video["bit_rate"] < 50_000:
+                    warnings.append(
+                        f"Video bitrate is only {video['bit_rate'] / 1000:.0f} kbps; "
+                        "screen recordings this sparse usually indicate a broken encode"
+                    )
+                measured_narration = report.get("measured_narration_seconds")
+                if measured_narration:
+                    overrun = video["duration"] - measured_narration
+                    if not 0.75 <= overrun <= 3.5:
+                        errors.append(
+                            f"Video runs {overrun:.2f}s past the narration "
+                            f"({video['duration']:.2f}s video vs {measured_narration:.2f}s "
+                            "audio); the payoff needs 1–3 s of screen time after the last "
+                            "sentence — adjust the closing holds, never the opening wait"
+                        )
+                elif narration_seconds and video["duration"] + 0.25 < narration_seconds:
+                    errors.append(
+                        f"Video ({video['duration']:.2f}s) is shorter than narration "
+                        f"with buffer ({narration_seconds:.2f}s)"
+                    )
+            except (KeyError, ValueError, RuntimeError, subprocess.CalledProcessError, json.JSONDecodeError) as exc:
+                errors.append(f"Cannot validate video: {exc}")
+
+        timeline_path = project_dir / "artifacts" / "recording.json"
+        if timeline_path.is_file():
+            try:
+                timeline = json.loads(timeline_path.read_text(encoding="utf-8")).get(
+                    "action_timeline", []
+                )
+            except json.JSONDecodeError:
+                timeline = []
+        sentence_windows = narration_sentence_windows(
+            project_dir / "artifacts" / "narration.wav"
+        )
+    else:
+        report["simulated_timing"] = True
+        timeline = project_simulated_timeline(actions)
+        sentence_windows = load_or_estimate_sentence_windows(project_dir)
+        measured_or_est = report.get("measured_narration_seconds") or report.get("estimated_narration_seconds") or narration_seconds
+        if measured_or_est:
+            overrun = action_seconds - measured_or_est
+            if not 0.75 <= overrun <= 3.5:
+                errors.append(
+                    f"Simulated actions run {overrun:.2f}s past narration "
+                    f"({action_seconds:.2f}s actions vs {measured_or_est:.2f}s "
+                    "narration); the payoff needs 1–3 s of screen time after the last "
+                    "sentence — adjust the closing holds, never the opening wait"
+                )
+
     if timeline:
         report["action_timeline"] = timeline
     if sentence_windows:
@@ -493,9 +581,10 @@ def validate_project(
                 "changing state under the closing sentences"
             )
 
-    require_nonempty(screenshot_path, errors)
+    if not simulate_timing:
+        require_nonempty(screenshot_path, errors)
 
-    if require_audio:
+    if require_audio and not simulate_timing:
         require_nonempty(project_dir / "artifacts" / "narration.wav", errors)
         require_nonempty(project_dir / "artifacts" / "final_with_audio.mp4", errors)
 
@@ -543,11 +632,14 @@ def timing_lines(report: dict) -> list[str]:
 
 
 def summary_lines(report: dict) -> list[str]:
-    lines = [
+    lines = []
+    if report.get("simulated_timing"):
+        lines.append("mode: simulated timing (pre-recording dry-run)")
+    lines.append(
         f"actions: {report.get('meaningful_actions', 0)} meaningful, "
         f"~{report.get('estimated_action_seconds', 0)}s, "
         f"opening wait {report.get('opening_wait_ms', 0)} ms"
-    ]
+    )
     video = report.get("video")
     if video:
         lines.append(
@@ -575,6 +667,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--app-dir", type=Path)
     parser.add_argument("--require-audio", action="store_true")
     parser.add_argument(
+        "--simulate-timing",
+        action="store_true",
+        help="Simulate and validate actions.yaml timing against narration without requiring video recording",
+    )
+    parser.add_argument(
         "--json",
         action="store_true",
         help="Print the full report instead of the summary",
@@ -584,7 +681,12 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
-    errors, report = validate_project(args.project_dir, args.require_audio, args.app_dir)
+    errors, report = validate_project(
+        args.project_dir,
+        args.require_audio,
+        args.app_dir,
+        simulate_timing=args.simulate_timing,
+    )
     report_path = write_report(args.project_dir, report)
     if args.json:
         print(json.dumps(report, indent=2, sort_keys=True))

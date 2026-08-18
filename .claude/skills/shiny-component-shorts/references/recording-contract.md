@@ -50,7 +50,7 @@ Run it before every full take, and after every app or selector change. A take th
 
 ## Brand logo
 
-Every recording carries the Shiny wordmark in the top-left of the reserved top 20% band. The recorder injects it as a fixed overlay before the app loads: 168 logical px wide in vertical recordings, 190 px in horizontal ones, inset 4% from the top and 8% from the left edge, sized to stay legible on a phone screen. The artwork renders as it ships, untinted; because its ink is black, the only treatment is a flip to white on backdrops whose relative luminance falls under 0.5 — dark surfaces, and the `#007BC2` primary — so it never disappears into the app.
+Every recording carries the Shiny wordmark in the top-left of the reserved top 20% band. The recorder injects it as a fixed overlay before the app loads: 168 logical px wide in vertical recordings, 190 px in horizontal ones, inset 4% from the top and 8% from the left edge, sized to stay legible on a phone screen. The artwork renders as it ships, untinted; because its ink is black, the only treatment is a flip to white on backdrops whose relative luminance falls under 0.5 — dark surfaces, and the `#007BC2` primary — so it never disappears into the app. If app content or text scrolls or renders directly beneath the logo, the overlay automatically hides itself to avoid visual collision.
 
 Keep that corner clear: the top band is already reserved, so no app UI, no in-app logo of your own, and no code card competes with it. `artifacts/recording.json` records the stamped logo under `logo`, and the validator rejects a recording whose `recording.json` has no `logo` entry — that means the video predates the brand overlay and must be re-recorded. Pass `--logo path/to/file.png` only when a demo needs a different mark; the default asset lives at `.claude/skills/shiny-component-shorts/assets/shiny-logo.png`.
 
@@ -234,6 +234,6 @@ python .claude/skills/shiny-component-shorts/scripts/validate_demo.py \
   --project-dir generated/demo-name
 ```
 
-Use `--require-audio` for a narrated deliverable. Treat any validation error as incomplete work.
+Use `--require-audio` for a narrated deliverable. Use `--simulate-timing` before recording to project action timings and test sentence window alignments without running Playwright. Treat any validation error as incomplete work.
 
 The console output is a summary: action counts, video dimensions and duration, narration length, and one line per visible action naming the narration sentence it lands in — the comparison this contract's Timing section asks for, already resolved. `no sentence` means that action drifted outside the spoken track. The complete report, including the raw `action_timeline` and `narration_sentences` arrays, goes to `artifacts/validation.json`; `--json` prints it to the console instead.
