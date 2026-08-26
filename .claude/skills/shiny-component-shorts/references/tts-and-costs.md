@@ -2,7 +2,7 @@
 
 Read this reference only when narration audio, a finished video with audio, or cost reporting is requested.
 
-Check for `GEMINI_API_KEY`/`GOOGLE_API_KEY` only after audio has been requested and only when TTS will actually be called. Never check for, mention, or ask the user for these keys on a silent-video workflow or when importing existing narration; a missing key is an error only on a TTS path. In a silent video's cost report, list the Gemini TTS row as `not used / $0`.
+Check for `GEMINI_API_KEY`/`GOOGLE_API_KEY` only after audio has been requested and only when Gemini TTS will actually be called. Never check for, mention, or ask the user for these keys on a silent-video workflow, local voice-cloning workflow, or when importing existing narration; a missing key is an error only on the Gemini path. In a silent video's cost report, list the Gemini TTS row as `not used / $0`.
 
 ## Narration prompt
 
@@ -61,6 +61,41 @@ The generator statically validates the prompt (envelope structure, 60–85 words
 
 If both key variables exist and authentication fails, note that the Google SDK may prioritize `GOOGLE_API_KEY`; do not reveal either value.
 
+## Use local voice cloning
+
+Use this mode when the user requests a saved local voice or supplies a reference recording. It calls the sibling `local-voice-cloning` project through `uv`, keeps the audio on the Mac, and does not check for a Gemini API key.
+
+For a saved voice, put its name in `tts-settings.json`:
+
+```json
+{
+  "provider": "local-voice-cloning",
+  "saved_voice": "karan",
+  "quality": "high",
+  "language": "English"
+}
+```
+
+The batch processor resolves this to `<engine-dir>/voice_samples/karan.wav`. A saved voice is a name, not a path. For an arbitrary reference recording, use:
+
+```json
+{
+  "provider": "local-voice-cloning",
+  "reference_voice": "/path/to/speaker.wav",
+  "reference_text": "The exact words spoken in the first 12 seconds.",
+  "quality": "high",
+  "language": "English"
+}
+```
+
+Choose exactly one of `saved_voice` and `reference_voice`. `reference_text` is optional; when omitted, the local engine transcribes the first 12 seconds. An exact transcript avoids loading transcription and usually improves fidelity. Relative `reference_voice` paths resolve against the video directory.
+
+By default, the adapter looks for `local-voice-cloning` beside this repository. Set `LOCAL_VOICE_CLONING_DIR` or the per-video `engine_dir` setting when it lives elsewhere. `quality` defaults to `high`; `language` defaults to `auto`.
+
+Keep the normal prompt envelope and its 3–6 cues in `narration.txt` so concept review and validation stay consistent. Before local synthesis, the adapter extracts only `Transcript:`, collapses formatting whitespace, turns `[short pause]` and `[medium pause]` into one line break, turns `[long pause]` into two line breaks, and removes every other bracketed delivery tag. This matters because the local engine does not honor narration tags and inserts about 0.4 seconds of silence for each line break. Use pause tags only where a real pause belongs; ordinary source formatting must not add pauses.
+
+The local adapter writes the same `narration.wav`, timing report, and usage report as the Gemini path. Its usage report records `$0` paid API cost. Listen to the result and approve its measured timing before the finish phase, exactly as with any other narration source.
+
 ## Use existing narration audio
 
 When the user supplies existing narration — a WAV, MP3, or a previously narrated video whose audio track is the narration — do not call Gemini and do not check for any API key. Import it instead:
@@ -102,6 +137,7 @@ Use this compact table:
 | Service | Usage | Cost | Status |
 | --- | ---: | ---: | --- |
 | Gemini TTS | Exact tokens and duration | Provider value or estimate | Actual or paid-tier list-price estimate |
+| Local voice cloning | Voice and duration | $0 API cost | Local MLX compute not priced |
 | Codex | Harness-reported usage | Known value or unavailable | Subscription, credits, or unavailable |
 | Local tools | FFmpeg, Playwright, Shiny | $0 API cost | Local compute not priced |
 

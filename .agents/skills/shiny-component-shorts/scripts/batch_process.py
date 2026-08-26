@@ -7,6 +7,7 @@ import argparse
 import concurrent.futures
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -106,9 +107,13 @@ def narration_inputs(project_dir: Path) -> list[Path]:
     settings_path = project_dir / "tts-settings.json"
     if settings_path.is_file():
         inputs.append(settings_path)
-        source = audio_source_path(project_dir, load_tts_settings(project_dir))
+        settings = load_tts_settings(project_dir)
+        source = audio_source_path(project_dir, settings)
         if source is not None:
             inputs.extend([SCRIPTS_DIR / "import_narration.py", source])
+        reference = local_voice_reference_path(project_dir, settings)
+        if reference is not None:
+            inputs.extend([SCRIPTS_DIR / "generate_local_voice.py", reference])
     return inputs
 
 
@@ -119,7 +124,18 @@ def load_tts_settings(project_dir: Path) -> dict[str, str]:
     payload = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
         raise ValueError("tts-settings.json must contain a JSON object")
-    unknown = set(payload) - {"voice", "model", "audio_source"}
+    unknown = set(payload) - {
+        "voice",
+        "model",
+        "audio_source",
+        "provider",
+        "saved_voice",
+        "reference_voice",
+        "reference_text",
+        "engine_dir",
+        "quality",
+        "language",
+    }
     if unknown:
         raise ValueError(f"Unknown TTS settings: {', '.join(sorted(unknown))}")
     for key, value in payload.items():
@@ -129,6 +145,27 @@ def load_tts_settings(project_dir: Path) -> dict[str, str]:
         raise ValueError(
             "TTS setting 'audio_source' cannot be combined with 'voice' or 'model'"
         )
+    provider = payload.get("provider", "gemini")
+    if provider not in {"gemini", "local-voice-cloning"}:
+        raise ValueError(
+            "TTS setting 'provider' must be 'gemini' or 'local-voice-cloning'"
+        )
+    if provider == "local-voice-cloning":
+        selected = [key for key in ("saved_voice", "reference_voice") if key in payload]
+        if len(selected) != 1:
+            raise ValueError(
+                "Local voice cloning requires exactly one of 'saved_voice' or "
+                "'reference_voice'"
+            )
+        if "saved_voice" in payload and not re.fullmatch(
+            r"[a-z0-9_-]+", payload["saved_voice"]
+        ):
+            raise ValueError("TTS setting 'saved_voice' must be a saved voice name")
+        incompatible = set(payload) & {"voice", "model", "audio_source"}
+        if incompatible:
+            raise ValueError(
+                "Local voice cloning cannot use: " + ", ".join(sorted(incompatible))
+            )
     return payload
 
 
@@ -139,6 +176,29 @@ def audio_source_path(project_dir: Path, settings: dict[str, str]) -> Path | Non
         return None
     source = Path(raw)
     return source if source.is_absolute() else project_dir / source
+
+
+def local_voice_engine_dir(project_dir: Path, settings: dict[str, str]) -> Path:
+    raw = settings.get("engine_dir") or os.getenv("LOCAL_VOICE_CLONING_DIR")
+    if raw:
+        path = Path(raw).expanduser()
+        return path if path.is_absolute() else project_dir / path
+    return SCRIPTS_DIR.parents[4] / "local-voice-cloning"
+
+
+def local_voice_reference_path(
+    project_dir: Path, settings: dict[str, str]
+) -> Path | None:
+    if settings.get("provider", "gemini") != "local-voice-cloning":
+        return None
+    if "reference_voice" in settings:
+        path = Path(settings["reference_voice"]).expanduser()
+        return path if path.is_absolute() else project_dir / path
+    return (
+        local_voice_engine_dir(project_dir, settings)
+        / "voice_samples"
+        / (settings["saved_voice"] + ".wav")
+    )
 
 
 def recording_inputs(project_dir: Path) -> list[Path]:
@@ -210,6 +270,31 @@ def generate_narration(project_dir: Path, force: bool) -> dict:
                     "--usage-output",
                     str(usage),
                 ]
+            elif settings.get("provider", "gemini") == "local-voice-cloning":
+                reference = local_voice_reference_path(project_dir, settings)
+                if reference is None:
+                    raise RuntimeError("Local voice reference could not be resolved")
+                require_nonempty(reference, "local voice reference")
+                command = [
+                    sys.executable,
+                    str(SCRIPTS_DIR / "generate_local_voice.py"),
+                    "--input",
+                    str(narration),
+                    "--output",
+                    str(audio),
+                    "--usage-output",
+                    str(usage),
+                    "--engine-dir",
+                    str(local_voice_engine_dir(project_dir, settings)),
+                    "--reference",
+                    str(reference),
+                    "--quality",
+                    settings.get("quality", "high"),
+                    "--language",
+                    settings.get("language", "auto"),
+                ]
+                if "reference_text" in settings:
+                    command.extend(["--ref-text", settings["reference_text"]])
             else:
                 command = [
                     sys.executable,

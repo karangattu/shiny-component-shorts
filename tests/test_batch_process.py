@@ -169,6 +169,105 @@ class BatchProcessTest(unittest.TestCase):
             self.assertEqual(command[command.index("--voice") + 1], "Kore")
             self.assertEqual(command[command.index("--model") + 1], "custom-tts")
 
+    @patch.object(batch_process, "measure_narration")
+    @patch("subprocess.run")
+    def test_local_voice_provider_resolves_a_saved_voice_and_uses_the_local_adapter(
+        self, mock_run: MagicMock, mock_measure: MagicMock
+    ) -> None:
+        mock_run.return_value = MagicMock(returncode=0, stdout="ok", stderr="")
+        mock_measure.return_value = {"duration_seconds": 10.0, "sentence_windows": []}
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            project = make_project(root)
+            engine = root / "local-voice-cloning"
+            samples = engine / "voice_samples"
+            samples.mkdir(parents=True)
+            saved_voice = samples / "karan.wav"
+            saved_voice.write_bytes(b"reference voice")
+            (project / "tts-settings.json").write_text(
+                json.dumps(
+                    {
+                        "provider": "local-voice-cloning",
+                        "saved_voice": "karan",
+                        "engine_dir": str(engine),
+                        "quality": "high",
+                        "language": "English",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            artifacts = project / "artifacts"
+            (artifacts / "narration.wav").write_bytes(b"wav")
+            (artifacts / "narration.usage.json").write_text("{}", encoding="utf-8")
+
+            result = batch_process.generate_narration(project, force=True)
+
+            self.assertEqual(result["tts"], "SUCCESS", result["errors"])
+            self.assertIn(saved_voice, batch_process.narration_inputs(project))
+            command = mock_run.call_args.args[0]
+            self.assertIn("generate_local_voice.py", str(command))
+            self.assertEqual(
+                command[command.index("--reference") + 1], str(saved_voice)
+            )
+            self.assertEqual(command[command.index("--quality") + 1], "high")
+            self.assertEqual(command[command.index("--language") + 1], "English")
+
+    @patch.object(batch_process, "measure_narration")
+    @patch("subprocess.run")
+    def test_local_voice_provider_accepts_a_reference_voice_with_its_transcript(
+        self, mock_run: MagicMock, mock_measure: MagicMock
+    ) -> None:
+        mock_run.return_value = MagicMock(returncode=0, stdout="ok", stderr="")
+        mock_measure.return_value = {"duration_seconds": 10.0, "sentence_windows": []}
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            project = make_project(root)
+            reference = root / "speaker.m4a"
+            reference.write_bytes(b"reference voice")
+            engine = root / "local-voice-cloning"
+            engine.mkdir()
+            (project / "tts-settings.json").write_text(
+                json.dumps(
+                    {
+                        "provider": "local-voice-cloning",
+                        "reference_voice": str(reference),
+                        "reference_text": "The exact words spoken in the sample.",
+                        "engine_dir": str(engine),
+                    }
+                ),
+                encoding="utf-8",
+            )
+            artifacts = project / "artifacts"
+            (artifacts / "narration.wav").write_bytes(b"wav")
+            (artifacts / "narration.usage.json").write_text("{}", encoding="utf-8")
+
+            result = batch_process.generate_narration(project, force=True)
+
+            self.assertEqual(result["tts"], "SUCCESS", result["errors"])
+            self.assertIn(reference, batch_process.narration_inputs(project))
+            command = mock_run.call_args.args[0]
+            self.assertEqual(command[command.index("--reference") + 1], str(reference))
+            self.assertEqual(
+                command[command.index("--ref-text") + 1],
+                "The exact words spoken in the sample.",
+            )
+
+    def test_saved_voice_must_be_a_name_not_a_path(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project = make_project(Path(temp_dir))
+            (project / "tts-settings.json").write_text(
+                json.dumps(
+                    {
+                        "provider": "local-voice-cloning",
+                        "saved_voice": "../speaker",
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(ValueError, "saved_voice.*name"):
+                batch_process.load_tts_settings(project)
+
     def test_timing_approval_is_bound_to_audio_timing_and_actions(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             project = make_project(Path(temp_dir))

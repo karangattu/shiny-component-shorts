@@ -1,6 +1,6 @@
 ---
 name: shiny-component-shorts
-description: Create interactive Shiny Python, Shiny R, or shinychat mini-apps, 30-second "Did you know?" video concepts, Gemini 3.1 TTS narration and audio, storyboards, recording automation, and editing notes. Use when the user provides a Shiny or shinychat component name, docs URL, existing app path, pull request, commit URL, or commit SHA, or asks for a short demo or video around a Shiny UI feature or a change that just landed.
+description: Create interactive Shiny Python, Shiny R, or shinychat mini-apps, 30-second "Did you know?" video concepts, Gemini or locally cloned narration and audio, storyboards, recording automation, and editing notes. Use when the user provides a Shiny or shinychat component name, docs URL, existing app path, pull request, commit URL, or commit SHA, or asks for a short demo or video around a Shiny UI feature or a change that just landed.
 ---
 
 # Shiny Component Shorts (Claude Code)
@@ -187,6 +187,8 @@ python .claude/skills/shiny-component-shorts/scripts/batch_process.py \
 The timing approval is bound to hashes of the current WAV, timing report, and actions file; changing any of them requires another review and approval. Recording defaults to two concurrent browsers to avoid resource contention. Merging always calls `merge_audio.py`, and validation always reruns even for cached recordings. Use `--force` only to rebuild the selected phase. The old combined `--tts --merge` invocation is deprecated because it skips the timing-adjustment gate.
 
 To lock a specific voice or model for one video, add an optional `tts-settings.json` beside its app containing `{"voice": "Kore", "model": "gemini-3.1-flash-tts-preview"}`. The batch processor passes these settings to the TTS generator and includes the file in that video's narration cache key.
+
+To clone narration locally, set `provider` to `local-voice-cloning` and choose exactly one voice source. Use `{"provider": "local-voice-cloning", "saved_voice": "karan"}` for a WAV in the local engine's `voice_samples/` directory, or `{"provider": "local-voice-cloning", "reference_voice": "/path/to/sample.wav"}` for a supplied recording. Optional local settings are `reference_text`, `quality`, `language`, and `engine_dir`; see the TTS reference for selection and pause handling. The local path calls no paid API and is part of the same narration cache and timing-approval gate.
 
 To reuse existing narration instead of generating TTS for one video, set `{"audio_source": "path/to/narrated.mp4"}` in that video's `tts-settings.json` (a WAV, MP3, or narrated video file; relative paths resolve against the video directory). The narration phase then extracts and measures that audio via `import_narration.py` with no Gemini call and no API key, and includes the source file in the cache key. `audio_source` cannot be combined with `voice` or `model`.
 
