@@ -158,13 +158,13 @@ For every recorded workflow, including a silent recording, write `artifacts/narr
 Synthesize this as a natural, curious tech explainer for a 30-second Shiny component video.
 
 Audio profile:
-A clear developer voice. Brisk, precise, warm, and not salesy.
+A clear developer voice. Natural, conversational, precise, warm, and not salesy.
 
 Scene:
 [One sentence describing the visible demo.]
 
 Director's notes:
-Keep the pace fast enough for a short video. Use small pauses before reveals. Emphasize the surprising behavior. Do not laugh, giggle, chuckle, or add any non-speech vocalization. Do not sound like a corporate tutorial. Read only the transcript below.
+Speak at a natural conversational pace. Allow normal pauses between thoughts and before reveals; do not rush to fit the video. Emphasize the surprising behavior. Do not laugh, giggle, chuckle, or add any non-speech vocalization. Do not sound like a corporate tutorial. Read only the transcript below.
 
 Transcript:
 [60–85 spoken words with 3–6 intentional pacing or emphasis cues.]

@@ -12,13 +12,13 @@ Write `artifacts/narration.txt` in this form:
 Synthesize this as a natural, curious tech explainer for a 30-second Shiny component video.
 
 Audio profile:
-A clear developer voice. Brisk, precise, warm, and not salesy. No non-speech vocalizations.
+A clear developer voice. Natural, conversational, precise, warm, and not salesy. No non-speech vocalizations.
 
 Scene:
 [One sentence describing the visible demo.]
 
 Director's notes:
-Keep the pace fast enough for a short video. Use small pauses before reveals. Emphasize the surprising behavior. Do not laugh, giggle, or chuckle. Do not add sighs, gasps, coughs, filler sounds, or any other non-speech vocalization. Do not sound like a corporate tutorial. Read only the transcript below.
+Speak at a natural conversational pace. Allow normal pauses between thoughts and before reveals; do not rush to fit the video. Emphasize the surprising behavior. Do not laugh, giggle, or chuckle. Do not add sighs, gasps, coughs, filler sounds, or any other non-speech vocalization. Do not sound like a corporate tutorial. Read only the transcript below.
 
 Transcript:
 [60–85 spoken words with 3–6 intentional pacing or emphasis cues.]
@@ -33,14 +33,14 @@ Use three aligned controls:
 Useful inline cues are limited to pacing and restrained emphasis:
 
 - Pacing: `[short pause]` (about 250 ms), `[medium pause]` (about 500 ms), or `[long pause]` (about one second or more).
-- Local delivery changes: `[slightly firmer]`, `[slower]`, or `[quickly]` when they match a visible beat.
+- Local delivery changes: `[slightly firmer]` when they match a visible beat.
 - Do not use reaction or non-speech tags. The validator rejects laugh, laughter, giggle, and chuckle variants.
 
 For a developer short, prefer a restrained arc: conversational hook, a short or medium pause before the reveal, slightly firmer delivery for the decisive code line, and a warm payoff. Do not stack tags, repeat the same cue mechanically, or use shouting, panic, crying, coughing, character voices, or any non-verbal sound.
 
 Treat tags as preview-model hints, not a closed vocabulary or timing guarantee. Prefer the documented named pause tags over invented exact-duration syntax such as `[pause=1.0]` unless that syntax has been tested with the current model. Emotional adjective tags such as `[curious]`, `[scared]`, or `[bored]` can occasionally be vocalized; express the overall emotion in the director's notes and verify any inline adjective tag before keeping it. Do not include timestamps or visual stage directions in the transcript.
 
-For a narrated series, vary the performance direction as deliberately as the visual direction. For example, use one curious discovery, one calm diagnostic explanation, one measured comparison, one focused accessibility demonstration, and one brisk reference-style proof rather than giving every video the same excited delivery.
+For a narrated series, vary the performance direction as deliberately as the visual direction. For example, use one curious discovery, one calm diagnostic explanation, one measured comparison, one focused accessibility demonstration, and one conversational reference-style proof rather than giving every video the same excited delivery.
 
 ## Generate audio
 
@@ -110,20 +110,19 @@ For new narrated videos, write this per-video `tts-settings.json`:
   "saved_voice": "karan",
   "engine": "qwen",
   "quality": "high",
-  "language": "English",
-  "speaking_rate": 1.0
+  "language": "English"
 }
 ```
 
-The user can select another saved WAV name or reference recording, correct `reference_text`, choose `high`/`fast` quality, or adjust `speaking_rate` between 0.5 and 2.0 (above 1 is faster). List available voices from `<engine_dir>/voice_samples/*.wav`; the API does not offer a saved-voice listing endpoint. `engine` accepts `qwen` or `omnivoice`; OmniVoice must be installed separately in the sibling project. Quality changes model/compute settings, not voice identity.
+The user can select another saved WAV name or reference recording, correct `reference_text`, or choose `high`/`fast` quality. List available voices from `<engine_dir>/voice_samples/*.wav`; the API does not offer a saved-voice listing endpoint. `engine` accepts `qwen` or `omnivoice`; OmniVoice must be installed separately in the sibling project. Quality changes model/compute settings, not voice identity.
 
 `POST /synthesize` receives multipart fields `text`, `ref_text`, `quality`, `language`, `engine`, `output_format=wav`, plus the uploaded `reference_audio`. `GET /info` reports supported engine settings. `POST /transcribe` can help inspect the sample transcript. Consult the running `/docs` and sibling `src/api.py` for the exact contract. Only loopback HTTP origins are accepted, with redirects and proxies disabled. Omitting `api_url` uses the CLI; API failures are surfaced without silently switching providers.
 
-The API's `speed` parameter is a compatibility option, so the adapter applies `speaking_rate` with FFmpeg's pitch-preserving `atempo` after synthesis. It measures the adjusted WAV. Global performance prose and emphasis tags do not steer the local model; use punctuation, explicit pauses, and rate, then review a generated sample before recording.
+Keep narration at its original 1.0× speed with natural pauses. The adapter rejects any `speaking_rate` other than 1.0 and performs no tempo adjustment. Do not use API speed controls, `atempo`, time stretching, or silence removal to fit a recording. Global performance prose and emphasis tags do not steer the local model; use natural transcript phrasing, punctuation, and purposeful pauses, then review the generated sample before recording. If delivery sounds rushed, revise the script or reference and regenerate at normal speed.
 
-After any voice, reference, transcript, engine, or rate change, rerun `--phase narration`, review the new audio and measured timing, retime `actions.yaml`, and rerun `--phase finish --approve-timing`. The finish gate rejects stale local narration even when timing approval is requested. Approval includes narration inputs and reference audio hashes.
+After any voice, reference, transcript, or engine change, rerun `--phase narration`, review the new audio and measured timing, retime `actions.yaml`, and rerun `--phase finish --approve-timing`. The finish gate rejects stale local narration even when timing approval is requested. Approval includes narration inputs and reference audio hashes.
 
-Sentence windows come from silence detection, **not word-level forced alignment**. Rate changes can shorten gaps enough to merge spoken sentences into one detected span. Do not treat an action landing in a detected span as proof that the matching words describe its visible state. Listen while viewing the final video and check each reaction and the code reveal; keep the final payoff 1–3 seconds beyond the actual WAV. A timing mismatch requires retiming and recording again.
+Sentence windows come from silence detection, **not word-level forced alignment**. Natural pauses do not always coincide with complete sentences, and several sentences may share a detected span. Do not treat an action landing in a detected span as proof that the matching words describe its visible state. Listen while viewing the final video and check each reaction and the code reveal; keep the final payoff 1–3 seconds beyond the actual WAV. A timing mismatch requires retiming and recording again.
 
 Keep the normal prompt envelope and its 3–6 cues in `narration.txt` so concept review and validation stay consistent. Before local synthesis, the adapter extracts only `Transcript:`, collapses formatting whitespace, turns `[short pause]` and `[medium pause]` into one line break, turns `[long pause]` into two line breaks, and removes every other bracketed delivery tag. This matters because the local engine does not honor narration tags and inserts about 0.4 seconds of silence for each line break. Use pause tags only where a real pause belongs; ordinary source formatting must not add pauses.
 

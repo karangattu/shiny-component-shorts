@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import json
 import io
+import contextlib
 import threading
 import wave
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -29,6 +30,15 @@ import generate_local_voice
 
 
 class LocalVoiceTTSContractTest(unittest.TestCase):
+    def test_adapter_rejects_time_stretching_before_generation(self):
+        required = ["--input", "prompt.txt", "--output", "out.wav", "--usage-output",
+                    "usage.json", "--engine-dir", ".", "--reference", "ref.wav"]
+        for rate in ("0.9", "1.1", "1.2", "2.0"):
+            with self.subTest(rate=rate), contextlib.redirect_stderr(io.StringIO()):
+                with self.assertRaises(SystemExit):
+                    generate_local_voice.parse_args(required + ["--speaking-rate", rate])
+        self.assertEqual(generate_local_voice.parse_args(required).speaking_rate, 1.0)
+
     def test_real_http_multipart_contract_and_invalid_audio(self):
         wav = io.BytesIO()
         with wave.open(wav, "wb") as audio:
@@ -129,15 +139,15 @@ class LocalVoiceTTSContractTest(unittest.TestCase):
                     sys.executable,
                     str(LOCAL_TTS),
                     "--input",
-                    str(prompt),
+                    prompt.name,
                     "--output",
-                    str(output),
+                    output.name,
                     "--usage-output",
-                    str(usage),
+                    usage.name,
                     "--engine-dir",
-                    str(engine),
+                    engine.name,
                     "--reference",
-                    str(reference),
+                    reference.name,
                     "--ref-text",
                     "Exact sample transcript.",
                     "--quality",
@@ -148,6 +158,7 @@ class LocalVoiceTTSContractTest(unittest.TestCase):
                 capture_output=True,
                 text=True,
                 env=env,
+                cwd=root,
             )
 
             self.assertEqual(completed.returncode, 0, completed.stderr)
@@ -160,6 +171,8 @@ class LocalVoiceTTSContractTest(unittest.TestCase):
             self.assertTrue(output.is_file())
             report = json.loads(usage.read_text(encoding="utf-8"))
             self.assertEqual(report["provider"], "Local voice cloning")
+            self.assertEqual(report["speaking_rate"], 1.0)
+            self.assertAlmostEqual(generate_local_voice.wave_duration(output), 0.1)
             self.assertEqual(report["estimated_paid_tier_cost_usd"], 0)
 
 

@@ -144,8 +144,8 @@ def load_tts_settings(project_dir: Path) -> dict[str, str | float]:
         raise ValueError(f"Unknown TTS settings: {', '.join(sorted(unknown))}")
     for key, value in payload.items():
         if key == "speaking_rate":
-            if isinstance(value, bool) or not isinstance(value, (int, float)) or not 0.5 <= value <= 2.0:
-                raise ValueError("speaking_rate must be a number between 0.5 and 2.0")
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or value != 1.0:
+                raise ValueError("speaking_rate must be 1.0 to preserve natural speech and pauses; retime the video")
             continue
         if not isinstance(value, str) or not value.strip():
             raise ValueError(f"TTS setting {key!r} must be a non-empty string")

@@ -94,8 +94,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--language", default="auto")
     parser.add_argument("--api-url", help="Running local REST API origin; omit to use CLI")
     parser.add_argument("--engine", choices=("qwen", "omnivoice"), default="qwen")
-    parser.add_argument("--speaking-rate", type=float, default=1.0,
-                        help="Pitch-preserving playback rate, 0.5–2.0")
+    parser.add_argument("--speaking-rate", type=float, choices=(1.0,), default=1.0,
+                        help="Natural speed only (1.0); retime the video to the voice")
     return parser.parse_args(argv)
 
 
@@ -106,6 +106,8 @@ def wave_duration(path: Path) -> float:
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
+    for name in ("input", "output", "usage_output", "engine_dir", "reference"):
+        setattr(args, name, getattr(args, name).expanduser().resolve())
     for path, label in (
         (args.input, "narration prompt"),
         (args.reference, "reference voice"),
@@ -132,9 +134,6 @@ def main(argv: list[str] | None = None) -> int:
         print("Narration transcript is empty after removing tags.", file=sys.stderr)
         return 2
 
-    if not 0.5 <= args.speaking_rate <= 2.0:
-        print("speaking-rate must be between 0.5 and 2.0", file=sys.stderr)
-        return 2
     uv = shutil.which("uv")
     if uv is None and not args.api_url:
         print(
@@ -174,13 +173,6 @@ def main(argv: list[str] | None = None) -> int:
             if completed.returncode != 0:
                 print(completed.stderr or completed.stdout or "Local voice cloning failed", file=sys.stderr)
                 return completed.returncode or 1
-        if args.speaking_rate != 1.0:
-            with tempfile.TemporaryDirectory() as directory:
-                adjusted = Path(directory) / "adjusted.wav"
-                subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(args.output),
-                                "-af", f"atempo={args.speaking_rate}", "-c:a", "pcm_s16le",
-                                str(adjusted)], check=True, capture_output=True)
-                shutil.copyfile(adjusted, args.output)
     except (OSError, ValueError, EOFError, wave.Error, subprocess.CalledProcessError) as exc:
         print(f"Local voice cloning failed: {exc}", file=sys.stderr)
         return 1

@@ -272,10 +272,10 @@ class BatchProcessTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             project = make_project(Path(directory))
             path = project / "tts-settings.json"
-            settings = {"provider": "local-voice-cloning", "api_url": "http://127.0.0.1:8001", "speaking_rate": 1.15}
+            settings = {"provider": "local-voice-cloning", "api_url": "http://127.0.0.1:8001", "speaking_rate": 1.0}
             path.write_text(json.dumps(settings))
             self.assertEqual(batch_process.load_tts_settings(project)["saved_voice"], "karan")
-            for bad in (0, 3, True, "fast"):
+            for bad in (0, 0.9, 1.1, 1.2, 2, 3, True, "fast"):
                 path.write_text(json.dumps({**settings, "speaking_rate": bad}))
                 with self.assertRaises(ValueError):
                     batch_process.load_tts_settings(project)
@@ -293,7 +293,7 @@ class BatchProcessTest(unittest.TestCase):
             path.write_text(json.dumps(settings))
             build_cache.update_cache(project, "tts", batch_process.narration_inputs(project))
             self.assertTrue(batch_process.prepare_finish(project, batch_process.new_result(project), True))
-            path.write_text(json.dumps({**settings, "speaking_rate": 1.2}))
+            path.write_text(json.dumps({**settings, "quality": "fast"}))
             self.assertFalse(batch_process.timing_is_approved(project))
             result = batch_process.new_result(project)
             self.assertFalse(batch_process.prepare_finish(project, result, True))

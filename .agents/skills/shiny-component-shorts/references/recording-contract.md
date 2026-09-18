@@ -166,14 +166,14 @@ spoken words ÷ 2.5 + one second per audio tag + two-second buffer
 
 Estimate action time from waits, typing duration, approximately one second per interaction, and the code overlay’s typing plus reading hold. If actions are too short, add another proof or reversal and distribute short waits after reactions. Do not pad with a long idle wait, and never pad the opening: keep the total wait before the first meaningful action at or under 1500 ms (the validator rejects over 2000 ms) so the first action is underway while the narration's opening words are spoken.
 
-For a narrated deliverable, do not time actions against the word-count estimate. Generate `artifacts/narration.wav` first, then measure it:
+For a narrated deliverable, preserve natural speech speed and pauses. Adjust action timing and recording duration to the audio; never compress the audio or remove pauses. If a fixed duration cannot accommodate natural delivery, shorten the transcript and regenerate it before recording. Do not time actions against the word-count estimate. Generate `artifacts/narration.wav` first, then measure it:
 
 ```bash
 ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1 artifacts/narration.wav
 ffmpeg -i artifacts/narration.wav -af "silencedetect=noise=-30dB:d=0.4" -f null -
 ```
 
-Map each silence gap to a sentence boundary, then write the mapping down before touching the waits: put a comment block at the top of `actions.yaml` listing every measured sentence window and the action beat assigned to it. Timing is then a hard contract, not a vibe:
+Use silence gaps only as candidate boundaries. Listen to the unchanged 1.0× narration and identify the actual phrase that describes each reaction and code reveal; a gap is not necessarily a sentence boundary. Write the mapping down before touching the waits: put a comment block at the top of `actions.yaml` listing every measured sentence window and the action beat assigned to it. Timing is then a hard contract, not a vibe:
 
 - Every visible reaction must begin inside `[sentence_start − 1.0 s, sentence_start + 0.5 s]` of the sentence that describes it. When the narration says "switch to seven days," the seven-day click lands within a second of those words.
 - The first meaningful action must start before the first sentence ends (the validator rejects later starts), even when the second sentence names the action — start the pointer travel early so the click lands on the sentence boundary.
@@ -182,7 +182,7 @@ Map each silence gap to a sentence boundary, then write the mapping down before 
 - While narration plays, never leave the screen static for more than 8 seconds between visible actions (the validator rejects longer gaps).
 - Keep the video one to three seconds longer than the WAV (the validator enforces 0.75–3.5 s); place any slack in the holds after reveals or before the code card — never at the start.
 
-After recording, verify the sync against reality, not the plan: compare `action_timeline` in `artifacts/recording.json` with the sentence windows and confirm every reaction falls inside its window. If any beat drifts more than a second, adjust the waits and re-record; do not ship a drifting take.
+After recording, watch the merged video with audio at 1.0× and check the actual words against each visible reaction, including the code reveal. Duration checks and silence detection alone do not prove semantic synchronization. Also compare `action_timeline` in `artifacts/recording.json` with the sentence windows and confirm every reaction falls inside its window. If any beat drifts more than a second, adjust the waits and re-record; do not ship a drifting take.
 
 The code hold defaults to `3200 + 55 × focus characters + 14 × context characters` milliseconds, clamped between 5500 and 11000 ms, so richer dimmed context earns a slightly longer read. Its typewriter animation runs before that hold.
 

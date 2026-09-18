@@ -21,6 +21,7 @@ Create one-screen Shiny demos that make one hidden component behavior obvious in
 - Use only the Shiny preset palette, led by `#007BC2`, with `#1D1F21` text on light surfaces and `#FFFFFF` text on dark surfaces.
 - Use official Shiny and shinychat documentation as the source of truth, and the source at the requested ref when the request starts from a changeset.
 - Run the bundled shared scripts; never generate a demo-specific recorder or validator.
+- Preserve the voice’s natural 1.0× speed and normal pauses. Fit the recording to the narration; never accelerate speech or trim pauses to hit the target duration. If needed, shorten the script and regenerate naturally before recording.
 - Never ship or record an app while a **Shiny Client Errors** panel is visible. Give every input a stable ID and use unique output IDs; any detected client-error panel is a blocking failure.
 - Treat runnable demo projects and their media as disposable outputs. Unless the user provides another destination, create them under `generated/demo-name/`, which is gitignored; never add generated demo directories or example-specific artifact tests to repository source.
 
@@ -188,9 +189,9 @@ The timing approval is bound to hashes of the current WAV, timing report, and ac
 
 To lock a specific voice or model for one video, add an optional `tts-settings.json` beside its app containing `{"voice": "Kore", "model": "gemini-3.1-flash-tts-preview"}`. The batch processor passes these settings to the TTS generator and includes the file in that video's narration cache key.
 
-For new narrated videos in this workspace, default to local voice cloning with saved voice `karan` unless the user chooses another provider or supplies narration. Start or reuse the local REST service as described in the TTS reference and write explicit per-video settings. Users can select another saved voice or tweak engine, quality, language, reference transcript, and speaking rate. After every change, regenerate narration and retime the recording.
+For new narrated videos in this workspace, default to local voice cloning with saved voice `karan` unless the user chooses another provider or supplies narration. Start or reuse the local REST service as described in the TTS reference and write explicit per-video settings. Users can select another saved voice or tweak engine, quality, language, and reference transcript. After every change, regenerate narration and retime the recording.
 
-To clone narration locally, set `provider` to `local-voice-cloning` and optionally choose one voice source (omitting both defaults to `karan`). Use `{"provider": "local-voice-cloning", "saved_voice": "karan"}` for a WAV in the local engine's `voice_samples/` directory, or `{"provider": "local-voice-cloning", "reference_voice": "/path/to/sample.wav"}` for a supplied recording. Optional local settings are `reference_text`, `quality`, `language`, `engine_dir`, `api_url`, `engine`, and numeric `speaking_rate`; see the TTS reference for selection and pause handling. The local path calls no paid API and is part of the same narration cache and timing-approval gate.
+To clone narration locally, set `provider` to `local-voice-cloning` and optionally choose one voice source (omitting both defaults to `karan`). Use `{"provider": "local-voice-cloning", "saved_voice": "karan"}` for a WAV in the local engine's `voice_samples/` directory, or `{"provider": "local-voice-cloning", "reference_voice": "/path/to/sample.wav"}` for a supplied recording. Optional local settings are `reference_text`, `quality`, `language`, `engine_dir`, `api_url`, and `engine`; see the TTS reference for selection and pause handling. The local path calls no paid API and is part of the same narration cache and timing-approval gate.
 
 To reuse existing narration instead of generating TTS for one video, set `{"audio_source": "path/to/narrated.mp4"}` in that video's `tts-settings.json` (a WAV, MP3, or narrated video file; relative paths resolve against the video directory). The narration phase then extracts and measures that audio via `import_narration.py` with no Gemini call and no API key, and includes the source file in the cache key. `audio_source` cannot be combined with `voice` or `model`.
 
@@ -201,7 +202,7 @@ After the batch succeeds, each assigned agent must still inspect the first, reve
 Generate the audio before recording so action timing follows the real narration instead of a word-count estimate:
 
 1. Write `artifacts/narration.txt` and generate `artifacts/narration.wav` (see [references/tts-and-costs.md](references/tts-and-costs.md)); verify the WAV is non-empty and listen for defects before recording anything. When the user supplies existing narration — a WAV or a previously narrated video — import it with `import_narration.py` instead of calling TTS (see the same reference); the transcript in `narration.txt` must match what that audio actually says.
-2. Measure the audio: exact duration with `ffprobe`, sentence boundaries with `ffmpeg -af silencedetect` (see the recording contract's Timing section).
+2. Measure the audio: exact duration with `ffprobe`, candidate pause boundaries with `ffmpeg -af silencedetect`; listen and map the actual spoken phrases to visible reactions (see the recording contract's Timing section).
 3. Author or adjust `actions.yaml` against those measurements: the first meaningful action must be underway during the hook's first sentence, each visible reaction must begin at or slightly before the sentence that describes it, and the video must run one to three seconds past the narration.
 4. Preflight with `record_demo.py --dry-run`, then record and validate with `--require-audio`, then merge with the bundled script:
 
@@ -304,6 +305,7 @@ For a recording:
 For audio:
 
 - Confirm `artifacts/narration.wav` and `artifacts/final_with_audio.mp4` are non-empty.
+- Watch the final video with sound at normal playback speed. Verify each reaction and code reveal against its actual spoken phrase; a passing duration check or silence-derived sentence window alone is insufficient. Fix drift and re-record before showing a finished preview.
 - Listen for truncation, incorrect code pronunciation, mismatched timing, laughing, giggling, chuckling, or any other unintended vocal sound.
 
 Do not claim an artifact was generated if its file does not exist.

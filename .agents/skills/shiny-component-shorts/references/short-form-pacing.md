@@ -75,3 +75,7 @@ All framing and editing elements must stay in the Shiny preset palette. Use Shin
 - Prefer hard cuts or quick 120–220 ms scale moves; avoid novelty transitions.
 - Keep captions and the code card from overlapping.
 - Never show all overlay layers at once. Show either a caption or the code card over the app.
+
+## Natural narration
+
+Keep the voice at its original 1.0× speed and preserve normal pauses. Create pace through concise writing and purposeful on-screen actions. Generate and listen to narration first, then time reactions and code reveals to the actual spoken phrases. Shorten and regenerate an overlong script; never speed up the voice or cut its pauses to meet a target length. Review the merged video with sound before delivery.
