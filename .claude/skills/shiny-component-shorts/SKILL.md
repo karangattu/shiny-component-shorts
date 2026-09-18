@@ -1,11 +1,11 @@
 ---
 name: shiny-component-shorts
-description: Create interactive Shiny Python, Shiny R, or shinychat mini-apps, 30-second "Did you know?" video concepts, Gemini or locally cloned narration and audio, storyboards, recording automation, and editing notes. Use when the user provides a Shiny or shinychat component name, docs URL, existing app path, pull request, commit URL, or commit SHA, or asks for a short demo or video around a Shiny UI feature or a change that just landed.
+description: Create interactive Shiny Python, Shiny R, or shinychat mini-apps, 45-second "Did you know?" video concepts, Gemini or locally cloned narration and audio, storyboards, recording automation, and editing notes. Use when the user provides a Shiny or shinychat component name, docs URL, existing app path, pull request, commit URL, or commit SHA, or asks for a short demo or video around a Shiny UI feature or a change that just landed.
 ---
 
 # Shiny Component Shorts (Claude Code)
 
-Create one-screen Shiny demos that make one hidden component behavior obvious in about 30 seconds.
+Create one-screen Shiny demos that make one hidden component behavior obvious in about 45 seconds.
 
 ## Core contract
 
@@ -51,7 +51,7 @@ Return:
 3. Problem-led hook
 4. Mini-app concept
 5. Three to five variations
-6. A 30-second storyboard
+6. A 45-second storyboard
 7. An exact action → visible reaction plan with at least three planning beats
 
 Do not create files, recording automation, audio, or cost reports.
@@ -62,7 +62,7 @@ Use this workflow when the user asks for multiple videos about one component. Cr
 
 1. Research the component once, then identify up to five genuinely distinct visual behaviors.
 2. Score every behavior with the creative playbook's feature questions. Omit weak ideas rather than padding the series to the requested count.
-3. Give each video its own complete idea-only deliverables: angle, problem-led hook, mini-app concept, variations, 30-second storyboard, and action → visible reaction plan.
+3. Give each video its own complete idea-only deliverables: angle, problem-led hook, mini-app concept, variations, 45-second storyboard, and action → visible reaction plan.
 4. Keep one video focused on one hidden behavior. Changes to labels, data, colors, narration, or setting alone do not make a distinct video.
 5. Make the videos independently producible and order them strongest first.
 6. Before implementation, assign each video a one-line visual direction covering backdrop mode, palette, typography, composition, and setting. For series of three or more, include both light and dark or color-led treatments, and do not let one backdrop treatment dominate more than about half the series unless the user requests a fixed brand system or the component behavior requires it.
@@ -256,15 +256,15 @@ Use this sequence:
 
 | Time | Beat | Required behavior |
 | ---: | --- | --- |
-| 0–3 s | Problem | Begin the first meaningful action by second 2 |
-| 3–8 s | Reveal | Show the hidden behavior clearly |
-| 8–19 s | Proof | Repeat, reverse, or contrast it |
-| 19–26 s | Code | Focus the decisive code line; keep any real source context dimmed |
-| 26–30 s | Payoff | End on the strongest result |
+| 0–4 s | Problem | Begin the first meaningful action by second 2 |
+| 4–12 s | Reveal | Show the hidden behavior clearly |
+| 12–27 s | Proof | Repeat, reverse, or contrast it |
+| 27–40 s | Code | Focus the decisive code line; keep any real source context dimmed |
+| 40–45 s | Payoff | End on the strongest result |
 
 These beat names are planning labels only; never render them in the video.
 
-Keep narration around 60–85 spoken words. Make every sentence describe something literally visible. Use contractions and natural developer language; avoid stock AI phrasing, parameter tours, and forced punchlines. Never use laughter, giggling, chuckling, or other non-speech vocalizations. For audio, use the prompt-and-tag hierarchy and verification rules in [references/tts-and-costs.md](references/tts-and-costs.md); tags must support the visible moment rather than decorate every sentence.
+Keep narration around 95–130 spoken words. Make every sentence describe something literally visible. Use contractions and natural developer language; avoid stock AI phrasing, parameter tours, and forced punchlines. Never use laughter, giggling, chuckling, or other non-speech vocalizations. For audio, use the prompt-and-tag hierarchy and verification rules in [references/tts-and-costs.md](references/tts-and-costs.md); tags must support the visible moment rather than decorate every sentence.
 
 ## Recording rules
 

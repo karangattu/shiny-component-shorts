@@ -190,7 +190,7 @@ Use silence gaps only as candidate boundaries. Listen to the unchanged 1.0× nar
 
 After recording, watch the merged video with audio at 1.0× and check the actual words against each visible reaction, including the code reveal. Duration checks and silence detection alone do not prove semantic synchronization. Also compare `action_timeline` in `artifacts/recording.json` with the sentence windows and confirm every reaction falls inside its window. If any beat drifts more than a second, adjust the waits and re-record; do not ship a drifting take.
 
-The code hold defaults to `3200 + 55 × focus characters + 14 × context characters` milliseconds, clamped between 5500 and 11000 ms, so richer dimmed context earns a slightly longer read. Its typewriter animation runs before that hold.
+The code hold defaults to `4800 + 70 × focus characters + 18 × context characters` milliseconds, clamped between 7500 and 16000 ms, so richer dimmed context earns a slightly longer read and the code stays on screen long enough to copy. Its typewriter animation runs before that hold.
 
 The validator requires `artifacts/narration.txt` to contain the complete `Audio profile:`, `Scene:`, `Director's notes:`, and `Transcript:` envelope, even for silent recordings.
 

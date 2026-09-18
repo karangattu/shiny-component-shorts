@@ -364,13 +364,13 @@ class SharedRecorderContractTest(unittest.TestCase):
             recorder.validate_action_shape({"paste": "#x"})
 
     def test_code_hold_uses_reading_time_and_bounds(self) -> None:
-        self.assertEqual(recorder.code_hold_ms("x"), 5500)
-        self.assertEqual(recorder.code_hold_ms("x" * 1000), 11000)
+        self.assertEqual(recorder.code_hold_ms("x"), 7500)
+        self.assertEqual(recorder.code_hold_ms("x" * 1000), 16000)
         self.assertEqual(
             recorder.code_hold_ms("x" * 60, context="y" * 100),
-            3200 + 55 * 60 + 14 * 100,
+            4800 + 70 * 60 + 18 * 100,
         )
-        self.assertEqual(recorder.code_hold_ms("x", 4321), 4321)
+        self.assertEqual(recorder.code_hold_ms("x", 9000), 9000)
 
     def test_horizontal_code_uses_a_side_panel_and_shiny_palette(self) -> None:
         horizontal = recorder.code_overlay_config(
@@ -1035,12 +1035,12 @@ class GeminiTTSContractTest(unittest.TestCase):
             "Scene:\nTesting the app.\n\n"
             "Director's notes:\nFast pace, no laughing.\n\n"
             "Transcript:\n"
-            "Why is your Shiny text box three lines tall? [short pause] "
-            "Typing more lines makes this field grow smoothly while the other scrolls inside the container. "
-            "Clearing it returns the box to its starting size. [medium pause] "
-            "Here is the exact code that controls the auto resize behavior in your dashboard. "
-            "Notice how simple this one parameter makes your layout and design. [slightly firmer] "
-            "That is the whole change."
+            "Why is your Shiny text box three lines tall when most notes only need one, and why does the extra height sit there all day? [short pause] "
+            "Typing more lines makes this field grow smoothly while the other input scrolls inside its container and hides the latest text from view. "
+            "Clearing it returns the box to its starting size with no jump. [medium pause] "
+            "Here is the exact code that controls the auto resize behavior in your dashboard, both the placeholder that grows and the hint beside it. "
+            "Notice how simple this one parameter makes your layout and design, and how it stays readable when a long paste lands inside. [slightly firmer] "
+            "That is the whole change, and it works the same in R and in Python."
         )
         self.assertEqual(tts.validate_narration_prompt(valid_prompt), [])
 
@@ -1053,7 +1053,7 @@ class GeminiTTSContractTest(unittest.TestCase):
             "Transcript:\nToo short text [short pause] [medium pause] [long pause]."
         )
         errors = tts.validate_narration_prompt(short_prompt)
-        self.assertTrue(any("60–85 spoken words" in e for e in errors))
+        self.assertTrue(any("95–130 spoken words" in e for e in errors))
 
     def test_validate_demo_supports_timing_simulation(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

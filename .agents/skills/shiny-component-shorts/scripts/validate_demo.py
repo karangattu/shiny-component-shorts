@@ -45,7 +45,7 @@ FORBIDDEN_VOCALIZATION_RE = re.compile(
 
 def code_hold_ms(text: str, override: int | None = None, context: str = "") -> int:
     return override or max(
-        5500, min(11000, 3200 + 55 * len(text) + 14 * len(context))
+        7500, min(16000, 4800 + 70 * len(text) + 18 * len(context))
     )
 
 
@@ -415,8 +415,8 @@ def validate_project(
             if measured is not None:
                 narration_seconds = measured
                 report["measured_narration_seconds"] = round(measured, 2)
-            if not 60 <= words <= 85:
-                errors.append(f"Narration must contain 60–85 spoken words; found {words}")
+            if not 95 <= words <= 130:
+                errors.append(f"Narration must contain 95–130 spoken words; found {words}")
             if not 3 <= tags <= 6:
                 errors.append(f"Narration must contain 3–6 audio tags; found {tags}")
             if action_seconds + 0.25 < narration_seconds:

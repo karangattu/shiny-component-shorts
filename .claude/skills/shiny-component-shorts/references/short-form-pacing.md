@@ -57,16 +57,16 @@ In horizontal mode, show the code and live app side-by-side during the code beat
 
 All framing and editing elements must stay in the Shiny preset palette. Use Shiny blue `#007BC2` for primary emphasis, `#FFFFFF`/`#F8F8F8` with `#1D1F21` text for light treatments, and `#1D1F21`/`#202020` with `#FFFFFF` and `#CDD4DA` text for dark treatments.
 
-## Suggested 30-second edit rhythm
+## Suggested 45-second edit rhythm
 
 | Time | Beat | Retention treatment |
 | ---: | --- | --- |
-| 0–2 | Pain | Spoken hook begins; first action starts |
-| 2–7 | Reveal | App reacts; first caption supports the change |
-| 7–14 | Proof | Second state; the changing readout carries the beat |
-| 14–19 | Contrast | Reverse or reset to strengthen the proof |
-| 19–23 | Code | Vertical: compact card over the app. Horizontal: app and code side-by-side |
-| 23–30 | Payoff | Strongest interaction, full app, short takeaway |
+| 0–3 | Pain | Spoken hook begins; first action starts |
+| 3–10 | Reveal | App reacts; first caption supports the change |
+| 10–21 | Proof | Second state; the changing readout carries the beat |
+| 21–28 | Contrast | Reverse or reset to strengthen the proof |
+| 28–38 | Code | Vertical: compact card over the app. Horizontal: app and code side-by-side |
+| 38–45 | Payoff | Strongest interaction, full app, short takeaway |
 
 ## Editing restraint
 

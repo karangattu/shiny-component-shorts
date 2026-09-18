@@ -487,7 +487,7 @@ def logo_overlay_config(orientation: str, logo_path: Path) -> dict:
 
 def code_hold_ms(text: str, override: int | None = None, context: str = "") -> int:
     return override or max(
-        5500, min(11000, 3200 + 55 * len(text) + 14 * len(context))
+        7500, min(16000, 4800 + 70 * len(text) + 18 * len(context))
     )
 
 

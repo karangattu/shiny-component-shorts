@@ -46,8 +46,8 @@ def validate_narration_prompt(prompt_text: str) -> list[str]:
         tags = len(TAG_RE.findall(transcript))
         spoken = TAG_RE.sub("", transcript)
         words = len(WORD_RE.findall(spoken))
-        if not 60 <= words <= 85:
-            errors.append(f"Narration must contain 60–85 spoken words; found {words}")
+        if not 95 <= words <= 130:
+            errors.append(f"Narration must contain 95–130 spoken words; found {words}")
         if not 3 <= tags <= 6:
             errors.append(f"Narration must contain 3–6 audio tags; found {tags}")
     return errors

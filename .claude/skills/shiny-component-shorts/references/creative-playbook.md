@@ -155,7 +155,7 @@ Keep the hook short enough to speak while the first action begins.
 For every recorded workflow, including a silent recording, write `artifacts/narration.txt` with this complete timing envelope:
 
 ```text
-Synthesize this as a natural, curious tech explainer for a 30-second Shiny component video.
+Synthesize this as a natural, curious tech explainer for a 45-second Shiny component video.
 
 Audio profile:
 A clear developer voice. Natural, conversational, precise, warm, and not salesy.
@@ -167,7 +167,7 @@ Director's notes:
 Speak at a natural conversational pace. Allow normal pauses between thoughts and before reveals; do not rush to fit the video. Emphasize the surprising behavior. Do not laugh, giggle, chuckle, or add any non-speech vocalization. Do not sound like a corporate tutorial. Read only the transcript below.
 
 Transcript:
-[60–85 spoken words with 3–6 intentional pacing or emphasis cues.]
+[95–130 spoken words with 3–6 intentional pacing or emphasis cues.]
 ```
 
 The envelope is required even when no TTS call will be made. It makes the timing target explicit and keeps the file ready for later audio generation.

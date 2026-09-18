@@ -486,13 +486,13 @@ class ClaudeRecorderContractTest(unittest.TestCase):
         )
 
     def test_code_hold_formula(self) -> None:
-        self.assertEqual(recorder.code_hold_ms(""), 5500)
-        self.assertEqual(recorder.code_hold_ms("x" * 60), 3200 + 55 * 60)
+        self.assertEqual(recorder.code_hold_ms(""), 7500)
+        self.assertEqual(recorder.code_hold_ms("x" * 60), 4800 + 70 * 60)
         self.assertEqual(
             recorder.code_hold_ms("x" * 60, context="y" * 100),
-            3200 + 55 * 60 + 14 * 100,
+            4800 + 70 * 60 + 18 * 100,
         )
-        self.assertEqual(recorder.code_hold_ms("x" * 500), 11000)
+        self.assertEqual(recorder.code_hold_ms("x" * 500), 16000)
         self.assertEqual(recorder.code_hold_ms("x" * 500, override=4200), 4200)
 
     def test_horizontal_code_uses_a_side_panel_and_shiny_palette(self) -> None:
@@ -939,12 +939,12 @@ class ClaudeReviewSheetTest(unittest.TestCase):
             "Scene:\nTesting the app.\n\n"
             "Director's notes:\nFast pace, no laughing.\n\n"
             "Transcript:\n"
-            "Why is your Shiny text box three lines tall? [short pause] "
-            "Typing more lines makes this field grow smoothly while the other scrolls inside the container. "
-            "Clearing it returns the box to its starting size. [medium pause] "
-            "Here is the exact code that controls the auto resize behavior in your dashboard. "
-            "Notice how simple this one parameter makes your layout and design. [slightly firmer] "
-            "That is the whole change."
+            "Why is your Shiny text box three lines tall when most notes only need one, and why does the extra height sit there all day? [short pause] "
+            "Typing more lines makes this field grow smoothly while the other input scrolls inside its container and hides the latest text from view. "
+            "Clearing it returns the box to its starting size with no jump. [medium pause] "
+            "Here is the exact code that controls the auto resize behavior in your dashboard, both the placeholder that grows and the hint beside it. "
+            "Notice how simple this one parameter makes your layout and design, and how it stays readable when a long paste lands inside. [slightly firmer] "
+            "That is the whole change, and it works the same in R and in Python."
         )
         self.assertEqual(tts.validate_narration_prompt(valid_prompt), [])
 

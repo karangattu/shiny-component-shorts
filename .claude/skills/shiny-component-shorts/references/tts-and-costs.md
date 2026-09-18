@@ -9,7 +9,7 @@ Check for `GEMINI_API_KEY`/`GOOGLE_API_KEY` only after audio has been requested 
 Write `artifacts/narration.txt` in this form:
 
 ```text
-Synthesize this as a natural, curious tech explainer for a 30-second Shiny component video.
+Synthesize this as a natural, curious tech explainer for a 45-second Shiny component video.
 
 Audio profile:
 A clear developer voice. Natural, conversational, precise, warm, and not salesy. No non-speech vocalizations.
@@ -21,7 +21,7 @@ Director's notes:
 Speak at a natural conversational pace. Allow normal pauses between thoughts and before reveals; do not rush to fit the video. Emphasize the surprising behavior. Do not laugh, giggle, or chuckle. Do not add sighs, gasps, coughs, filler sounds, or any other non-speech vocalization. Do not sound like a corporate tutorial. Read only the transcript below.
 
 Transcript:
-[60–85 spoken words with 3–6 intentional pacing or emphasis cues.]
+[95–130 spoken words with 3–6 intentional pacing or emphasis cues.]
 ```
 
 Use three aligned controls:
@@ -57,7 +57,7 @@ python .claude/skills/shiny-component-shorts/scripts/generate_tts.py \
   --usage-output generated/demo-name/artifacts/narration.usage.json
 ```
 
-The generator statically validates the prompt (envelope structure, 60–85 words, 3–6 tags, and absence of laughter cues) before calling the API to prevent wasted spend. It uses Gemini 3.1 Flash TTS Preview and chooses from the curated Kore, Erinome, Charon, and Achird voices unless `--voice` overrides it. Treat preview model names and prices as unstable.
+The generator statically validates the prompt (envelope structure, 95–130 words, 3–6 tags, and absence of laughter cues) before calling the API to prevent wasted spend. It uses Gemini 3.1 Flash TTS Preview and chooses from the curated Kore, Erinome, Charon, and Achird voices unless `--voice` overrides it. Treat preview model names and prices as unstable.
 
 If both key variables exist and authentication fails, note that the Google SDK may prioritize `GOOGLE_API_KEY`; do not reveal either value.
 

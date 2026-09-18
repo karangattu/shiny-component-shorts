@@ -32,16 +32,20 @@ def window_label():
     return f"{input.seven()} / {input.ninety()} / {input.thirty()}"
 """
 
-# Four sentences, 68 spoken words and 4 audio tags — inside the validator's
-# 60–85 word and 3–6 tag windows.
+# Four sentences, 100 spoken words and 4 audio tags — inside the validator's
+# 95–130 word and 3–6 tag windows.
 NARRATION_SENTENCES = (
-    "[steady] A dashboard number tells you where the total landed, but it hides "
-    "the shape of the week behind it.",
+    "[steady] A dashboard number tells you where the total landed for the day, "
+    "but it hides the shape of the week and the dips behind the headline on the "
+    "card.",
     "[short pause] Switch the window to seven days and the card redraws its "
-    "sparkline in place.",
-    "[curious] Ninety days stretches the same line into a longer climb, and "
-    "thirty brings the working view back.",
-    "[calm] One argument does all of it, and the chart never leaves the card.",
+    "sparkline in place, while the value label and its caption keep the same "
+    "spot on the card.",
+    "[curious] Ninety days stretches the same line into a longer climb with "
+    "roomier gaps between the markers, and thirty brings the working view back "
+    "with room to spare.",
+    "[calm] One argument does all of it, and the chart never leaves the card it "
+    "started in, so the layout stays calm while the range moves.",
 )
 
 SPEECH_SECONDS = 1.6

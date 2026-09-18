@@ -111,7 +111,7 @@ class LocalVoiceTTSContractTest(unittest.TestCase):
             )
             fake_uv.chmod(0o755)
 
-            filler = " ".join(f"word{index}" for index in range(48))
+            filler = " ".join(f"word{index}" for index in range(90))
             prompt = root / "narration.txt"
             prompt.write_text(
                 "Audio profile:\nA clear developer voice.\n\n"
