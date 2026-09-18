@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
 import json
+import io
+import threading
+import wave
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from types import SimpleNamespace
 import os
 import subprocess
 import sys
@@ -19,7 +24,58 @@ LOCAL_TTS = (
 )
 
 
+sys.path.insert(0, str(LOCAL_TTS.parent))
+import generate_local_voice
+
+
 class LocalVoiceTTSContractTest(unittest.TestCase):
+    def test_real_http_multipart_contract_and_invalid_audio(self):
+        wav = io.BytesIO()
+        with wave.open(wav, "wb") as audio:
+            audio.setnchannels(1)
+            audio.setsampwidth(2)
+            audio.setframerate(24000)
+            audio.writeframes(b"\x00\x00" * 2400)
+        requests = []
+        response = [wav.getvalue()]
+        class Handler(BaseHTTPRequestHandler):
+            def do_POST(self):
+                requests.append((self.path, self.rfile.read(int(self.headers["Content-Length"]))))
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(response[0])
+            def log_message(self, *args):
+                pass
+        server = HTTPServer(("127.0.0.1", 0), Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                reference = root / "speaker.wav"
+                reference.write_bytes(b"saved-voice-sample")
+                args = SimpleNamespace(api_url=f"http://127.0.0.1:{server.server_port}",
+                    reference=reference, ref_text="Reference words", quality="fast",
+                    language="English", engine="qwen", output=root / "result.wav")
+                generate_local_voice.synthesize_api(args, "Read this script")
+                self.assertAlmostEqual(generate_local_voice.wave_duration(args.output), 0.1)
+                self.assertEqual(requests[0][0], "/synthesize")
+                for value in (b'name="reference_audio"', b"saved-voice-sample", b"Reference words", b"Read this script", b"qwen", b"fast"):
+                    self.assertIn(value, requests[0][1])
+                response[0] = b'not audio'
+                with self.assertRaises((wave.Error, EOFError)):
+                    generate_local_voice.synthesize_api(args, "Read this script")
+                self.assertAlmostEqual(generate_local_voice.wave_duration(args.output), 0.1)
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join()
+
+    def test_api_rejects_nonlocal_destinations(self):
+        for url in ("https://example.com", "http://127.0.0.1.evil.com", "http://user@localhost:8001", "http://localhost:8001/other"):
+            with self.assertRaises(ValueError):
+                generate_local_voice.validate_api_url(url)
+
     def test_adapter_turns_pause_tags_into_line_breaks_and_removes_other_tags(
         self,
     ) -> None:

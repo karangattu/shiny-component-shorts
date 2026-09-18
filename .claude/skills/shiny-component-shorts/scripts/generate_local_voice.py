@@ -9,6 +9,10 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
+import urllib.request
+import urllib.parse
+import uuid
 import wave
 from pathlib import Path
 
@@ -35,6 +39,49 @@ def local_voice_script(prompt: str) -> str:
     return transcript.strip()
 
 
+def validate_api_url(url: str) -> str:
+    parsed = urllib.parse.urlsplit(url)
+    if (parsed.scheme != "http" or parsed.hostname not in {"localhost", "127.0.0.1", "::1"}
+            or parsed.username or parsed.password or parsed.query or parsed.fragment
+            or parsed.path not in {"", "/"}):
+        raise ValueError("api_url must be a loopback HTTP origin, e.g. http://127.0.0.1:8001")
+    return url.rstrip("/")
+
+
+def synthesize_api(args: argparse.Namespace, script: str) -> None:
+    """Send the same multipart contract as local-voice-cloning/src/api.py."""
+    origin = validate_api_url(args.api_url)
+    boundary = uuid.uuid4().hex
+    fields = {"text": script, "ref_text": args.ref_text, "quality": args.quality,
+              "language": args.language, "engine": args.engine, "output_format": "wav"}
+    body = bytearray()
+    for key, value in fields.items():
+        body.extend((f'--{boundary}\r\nContent-Disposition: form-data; name="{key}"'
+                     f'\r\n\r\n{value}\r\n').encode())
+    suffix = args.reference.suffix.lower()
+    if not re.fullmatch(r"\.[a-z0-9]+", suffix):
+        raise ValueError("Reference audio must have an audio file extension")
+    body.extend((f'--{boundary}\r\nContent-Disposition: form-data; name="reference_audio"; '
+                 f'filename="reference{suffix}"\r\nContent-Type: application/octet-stream\r\n\r\n').encode())
+    body.extend(args.reference.read_bytes())
+    body.extend(f"\r\n--{boundary}--\r\n".encode())
+    request = urllib.request.Request(origin + "/synthesize", data=bytes(body),
+        headers={"Content-Type": f"multipart/form-data; boundary={boundary}"})
+    # Local samples must not follow a redirect or be sent through an HTTP proxy.
+    class NoRedirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, req, fp, code, msg, headers, newurl):
+            return None
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
+    with opener.open(request, timeout=1800) as response:
+        audio = response.read()
+    with tempfile.TemporaryDirectory() as directory:
+        candidate = Path(directory) / "narration.wav"
+        candidate.write_bytes(audio)
+        if wave_duration(candidate) <= 0:
+            raise ValueError("API returned empty narration")
+    args.output.write_bytes(audio)
+
+
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input", required=True, type=Path)
@@ -45,6 +92,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--ref-text", default="")
     parser.add_argument("--quality", choices=("high", "fast"), default="high")
     parser.add_argument("--language", default="auto")
+    parser.add_argument("--api-url", help="Running local REST API origin; omit to use CLI")
+    parser.add_argument("--engine", choices=("qwen", "omnivoice"), default="qwen")
+    parser.add_argument("--speaking-rate", type=float, default=1.0,
+                        help="Pitch-preserving playback rate, 0.5–2.0")
     return parser.parse_args(argv)
 
 
@@ -62,7 +113,7 @@ def main(argv: list[str] | None = None) -> int:
         if not path.is_file() or path.stat().st_size == 0:
             print(f"Missing or empty {label}: {path}", file=sys.stderr)
             return 2
-    if not args.engine_dir.is_dir():
+    if not args.api_url and not args.engine_dir.is_dir():
         print(
             f"Local voice cloning directory does not exist: {args.engine_dir}",
             file=sys.stderr,
@@ -81,8 +132,11 @@ def main(argv: list[str] | None = None) -> int:
         print("Narration transcript is empty after removing tags.", file=sys.stderr)
         return 2
 
+    if not 0.5 <= args.speaking_rate <= 2.0:
+        print("speaking-rate must be between 0.5 and 2.0", file=sys.stderr)
+        return 2
     uv = shutil.which("uv")
-    if uv is None:
+    if uv is None and not args.api_url:
         print(
             "Missing dependency: install uv to run local-voice-cloning.",
             file=sys.stderr,
@@ -101,6 +155,8 @@ def main(argv: list[str] | None = None) -> int:
         str(args.reference),
         "--text",
         script,
+        "--engine",
+        args.engine,
         "--quality",
         args.quality,
         "--language",
@@ -110,18 +166,24 @@ def main(argv: list[str] | None = None) -> int:
     ]
     if args.ref_text:
         command.extend(["--ref-text", args.ref_text])
-    completed = subprocess.run(
-        command,
-        cwd=args.engine_dir,
-        capture_output=True,
-        text=True,
-    )
-    if completed.returncode != 0:
-        print(
-            completed.stderr or completed.stdout or "Local voice cloning failed",
-            file=sys.stderr,
-        )
-        return completed.returncode or 1
+    try:
+        if args.api_url:
+            synthesize_api(args, script)
+        else:
+            completed = subprocess.run(command, cwd=args.engine_dir, capture_output=True, text=True)
+            if completed.returncode != 0:
+                print(completed.stderr or completed.stdout or "Local voice cloning failed", file=sys.stderr)
+                return completed.returncode or 1
+        if args.speaking_rate != 1.0:
+            with tempfile.TemporaryDirectory() as directory:
+                adjusted = Path(directory) / "adjusted.wav"
+                subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(args.output),
+                                "-af", f"atempo={args.speaking_rate}", "-c:a", "pcm_s16le",
+                                str(adjusted)], check=True, capture_output=True)
+                shutil.copyfile(adjusted, args.output)
+    except (OSError, ValueError, EOFError, wave.Error, subprocess.CalledProcessError) as exc:
+        print(f"Local voice cloning failed: {exc}", file=sys.stderr)
+        return 1
     if not args.output.is_file() or args.output.stat().st_size <= 44:
         print(
             f"Local voice cloning did not create a valid WAV file: {args.output}",
@@ -136,8 +198,10 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     report = {
         "provider": "Local voice cloning",
-        "model": f"Qwen3-TTS 1.7B · {args.quality}",
+        "model": f"{args.engine} · {args.quality}",
         "voice": str(args.reference),
+        "transport": "api" if args.api_url else "cli",
+        "speaking_rate": args.speaking_rate,
         "audio_duration_seconds": round(duration, 3),
         "usage_source": "Local Apple MLX generation",
         "estimated_paid_tier_cost_usd": 0,

@@ -19,6 +19,7 @@ SCRIPTS_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPTS_DIR))
 import build_cache  # noqa: E402
 import validate_demo  # noqa: E402
+from generate_local_voice import validate_api_url
 
 
 BASE_PORT = 8000
@@ -117,7 +118,7 @@ def narration_inputs(project_dir: Path) -> list[Path]:
     return inputs
 
 
-def load_tts_settings(project_dir: Path) -> dict[str, str]:
+def load_tts_settings(project_dir: Path) -> dict[str, str | float]:
     path = project_dir / "tts-settings.json"
     if not path.is_file():
         return {}
@@ -135,10 +136,17 @@ def load_tts_settings(project_dir: Path) -> dict[str, str]:
         "engine_dir",
         "quality",
         "language",
+        "api_url",
+        "engine",
+        "speaking_rate",
     }
     if unknown:
         raise ValueError(f"Unknown TTS settings: {', '.join(sorted(unknown))}")
     for key, value in payload.items():
+        if key == "speaking_rate":
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or not 0.5 <= value <= 2.0:
+                raise ValueError("speaking_rate must be a number between 0.5 and 2.0")
+            continue
         if not isinstance(value, str) or not value.strip():
             raise ValueError(f"TTS setting {key!r} must be a non-empty string")
     if "audio_source" in payload and ("voice" in payload or "model" in payload):
@@ -151,6 +159,14 @@ def load_tts_settings(project_dir: Path) -> dict[str, str]:
             "TTS setting 'provider' must be 'gemini' or 'local-voice-cloning'"
         )
     if provider == "local-voice-cloning":
+        if not any(key in payload for key in ("saved_voice", "reference_voice")):
+            payload["saved_voice"] = "karan"
+        if "api_url" in payload:
+            validate_api_url(payload["api_url"])
+        if payload.get("quality", "high") not in {"high", "fast"}:
+            raise ValueError("quality must be high or fast")
+        if payload.get("engine", "qwen") not in {"qwen", "omnivoice"}:
+            raise ValueError("engine must be qwen or omnivoice")
         selected = [key for key in ("saved_voice", "reference_voice") if key in payload]
         if len(selected) != 1:
             raise ValueError(
@@ -237,6 +253,8 @@ def measure_narration(audio_path: Path) -> dict:
     return {
         "duration_seconds": round(duration, 3),
         "sentence_windows": windows,
+        "alignment_method": "silence detection; estimated sentence boundaries",
+        "requires_audiovisual_review": True,
     }
 
 
@@ -293,6 +311,9 @@ def generate_narration(project_dir: Path, force: bool) -> dict:
                     "--language",
                     settings.get("language", "auto"),
                 ]
+                for option in ("api_url", "engine", "speaking_rate"):
+                    if option in settings:
+                        command.extend(["--" + option.replace("_", "-"), str(settings[option])])
                 if "reference_text" in settings:
                     command.extend(["--ref-text", settings["reference_text"]])
             else:
@@ -337,10 +358,8 @@ def timing_paths(project_dir: Path) -> list[Path]:
 
 
 def timing_hashes(project_dir: Path) -> dict[str, str]:
-    return {
-        str(path.relative_to(project_dir)): build_cache.calculate_hash(path)
-        for path in timing_paths(project_dir)
-    }
+    paths = timing_paths(project_dir) + narration_inputs(project_dir)
+    return {str(path): build_cache.calculate_hash(path) for path in paths}
 
 
 def approve_timing(project_dir: Path) -> None:
@@ -367,6 +386,12 @@ def prepare_finish(project_dir: Path, result: dict, approve: bool) -> bool:
     try:
         for path in timing_paths(project_dir):
             require_nonempty(path, "timing approval input")
+        settings = load_tts_settings(project_dir)
+        if settings.get("provider") == "local-voice-cloning":
+            artifacts = project_dir / "artifacts"
+            if not build_cache.check_cache(project_dir, "tts", narration_inputs(project_dir),
+                    [artifacts / name for name in ("narration.wav", "narration.usage.json", "narration-timing.json")]):
+                raise RuntimeError("Local narration is stale; rerun --phase narration before reviewing timing")
         if approve:
             approve_timing(project_dir)
         if not timing_is_approved(project_dir):

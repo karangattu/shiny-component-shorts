@@ -268,6 +268,37 @@ class BatchProcessTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "saved_voice.*name"):
                 batch_process.load_tts_settings(project)
 
+    def test_default_saved_voice_and_adjustable_settings(self):
+        with tempfile.TemporaryDirectory() as directory:
+            project = make_project(Path(directory))
+            path = project / "tts-settings.json"
+            settings = {"provider": "local-voice-cloning", "api_url": "http://127.0.0.1:8001", "speaking_rate": 1.15}
+            path.write_text(json.dumps(settings))
+            self.assertEqual(batch_process.load_tts_settings(project)["saved_voice"], "karan")
+            for bad in (0, 3, True, "fast"):
+                path.write_text(json.dumps({**settings, "speaking_rate": bad}))
+                with self.assertRaises(ValueError):
+                    batch_process.load_tts_settings(project)
+
+    def test_voice_change_invalidates_approval_and_requires_regeneration(self):
+        with tempfile.TemporaryDirectory() as directory:
+            project = make_project(Path(directory))
+            artifacts = project / "artifacts"
+            for name in ("narration.wav", "narration-timing.json", "narration.usage.json"):
+                (artifacts / name).write_text("data")
+            reference = project / "voice.wav"
+            reference.write_bytes(b"reference")
+            settings = {"provider": "local-voice-cloning", "reference_voice": "voice.wav"}
+            path = project / "tts-settings.json"
+            path.write_text(json.dumps(settings))
+            build_cache.update_cache(project, "tts", batch_process.narration_inputs(project))
+            self.assertTrue(batch_process.prepare_finish(project, batch_process.new_result(project), True))
+            path.write_text(json.dumps({**settings, "speaking_rate": 1.2}))
+            self.assertFalse(batch_process.timing_is_approved(project))
+            result = batch_process.new_result(project)
+            self.assertFalse(batch_process.prepare_finish(project, result, True))
+            self.assertIn("stale", str(result["errors"]))
+
     def test_timing_approval_is_bound_to_audio_timing_and_actions(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             project = make_project(Path(temp_dir))

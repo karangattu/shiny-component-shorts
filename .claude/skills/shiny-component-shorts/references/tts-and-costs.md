@@ -63,7 +63,7 @@ If both key variables exist and authentication fails, note that the Google SDK m
 
 ## Use local voice cloning
 
-Use this mode when the user requests a saved local voice or supplies a reference recording. It calls the sibling `local-voice-cloning` project through `uv`, keeps the audio on the Mac, and does not check for a Gemini API key.
+Use local voice cloning by default for new agent-generated narrated videos in this workspace, unless the user selects another provider or supplies existing narration. Write `tts-settings.json` explicitly; older projects without it retain their Gemini behavior. The adapter supports the sibling project’s REST API or its CLI through `uv`, and does not check for a Gemini API key.
 
 For a saved voice, put its name in `tts-settings.json`:
 
@@ -88,9 +88,42 @@ The batch processor resolves this to `<engine-dir>/voice_samples/karan.wav`. A s
 }
 ```
 
-Choose exactly one of `saved_voice` and `reference_voice`. `reference_text` is optional; when omitted, the local engine transcribes the first 12 seconds. An exact transcript avoids loading transcription and usually improves fidelity. Relative `reference_voice` paths resolve against the video directory.
+Omit both voice selectors to use the default saved voice `karan`, or choose one of `saved_voice` and `reference_voice`. Never choose both. A missing saved WAV is an error; do not silently switch speakers. `reference_text` is optional; when omitted, the local engine transcribes the first 12 seconds. An exact transcript avoids loading transcription and usually improves fidelity. Relative `reference_voice` paths resolve against the video directory.
 
 By default, the adapter looks for `local-voice-cloning` beside this repository. Set `LOCAL_VOICE_CLONING_DIR` or the per-video `engine_dir` setting when it lives elsewhere. `quality` defaults to `high`; `language` defaults to `auto`.
+
+### REST API and voice adjustments
+
+Start the sibling service in a managed terminal and wait for `GET /health` to return `status: ok`:
+
+```bash
+cd ../local-voice-cloning
+uv run uvicorn src.api:app --host 127.0.0.1 --port 8001
+```
+
+For new narrated videos, write this per-video `tts-settings.json`:
+
+```json
+{
+  "provider": "local-voice-cloning",
+  "api_url": "http://127.0.0.1:8001",
+  "saved_voice": "karan",
+  "engine": "qwen",
+  "quality": "high",
+  "language": "English",
+  "speaking_rate": 1.0
+}
+```
+
+The user can select another saved WAV name or reference recording, correct `reference_text`, choose `high`/`fast` quality, or adjust `speaking_rate` between 0.5 and 2.0 (above 1 is faster). List available voices from `<engine_dir>/voice_samples/*.wav`; the API does not offer a saved-voice listing endpoint. `engine` accepts `qwen` or `omnivoice`; OmniVoice must be installed separately in the sibling project. Quality changes model/compute settings, not voice identity.
+
+`POST /synthesize` receives multipart fields `text`, `ref_text`, `quality`, `language`, `engine`, `output_format=wav`, plus the uploaded `reference_audio`. `GET /info` reports supported engine settings. `POST /transcribe` can help inspect the sample transcript. Consult the running `/docs` and sibling `src/api.py` for the exact contract. Only loopback HTTP origins are accepted, with redirects and proxies disabled. Omitting `api_url` uses the CLI; API failures are surfaced without silently switching providers.
+
+The API's `speed` parameter is a compatibility option, so the adapter applies `speaking_rate` with FFmpeg's pitch-preserving `atempo` after synthesis. It measures the adjusted WAV. Global performance prose and emphasis tags do not steer the local model; use punctuation, explicit pauses, and rate, then review a generated sample before recording.
+
+After any voice, reference, transcript, engine, or rate change, rerun `--phase narration`, review the new audio and measured timing, retime `actions.yaml`, and rerun `--phase finish --approve-timing`. The finish gate rejects stale local narration even when timing approval is requested. Approval includes narration inputs and reference audio hashes.
+
+Sentence windows come from silence detection, **not word-level forced alignment**. Rate changes can shorten gaps enough to merge spoken sentences into one detected span. Do not treat an action landing in a detected span as proof that the matching words describe its visible state. Listen while viewing the final video and check each reaction and the code reveal; keep the final payoff 1–3 seconds beyond the actual WAV. A timing mismatch requires retiming and recording again.
 
 Keep the normal prompt envelope and its 3–6 cues in `narration.txt` so concept review and validation stay consistent. Before local synthesis, the adapter extracts only `Transcript:`, collapses formatting whitespace, turns `[short pause]` and `[medium pause]` into one line break, turns `[long pause]` into two line breaks, and removes every other bracketed delivery tag. This matters because the local engine does not honor narration tags and inserts about 0.4 seconds of silence for each line break. Use pause tags only where a real pause belongs; ordinary source formatting must not add pauses.
 
