@@ -24,6 +24,8 @@ Transcript:
 [95–130 spoken words with 3–6 intentional pacing or emphasis cues.]
 ```
 
+Before synthesis, edit the transcript for spoken delivery: use contractions, short sentences, and one thought per sentence. Replace awkward spoken identifiers with their meaning while the code card shows the exact API spelling. For example, say “wait three seconds before showing thinking” instead of reading `show_thinking_after_s` aloud. Preserve the feature's actual behavior and match each sentence to the visible proof; do not add filler merely to meet the word count.
+
 Use three aligned controls:
 
 1. Put the overall persona, emotional register, and default pace in `Audio profile` and `Director's notes`.
@@ -127,6 +129,14 @@ Sentence windows come from silence detection, **not word-level forced alignment*
 Keep the normal prompt envelope and its 3–6 cues in `narration.txt` so concept review and validation stay consistent. Before local synthesis, the adapter extracts only `Transcript:`, removes all bracketed delivery tags (including pause tags), and collapses whitespace into a single continuous paragraph. The local engine splits on line breaks and inserts about 0.4 seconds of silence per break, so forwarding pause tags as newlines creates separate takes with artificial gaps. Let punctuation supply natural phrasing at 1.0× speed.
 
 The local adapter writes the same `narration.wav`, timing report, and usage report as the Gemini path. Its usage report records `$0` paid API cost. Listen to the result and approve its measured timing before the finish phase, exactly as with any other narration source.
+
+### Choose a natural local take
+
+For new local narration, generate three independent takes of the same finalized transcript, reference voice, engine, language, and quality at 1.0× speed before timing the recording. Keep one continuous paragraph per take. Generate sequentially on the local device and reuse a running service or loaded model where practical. Keep each raw WAV and its settings in `artifacts/narration-takes/`; do not obtain “takes” by duplicating a cached WAV or processing the same synthesis three ways. Imported narration does not need regeneration, and this local default does not authorize extra paid-provider calls.
+
+Create separate comparison WAVs at the same measured integrated loudness using two-pass linear normalization (the pipeline's -14 LUFS / -1 dBTP target). Verify the resulting loudness and peaks rather than assuming equal peak amplitude means equal perceived volume. If any take cannot reach the target with linear gain under the peak ceiling, lower the common comparison target for all three instead of compressing one take differently. Do not denoise, gate, add background sound, or change tempo for the comparison. Retain untouched raw takes so processing cannot hide a poor generation.
+
+Audition the three takes at the same playback volume. Choose by natural emphasis and rhythm, complete and correctly pronounced words, and clean transitions around quiet word endings and gaps. Duration and loudness measurements cannot select the most natural take. If listening is unavailable, present the three labeled comparison clips to the user for selection and leave the current narration and video intact; report them as candidates, not a verified winner. Once selected, record the take identity and settings, promote it to the narration workflow, apply only needed cleanup, remeasure timing, and record against that take. Do not replace narration under an already timed video without retiming and reviewing it.
 
 ### Continuous background and speech transitions
 

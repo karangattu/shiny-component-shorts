@@ -299,6 +299,7 @@ For a recording:
 
 For audio:
 
+- For new local narration, use conversational transcript wording and compare three fresh takes at matched loudness before choosing the narration; follow [references/tts-and-costs.md](references/tts-and-costs.md#choose-a-natural-local-take).
 - Confirm `artifacts/narration.wav` and `artifacts/final_with_audio.mp4` are non-empty.
 - Watch the final video with sound at normal playback speed. Verify each reaction and code reveal against its actual spoken phrase; a passing duration check or silence-derived sentence window alone is insufficient. Fix drift and re-record before showing a finished preview.
 - Listen for truncation, incorrect code pronunciation, mismatched timing, laughing, giggling, chuckling, or any other unintended vocal sound.
