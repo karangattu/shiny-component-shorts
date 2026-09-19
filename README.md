@@ -392,7 +392,7 @@ Just describe what you want in the prompt:
 
 - **Pin a voice or model** — add a per-video `tts-settings.json` with `{"voice": "Kore"}` and the agent uses it for that video.
 
-For narrated videos, the agent generates the audio first, measures it, and only records after the action timing is reviewed against the real narration — so reactions land on the sentences that describe them. Audio is merged with two-pass loudness normalization to the -14 LUFS short-form target.
+For narrated videos, the agent generates the audio first, measures it, and only records after the action timing is reviewed against the real narration — so reactions land on the sentences that describe them. Audio merging uses constant gain toward -14 LUFS within peak headroom, preserving dynamics. Selected takes can bypass gain and filtering with `audio_processing: "preserve"`.
 
 ## Glossary
 

@@ -139,6 +139,7 @@ def load_tts_settings(project_dir: Path) -> dict[str, str | float]:
         "api_url",
         "engine",
         "speaking_rate",
+        "audio_processing",
     }
     if unknown:
         raise ValueError(f"Unknown TTS settings: {', '.join(sorted(unknown))}")
@@ -153,6 +154,8 @@ def load_tts_settings(project_dir: Path) -> dict[str, str | float]:
         raise ValueError(
             "TTS setting 'audio_source' cannot be combined with 'voice' or 'model'"
         )
+    if payload.get("audio_processing", "normalize") not in {"normalize", "preserve"}:
+        raise ValueError("audio_processing must be normalize or preserve")
     provider = payload.get("provider", "gemini")
     if provider not in {"gemini", "local-voice-cloning"}:
         raise ValueError(
@@ -237,6 +240,7 @@ def merge_inputs(project_dir: Path) -> list[Path]:
         artifacts / "demo.mp4",
         artifacts / "narration.wav",
         SCRIPTS_DIR / "merge_audio.py",
+        *([project_dir / "tts-settings.json"] if (project_dir / "tts-settings.json").is_file() else []),
     ]
 
 
@@ -470,6 +474,8 @@ def merge_project(project_dir: Path, result: dict, force: bool) -> dict:
             "--project-dir",
             str(project_dir),
         ]
+        if load_tts_settings(project_dir).get("audio_processing") == "preserve":
+            command.append("--preserve-audio")
         completed = subprocess.run(command, capture_output=True, text=True)
         if completed.returncode != 0:
             raise RuntimeError(completed.stderr or completed.stdout or "Merge failed")

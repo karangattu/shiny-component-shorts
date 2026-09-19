@@ -211,7 +211,7 @@ python .claude/skills/shiny-component-shorts/scripts/merge_audio.py \
   --project-dir generated/demo-name
 ```
 
-It runs two-pass loudnorm to the -14 LUFS short-form target, applies a 70 Hz high-pass and short edge fades, encodes 48 kHz 192 kbps AAC, copies the video stream, and pads the audio so the video keeps its payoff. Do not hand-write a one-pass ffmpeg merge.
+It measures loudness and uses constant gain toward -14 LUFS within -1.5 dBTP headroom, accepting a quieter result to preserve dynamics. For an approved take, use `--preserve-audio` or batch `"audio_processing": "preserve"` to bypass gain and filtering. It encodes 48 kHz 192 kbps AAC, copies video, and pads the final hold. Use the shared helper so merge behavior stays consistent.
 
 If edited overlays are requested, preserve `artifacts/demo.mp4` as the clean browser recording and write edited outputs separately. Do not overwrite the clean recording.
 

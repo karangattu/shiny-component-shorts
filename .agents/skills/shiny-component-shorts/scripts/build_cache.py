@@ -86,6 +86,12 @@ def check_cache(
 
     # 3. Verify input files hashes
     inputs = step_data["inputs"]
+    expected_keys = {
+        str(path.relative_to(project_dir)) if path.is_relative_to(project_dir) else str(path)
+        for path in input_files
+    }
+    if set(inputs) != expected_keys:
+        return False
     for infile in input_files:
         rel_path = str(infile.relative_to(project_dir)) if infile.is_relative_to(project_dir) else str(infile)
         stored_hash = inputs.get(rel_path)

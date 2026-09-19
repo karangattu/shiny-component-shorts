@@ -84,7 +84,11 @@ def review_marks(timeline: list[dict], duration: float) -> list[tuple[str, float
 
     meaningful = [entry for entry in timeline if entry.get("action") in MEANINGFUL_ACTIONS]
     if meaningful:
-        marks.append(("reveal", float(meaningful[0].get("end", 0.0)) + 0.6))
+        # Typing often prepares a submission; show its first trigger's result.
+        trigger = next((entry for entry in meaningful
+                        if entry.get("action") in {"click", "press", "select_option", "drag"}),
+                       meaningful[0])
+        marks.append(("reveal", float(trigger.get("end", 0.0)) + 0.6))
     else:
         marks.append(("reveal", duration / 3))
 

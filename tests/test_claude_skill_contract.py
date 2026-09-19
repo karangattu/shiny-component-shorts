@@ -454,9 +454,9 @@ class ClaudeRecorderContractTest(unittest.TestCase):
         vertical = recorder.logo_overlay_config("vertical", asset)
         horizontal = recorder.logo_overlay_config("horizontal", asset)
         self.assertTrue(vertical["src"].startswith("data:image/png;base64,"))
-        self.assertEqual((vertical["top"], vertical["left"]), ("4%", "8%"))
-        self.assertEqual(vertical["width"], 168)
-        self.assertEqual(horizontal["width"], 190)
+        self.assertEqual((vertical["top"], vertical["left"]), ("4%", "4%"))
+        self.assertEqual(vertical["width"], 144)
+        self.assertEqual(horizontal["width"], 180)
         self.assertEqual(vertical["darkThreshold"], 0.5)
         self.assertNotIn("color", vertical)
         with self.assertRaises(ValueError):
@@ -858,7 +858,7 @@ class ClaudeValidatorContractTest(unittest.TestCase):
 class ClaudeReviewSheetTest(unittest.TestCase):
     def test_marks_follow_the_recorded_reveal_and_code_beats(self) -> None:
         timeline = [
-            {"action": "wait", "start": 0.0, "end": 1.0},
+            {"action": "type", "start": 0.0, "end": 1.0},
             {"action": "click", "start": 1.0, "end": 2.0},
             {"action": "click", "start": 4.0, "end": 5.0},
             {"action": "code", "start": 10.0, "end": 20.0},
@@ -925,7 +925,7 @@ class ClaudeReviewSheetTest(unittest.TestCase):
     def test_logo_overlay_contains_content_collision_detection(self) -> None:
         self.assertIn("hasCollision", recorder.LOGO_OVERLAY_JS)
         self.assertIn("elementsFromPoint", recorder.LOGO_OVERLAY_JS)
-        self.assertIn("logo.style.opacity = '0'", recorder.LOGO_OVERLAY_JS)
+        self.assertIn("window.__demo_logo_collision__ = true", recorder.LOGO_OVERLAY_JS)
         self.assertIn("logo.style.opacity = '1'", recorder.LOGO_OVERLAY_JS)
 
     def test_recorder_uses_fast_encoding_preset(self) -> None:

@@ -92,8 +92,8 @@ SHINY_CLIENT_ERROR_SCAN_JS = r"""() => {
 
 # Every recording carries the Shiny wordmark in the reserved top band.
 DEFAULT_LOGO_PATH = Path(__file__).resolve().parent.parent / "assets" / "shiny-logo.png"
-LOGO_WIDTHS = {"vertical": 168, "horizontal": 190}
-LOGO_INSET = {"top": "4%", "left": "8%"}
+LOGO_WIDTHS = {"vertical": 144, "horizontal": 180}
+LOGO_INSET = {"top": "4%", "left": "4%"}
 LOGO_DARK_THRESHOLD = 0.5
 
 CURSOR_OVERLAY_JS = r"""(() => {
@@ -234,13 +234,11 @@ LOGO_OVERLAY_JS = r"""(cfg) => {
             return 1;
         };
         const paint = () => {
-            if (hasCollision()) {
-                logo.style.opacity = '0';
-            } else {
-                logo.style.opacity = '1';
-                logo.style.filter =
-                    backdropLuminance() < cfg.darkThreshold ? 'invert(1)' : 'none';
-            }
+            // Keep branding visible; let preflight/recording reject overlap.
+            if (hasCollision()) window.__demo_logo_collision__ = true;
+            logo.style.opacity = '1';
+            logo.style.filter =
+                backdropLuminance() < cfg.darkThreshold ? 'invert(1)' : 'none';
         };
         paint();
         setInterval(paint, 400);
@@ -374,7 +372,7 @@ CODE_OVERLAY_JS = r"""async (cfg) => {
     codeViewport.id = '__code_gutter__';
     codeViewport.style.cssText = 'flex:1;overflow:hidden;padding:8px 0 12px;'
         + "font-family:'Source Code Pro','SF Mono',ui-monospace,Menlo,monospace;"
-        + 'font-size:14px;line-height:1.65;color:#FFFFFF;';
+        + 'font-size:' + (sideBySide ? '18px' : '20px') + ';line-height:1.65;color:#FFFFFF;';
     const beforeBlock = document.createElement('div');
     const focusBlock = document.createElement('div');
     focusBlock.id = '__code_focus_block__';
@@ -670,6 +668,20 @@ def assert_no_shiny_client_errors(page) -> None:
         )
 
 
+def assert_branding_visible(page) -> None:
+    problem = page.evaluate("""() => {
+        const logo = document.getElementById('__demo_logo__');
+        if (!logo || !logo.complete || !logo.naturalWidth) return 'missing logo';
+        const box = logo.getBoundingClientRect();
+        if (window.__demo_logo_collision__) return 'content overlaps the logo';
+        if (box.left < 0 || box.top < 0 || box.right > innerWidth || box.bottom > innerHeight * .2)
+            return 'logo lies outside the reserved top band';
+        return null;
+    }""")
+    if problem:
+        raise RuntimeError(f"Branding check failed: {problem}; fix the app layout before recording")
+
+
 def run_actions(
     page,
     actions: list[dict],
@@ -731,6 +743,7 @@ def run_actions(
             target = project_dir / value["path"]
             target.parent.mkdir(parents=True, exist_ok=True)
             page.screenshot(path=str(target))
+        assert_branding_visible(page)
         timeline.append(
             {
                 "action": name,
@@ -930,6 +943,7 @@ def preflight_project(
                 page.wait_for_timeout(3000)
                 try:
                     assert_no_shiny_client_errors(page)
+                    assert_branding_visible(page)
                 except RuntimeError as exc:
                     report["problems"].append(str(exc))
                 missing = [
@@ -1010,6 +1024,7 @@ def record_project(
             page.wait_for_load_state("networkidle")
             page.wait_for_timeout(3000)
             assert_no_shiny_client_errors(page)
+            assert_branding_visible(page)
             preamble_seconds = time.monotonic() - recording_started
             timeline = run_actions(
                 page,
@@ -1019,6 +1034,7 @@ def record_project(
                 clock_zero=recording_started,
             )
             assert_no_shiny_client_errors(page)
+            assert_branding_visible(page)
             context.close()
             video_source = Path(video.path())
             browser.close()

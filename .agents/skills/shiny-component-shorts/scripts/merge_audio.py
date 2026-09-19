@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """Merge narration audio into a demo recording.
 
-Runs two-pass loudnorm to the -14 LUFS short-form target, applies a 70 Hz
-high-pass and short edge fades, encodes 48 kHz 192 kbps AAC, and copies the
-video stream untouched.
+Uses measured constant gain toward -14 LUFS without exceeding -1.5 dBTP.
+Can preserve a selected take without gain or filtering; encodes AAC and copies video.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import math
 import re
 import shutil
 import subprocess
@@ -59,6 +59,7 @@ def measure_loudness(audio: Path) -> dict:
         ],
         capture_output=True,
         text=True,
+        check=True,
     )
     blocks = re.findall(r"\{[^{}]*\}", result.stderr)
     if not blocks:
@@ -66,8 +67,15 @@ def measure_loudness(audio: Path) -> dict:
     return json.loads(blocks[-1])
 
 
-def merge(video: Path, audio: Path, output: Path) -> None:
-    measured = measure_loudness(audio)
+def linear_gain_db(measured: dict) -> float:
+    loudness, peak = float(measured['input_i']), float(measured['input_tp'])
+    if not math.isfinite(loudness) or not math.isfinite(peak):
+        raise ValueError("Narration must contain measurable, non-silent audio")
+    return min(-14.0 - loudness, -1.5 - peak)
+
+
+def merge(video: Path, audio: Path, output: Path, preserve_audio: bool = False) -> None:
+    measured = None if preserve_audio else measure_loudness(audio)
     audio_duration = probe_duration(audio)
     video_duration = probe_duration(video)
     if video_duration + 0.25 < audio_duration:
@@ -75,20 +83,9 @@ def merge(video: Path, audio: Path, output: Path) -> None:
             f"Video ({video_duration:.2f}s) is shorter than narration "
             f"({audio_duration:.2f}s); extend the recording before merging"
         )
-    loudnorm = (
-        f"loudnorm={LOUDNORM_TARGET}"
-        f":measured_I={measured['input_i']}"
-        f":measured_TP={measured['input_tp']}"
-        f":measured_LRA={measured['input_lra']}"
-        f":measured_thresh={measured['input_thresh']}"
-        f":offset={measured['target_offset']}"
-        ":linear=true"
-    )
-    fade_out_start = max(0.0, audio_duration - 0.25)
-    filters = (
-        f"{HIGHPASS},{loudnorm},"
-        f"afade=t=in:st=0:d=0.15,afade=t=out:st={fade_out_start:.2f}:d=0.25,apad"
-    )
+    # Constant gain cannot switch into loudnorm's dynamic fallback or pump gaps.
+    gain = 0.0 if preserve_audio else linear_gain_db(measured)
+    filters = "apad" if preserve_audio else f"{HIGHPASS},volume={gain:.6f}dB,apad"
     subprocess.run(
         [
             "ffmpeg",
@@ -116,10 +113,8 @@ def merge(video: Path, audio: Path, output: Path) -> None:
     )
     require_nonempty(output, "merged output")
     print(f"Merged: {output}")
-    print(
-        f"Input loudness {measured['input_i']} LUFS -> -14 LUFS target "
-        f"(two-pass linear); audio {audio_duration:.2f}s in video {video_duration:.2f}s"
-    )
+    print(f"Audio {'preserved' if preserve_audio else f'constant gain {gain:.2f} dB'}; "
+          f"audio {audio_duration:.2f}s in video {video_duration:.2f}s")
 
 
 def main() -> int:
@@ -130,6 +125,8 @@ def main() -> int:
     parser.add_argument(
         "--output", type=Path, default=Path("artifacts/final_with_audio.mp4")
     )
+    parser.add_argument("--preserve-audio", action="store_true",
+                        help="Keep the chosen take gain and dynamics; only encode and pad")
     args = parser.parse_args()
 
     if shutil.which("ffmpeg") is None or shutil.which("ffprobe") is None:
@@ -141,7 +138,7 @@ def main() -> int:
     output = args.output if args.output.is_absolute() else project_dir / args.output
     require_nonempty(video, "video")
     require_nonempty(audio, "narration audio")
-    merge(video, audio, output)
+    merge(video, audio, output, preserve_audio=args.preserve_audio)
     return 0
 
 
