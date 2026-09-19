@@ -20,23 +20,17 @@ from generate_tts import validate_narration_prompt
 
 
 TAG_RE = re.compile(r"\[[^\]]+\]")
-PAUSE_TAG_RE = re.compile(r"\[(short|medium|long) pause\]", re.IGNORECASE)
-PAUSE_BREAKS = {"short": "\n", "medium": "\n", "long": "\n\n"}
 
 
 def local_voice_script(prompt: str) -> str:
-    """Return tag-free transcript text with explicit local-engine pause breaks."""
+    """Return one continuous transcript without forced local-engine pause breaks."""
     if "Transcript:" not in prompt:
         raise ValueError("Narration prompt is missing the Transcript: section")
     transcript = prompt.split("Transcript:", 1)[1].strip()
-    transcript = re.sub(r"\s+", " ", transcript)
-    transcript = PAUSE_TAG_RE.sub(
-        lambda match: PAUSE_BREAKS[match.group(1).lower()], transcript
-    )
-    transcript = TAG_RE.sub("", transcript)
-    transcript = re.sub(r"[ \t]*\n[ \t]*", "\n", transcript)
-    transcript = re.sub(r" {2,}", " ", transcript)
-    return transcript.strip()
+    # Newlines split local synthesis into separate takes and add fixed silence.
+    # Leave phrasing to punctuation instead of forwarding performance cues.
+    transcript = TAG_RE.sub(" ", transcript)
+    return re.sub(r"\s+", " ", transcript).strip()
 
 
 def validate_api_url(url: str) -> str:

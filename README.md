@@ -388,7 +388,7 @@ Just describe what you want in the prompt:
   in Python, with a narration script but no audio — I'll record the voiceover myself.
   ```
 
-- **Local narration (default for new agent-generated videos)** — use saved voice `karan`, or ask for another saved voice, or a reference recording. The agent writes `tts-settings.json`, generates audio through the local API, and measures it before recording. See [local voice setup and settings](.agents/skills/shiny-component-shorts/references/tts-and-costs.md#use-local-voice-cloning). Existing projects retain their explicit provider settings. Voices stay at natural 1.0× speed with normal pauses; the recording is timed to the narration. Timing is checked again after voice changes, including a final audiovisual review.
+- **Local narration (default for new agent-generated videos)** — use saved voice `karan`, or ask for another saved voice, or a reference recording. The agent writes `tts-settings.json`, generates audio through the local API, and measures it before recording. See [local voice setup and settings](.agents/skills/shiny-component-shorts/references/tts-and-costs.md#use-local-voice-cloning). Existing projects retain their explicit provider settings. Local synthesis uses one continuous paragraph without forced pause breaks. Voices stay at natural 1.0× speed with normal punctuation pauses; the recording is timed to the narration. Audio review checks for background noise switching on and off around words, with recording-specific cleanup when needed. Timing is checked again after voice changes, including a final audiovisual review.
 
 - **Pin a voice or model** — add a per-video `tts-settings.json` with `{"voice": "Kore"}` and the agent uses it for that video.
 

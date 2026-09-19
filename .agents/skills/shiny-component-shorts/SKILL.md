@@ -302,6 +302,7 @@ For audio:
 - Confirm `artifacts/narration.wav` and `artifacts/final_with_audio.mp4` are non-empty.
 - Watch the final video with sound at normal playback speed. Verify each reaction and code reveal against its actual spoken phrase; a passing duration check or silence-derived sentence window alone is insufficient. Fix drift and re-record before showing a finished preview.
 - Listen for truncation, incorrect code pronunciation, mismatched timing, laughing, giggling, chuckling, or any other unintended vocal sound.
+- Check background continuity around words and sentence gaps in both the WAV and merged video. Hiss switching into silence needs the noise-floor workflow in [references/tts-and-costs.md](references/tts-and-costs.md#continuous-background-and-speech-transitions), not simply shorter pauses. Disclose when listening was unavailable; technical checks alone do not establish audible quality.
 
 Do not claim an artifact was generated if its file does not exist.
 

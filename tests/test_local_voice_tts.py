@@ -86,7 +86,7 @@ class LocalVoiceTTSContractTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 generate_local_voice.validate_api_url(url)
 
-    def test_adapter_turns_pause_tags_into_line_breaks_and_removes_other_tags(
+    def test_adapter_removes_forced_pauses_and_other_tags(
         self,
     ) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -166,8 +166,9 @@ class LocalVoiceTTSContractTest(unittest.TestCase):
             generated_text = args[args.index("--text") + 1]
             self.assertNotIn("[", generated_text)
             self.assertNotIn("slightly firmer", generated_text)
-            self.assertIn("Start here\nthen continue with the proof\n", generated_text)
-            self.assertIn("and finish cleanly\n\nright now word0", generated_text)
+            self.assertIn("Start here then continue with the proof ", generated_text)
+            self.assertNotIn("\n", generated_text)
+            self.assertIn("and finish cleanly right now word0", generated_text)
             self.assertTrue(output.is_file())
             report = json.loads(usage.read_text(encoding="utf-8"))
             self.assertEqual(report["provider"], "Local voice cloning")
