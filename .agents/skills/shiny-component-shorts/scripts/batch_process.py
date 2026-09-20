@@ -19,7 +19,7 @@ SCRIPTS_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPTS_DIR))
 import build_cache  # noqa: E402
 import validate_demo  # noqa: E402
-from generate_local_voice import validate_api_url
+from generate_local_voice import validate_api_url  # noqa: E402
 
 
 BASE_PORT = 8000
@@ -188,35 +188,39 @@ def load_tts_settings(project_dir: Path) -> dict[str, str | float]:
     return payload
 
 
-def audio_source_path(project_dir: Path, settings: dict[str, str]) -> Path | None:
+def audio_source_path(
+    project_dir: Path, settings: dict[str, str | float]
+) -> Path | None:
     """Resolve the optional imported-narration source declared in tts-settings.json."""
     raw = settings.get("audio_source")
     if raw is None:
         return None
-    source = Path(raw)
+    source = Path(str(raw))
     return source if source.is_absolute() else project_dir / source
 
 
-def local_voice_engine_dir(project_dir: Path, settings: dict[str, str]) -> Path:
+def local_voice_engine_dir(
+    project_dir: Path, settings: dict[str, str | float]
+) -> Path:
     raw = settings.get("engine_dir") or os.getenv("LOCAL_VOICE_CLONING_DIR")
     if raw:
-        path = Path(raw).expanduser()
+        path = Path(str(raw)).expanduser()
         return path if path.is_absolute() else project_dir / path
     return SCRIPTS_DIR.parents[4] / "local-voice-cloning"
 
 
 def local_voice_reference_path(
-    project_dir: Path, settings: dict[str, str]
+    project_dir: Path, settings: dict[str, str | float]
 ) -> Path | None:
     if settings.get("provider", "gemini") != "local-voice-cloning":
         return None
     if "reference_voice" in settings:
-        path = Path(settings["reference_voice"]).expanduser()
+        path = Path(str(settings["reference_voice"])).expanduser()
         return path if path.is_absolute() else project_dir / path
     return (
         local_voice_engine_dir(project_dir, settings)
         / "voice_samples"
-        / (settings["saved_voice"] + ".wav")
+        / (str(settings["saved_voice"]) + ".wav")
     )
 
 
@@ -281,6 +285,7 @@ def generate_narration(project_dir: Path, force: bool) -> dict:
         if not force and build_cache.check_cache(project_dir, "tts", inputs, outputs):
             result["tts"] = "CACHED"
         else:
+            command: list[str]
             if source is not None:
                 command = [
                     sys.executable,
@@ -311,15 +316,15 @@ def generate_narration(project_dir: Path, force: bool) -> dict:
                     "--reference",
                     str(reference),
                     "--quality",
-                    settings.get("quality", "high"),
+                    str(settings.get("quality", "high")),
                     "--language",
-                    settings.get("language", "auto"),
+                    str(settings.get("language", "auto")),
                 ]
                 for option in ("api_url", "engine", "speaking_rate"):
                     if option in settings:
                         command.extend(["--" + option.replace("_", "-"), str(settings[option])])
                 if "reference_text" in settings:
-                    command.extend(["--ref-text", settings["reference_text"]])
+                    command.extend(["--ref-text", str(settings["reference_text"])])
             else:
                 command = [
                     sys.executable,
@@ -333,7 +338,7 @@ def generate_narration(project_dir: Path, force: bool) -> dict:
                 ]
                 for option in ("voice", "model"):
                     if option in settings:
-                        command.extend([f"--{option}", settings[option]])
+                        command.extend([f"--{option}", str(settings[option])])
             completed = subprocess.run(command, capture_output=True, text=True)
             if completed.returncode != 0:
                 raise RuntimeError(completed.stderr or completed.stdout or "TTS failed")

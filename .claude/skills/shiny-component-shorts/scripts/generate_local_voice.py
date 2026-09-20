@@ -136,33 +136,34 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 2
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    command = [
-        uv,
-        "run",
-        "--project",
-        str(args.engine_dir),
-        "python",
-        "-m",
-        "src.cli",
-        "--reference",
-        str(args.reference),
-        "--text",
-        script,
-        "--engine",
-        args.engine,
-        "--quality",
-        args.quality,
-        "--language",
-        args.language,
-        "--output",
-        str(args.output),
-    ]
-    if args.ref_text:
-        command.extend(["--ref-text", args.ref_text])
     try:
         if args.api_url:
             synthesize_api(args, script)
         else:
+            assert uv is not None
+            command = [
+                uv,
+                "run",
+                "--project",
+                str(args.engine_dir),
+                "python",
+                "-m",
+                "src.cli",
+                "--reference",
+                str(args.reference),
+                "--text",
+                script,
+                "--engine",
+                args.engine,
+                "--quality",
+                args.quality,
+                "--language",
+                args.language,
+                "--output",
+                str(args.output),
+            ]
+            if args.ref_text:
+                command.extend(["--ref-text", args.ref_text])
             completed = subprocess.run(command, cwd=args.engine_dir, capture_output=True, text=True)
             if completed.returncode != 0:
                 print(completed.stderr or completed.stdout or "Local voice cloning failed", file=sys.stderr)

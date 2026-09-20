@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
-import json
-import io
+import argparse
 import contextlib
-import threading
-import wave
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from types import SimpleNamespace
+import io
+import json
 import os
 import subprocess
 import sys
 import tempfile
+import threading
 import unittest
+import wave
 from pathlib import Path
 
 
@@ -26,7 +26,7 @@ LOCAL_TTS = (
 
 
 sys.path.insert(0, str(LOCAL_TTS.parent))
-import generate_local_voice
+import generate_local_voice  # noqa: E402
 
 
 class LocalVoiceTTSContractTest(unittest.TestCase):
@@ -54,7 +54,7 @@ class LocalVoiceTTSContractTest(unittest.TestCase):
                 self.send_response(200)
                 self.end_headers()
                 self.wfile.write(response[0])
-            def log_message(self, *args):
+            def log_message(self, format: str, *args: object) -> None:
                 pass
         server = HTTPServer(("127.0.0.1", 0), Handler)
         thread = threading.Thread(target=server.serve_forever, daemon=True)
@@ -64,7 +64,7 @@ class LocalVoiceTTSContractTest(unittest.TestCase):
                 root = Path(directory)
                 reference = root / "speaker.wav"
                 reference.write_bytes(b"saved-voice-sample")
-                args = SimpleNamespace(api_url=f"http://127.0.0.1:{server.server_port}",
+                args = argparse.Namespace(api_url=f"http://127.0.0.1:{server.server_port}",
                     reference=reference, ref_text="Reference words", quality="fast",
                     language="English", engine="qwen", output=root / "result.wav")
                 generate_local_voice.synthesize_api(args, "Read this script")

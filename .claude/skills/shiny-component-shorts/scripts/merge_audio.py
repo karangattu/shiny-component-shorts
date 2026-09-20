@@ -84,7 +84,7 @@ def merge(video: Path, audio: Path, output: Path, preserve_audio: bool = False) 
             f"({audio_duration:.2f}s); extend the recording before merging"
         )
     # Constant gain cannot switch into loudnorm's dynamic fallback or pump gaps.
-    gain = 0.0 if preserve_audio else linear_gain_db(measured)
+    gain = 0.0 if preserve_audio or measured is None else linear_gain_db(measured)
     filters = "apad" if preserve_audio else f"{HIGHPASS},volume={gain:.6f}dB,apad"
     subprocess.run(
         [
