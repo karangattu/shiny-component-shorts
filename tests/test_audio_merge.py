@@ -19,14 +19,40 @@ class AudioMergeTest(unittest.TestCase):
 
     @patch.object(merge_audio, 'require_nonempty')
     @patch.object(merge_audio.subprocess, 'run')
+    @patch.object(merge_audio, 'speech_end', return_value=32.6)
     @patch.object(merge_audio, 'probe_duration', side_effect=[32.6,35])
     @patch.object(merge_audio, 'measure_loudness')
-    def test_selected_take_is_encoded_without_filtering_or_gain(self, measure, duration, run, require):
+    def test_selected_take_is_encoded_without_filtering_or_gain(self, measure, duration, end, run, require):
         merge_audio.merge(Path('v.mp4'),Path('a.wav'),Path('out.mp4'),preserve_audio=True)
         measure.assert_not_called()
         cmd=run.call_args.args[0]
-        self.assertEqual(cmd[cmd.index('-af')+1], 'apad')
+        # No gain or filtering; only the shared lead-in and padding. The take
+        # ends on a word here, so there is no silent tail to fade.
+        self.assertEqual(cmd[cmd.index('-af')+1], 'adelay=150:all=1,apad')
         self.assertEqual(cmd[cmd.index('-c:v')+1], 'copy')
+
+    def test_only_the_silent_tail_fades_and_narration_starts_at_the_offset(self):
+        chain = merge_audio.narration_filters(None, 40.0, 38.5)
+        self.assertEqual(chain, 'afade=t=out:st=38.550:d=0.300,adelay=150:all=1,apad')
+        normalized = merge_audio.narration_filters(-2.0, 40.0, 40.0)
+        self.assertTrue(normalized.startswith('highpass=f=70,volume=-2.000000dB,'))
+        self.assertNotIn('afade', normalized)
+
+    def test_music_bed_loops_under_the_voice_and_fades_with_the_video(self):
+        chain = merge_audio.bed_filters(-20.0, 42.0)
+        self.assertIn('aloop=loop=-1', chain)
+        self.assertIn('atrim=0:42.000', chain)
+        self.assertIn('afade=t=out:st=40.800', chain)
+        with patch.object(merge_audio, 'require_nonempty'), \
+             patch.object(merge_audio.subprocess, 'run') as run, \
+             patch.object(merge_audio, 'speech_end', return_value=30.0), \
+             patch.object(merge_audio, 'probe_duration', side_effect=[30.0, 33.0]), \
+             patch.object(merge_audio, 'measure_loudness', return_value={'input_i': '-30', 'input_tp': '-8'}):
+            merge_audio.merge(Path('v.mp4'), Path('a.wav'), Path('o.mp4'), preserve_audio=True, bed=Path('bed.wav'))
+        cmd = run.call_args.args[0]
+        graph = cmd[cmd.index('-filter_complex') + 1]
+        self.assertIn('volume=-8.000dB', graph)  # -38 LUFS target from a -30 LUFS bed
+        self.assertIn('amix=inputs=2:duration=shortest:normalize=0', graph)
 
 class SelectedTakeSettingsTest(unittest.TestCase):
     def test_removing_processing_settings_invalidates_cached_merge(self):
