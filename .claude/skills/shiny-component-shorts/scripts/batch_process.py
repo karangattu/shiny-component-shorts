@@ -17,7 +17,9 @@ from typing import Callable
 
 SCRIPTS_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPTS_DIR))
+import align_narration  # noqa: E402
 import build_cache  # noqa: E402
+import merge_audio  # noqa: E402
 import validate_demo  # noqa: E402
 from generate_local_voice import (  # noqa: E402
     MAX_SPEAKING_RATE,
@@ -108,6 +110,7 @@ def narration_inputs(project_dir: Path) -> list[Path]:
         project_dir / "artifacts" / "narration.txt",
         SCRIPTS_DIR / "generate_tts.py",
         SCRIPTS_DIR / "validate_demo.py",
+        SCRIPTS_DIR / "align_narration.py",
     ]
     settings_path = project_dir / "tts-settings.json"
     if settings_path.is_file():
@@ -145,6 +148,7 @@ def load_tts_settings(project_dir: Path) -> dict[str, str | float]:
         "speaking_rate",
         "max_wpm",
         "audio_processing",
+        "music_bed",
     }
     if unknown:
         raise ValueError(f"Unknown TTS settings: {', '.join(sorted(unknown))}")
@@ -247,6 +251,8 @@ def recording_inputs(project_dir: Path) -> list[Path]:
         project_dir,
         [
             SCRIPTS_DIR / "record_demo.py",
+            SCRIPTS_DIR / "validate_demo.py",
+            SCRIPTS_DIR / "align_narration.py",
             SCRIPTS_DIR.parent / "assets" / "shiny-logo.png",
             artifacts / "narration.wav",
             artifacts / "narration-timing.json",
@@ -255,13 +261,25 @@ def recording_inputs(project_dir: Path) -> list[Path]:
     )
 
 
+def music_bed_path(project_dir: Path, settings: dict[str, str | float]) -> Path | None:
+    raw = settings.get("music_bed")
+    if raw is None:
+        return None
+    path = Path(str(raw)).expanduser()
+    return path if path.is_absolute() else project_dir / path
+
+
 def merge_inputs(project_dir: Path) -> list[Path]:
     artifacts = project_dir / "artifacts"
+    settings_path = project_dir / "tts-settings.json"
+    bed = music_bed_path(project_dir, load_tts_settings(project_dir))
     return [
         artifacts / "demo.mp4",
         artifacts / "narration.wav",
         SCRIPTS_DIR / "merge_audio.py",
-        *([project_dir / "tts-settings.json"] if (project_dir / "tts-settings.json").is_file() else []),
+        SCRIPTS_DIR / "align_narration.py",
+        *([settings_path] if settings_path.is_file() else []),
+        *([bed] if bed is not None else []),
     ]
 
 
@@ -270,17 +288,84 @@ def require_nonempty(path: Path, label: str) -> None:
         raise RuntimeError(f"Missing or empty {label}: {path}")
 
 
-def measure_narration(audio_path: Path) -> dict:
-    duration = validate_demo.probe_audio_duration(audio_path)
-    windows = validate_demo.narration_sentence_windows(audio_path)
-    if duration is None or windows is None:
-        raise RuntimeError(f"Could not measure narration audio: {audio_path}")
-    return {
-        "duration_seconds": round(duration, 3),
-        "sentence_windows": windows,
-        "alignment_method": "silence detection; estimated sentence boundaries",
-        "requires_audiovisual_review": True,
-    }
+def measure_narration(audio_path: Path, prompt_path: Path) -> dict:
+    """Word-timed narration report; a failed transcript check stops the phase."""
+    report = align_narration.measure(audio_path, prompt_path.read_text(encoding="utf-8"))
+    problems = align_narration.check_problems(report)
+    if problems:
+        raise RuntimeError("; ".join(problems))
+    return report
+
+
+def synthesis_command(
+    project_dir: Path,
+    settings: dict[str, str | float],
+    narration: Path,
+    audio: Path,
+    usage: Path,
+) -> list[str]:
+    """The TTS, local-voice, or import command that writes `audio`."""
+    source = audio_source_path(project_dir, settings)
+    if source is not None:
+        return [
+            sys.executable,
+            str(SCRIPTS_DIR / "import_narration.py"),
+            "--source",
+            str(source),
+            "--output",
+            str(audio),
+            "--usage-output",
+            str(usage),
+        ]
+    if settings.get("provider", "gemini") == "local-voice-cloning":
+        reference = local_voice_reference_path(project_dir, settings)
+        if reference is None:
+            raise RuntimeError("Local voice reference could not be resolved")
+        require_nonempty(reference, "local voice reference")
+        command = [
+            sys.executable,
+            str(SCRIPTS_DIR / "generate_local_voice.py"),
+            "--input",
+            str(narration),
+            "--output",
+            str(audio),
+            "--usage-output",
+            str(usage),
+            "--engine-dir",
+            str(local_voice_engine_dir(project_dir, settings)),
+            "--reference",
+            str(reference),
+            "--quality",
+            str(settings.get("quality", "high")),
+            "--language",
+            str(settings.get("language", "auto")),
+        ]
+        for option in ("api_url", "engine", "speaking_rate", "max_wpm"):
+            if option in settings:
+                command.extend(["--" + option.replace("_", "-"), str(settings[option])])
+        if "reference_text" in settings:
+            command.extend(["--ref-text", str(settings["reference_text"])])
+        return command
+    command = [
+        sys.executable,
+        str(SCRIPTS_DIR / "generate_tts.py"),
+        "--input",
+        str(narration),
+        "--output",
+        str(audio),
+        "--usage-output",
+        str(usage),
+    ]
+    for option in ("voice", "model"):
+        if option in settings:
+            command.extend([f"--{option}", str(settings[option])])
+    return command
+
+
+def run_command(command: list[str], label: str) -> None:
+    completed = subprocess.run(command, capture_output=True, text=True)
+    if completed.returncode != 0:
+        raise RuntimeError(completed.stderr or completed.stdout or f"{label} failed")
 
 
 def generate_narration(project_dir: Path, force: bool) -> dict:
@@ -302,67 +387,13 @@ def generate_narration(project_dir: Path, force: bool) -> dict:
         if not force and build_cache.check_cache(project_dir, "tts", inputs, outputs):
             result["tts"] = "CACHED"
         else:
-            command: list[str]
-            if source is not None:
-                command = [
-                    sys.executable,
-                    str(SCRIPTS_DIR / "import_narration.py"),
-                    "--source",
-                    str(source),
-                    "--output",
-                    str(audio),
-                    "--usage-output",
-                    str(usage),
-                ]
-            elif settings.get("provider", "gemini") == "local-voice-cloning":
-                reference = local_voice_reference_path(project_dir, settings)
-                if reference is None:
-                    raise RuntimeError("Local voice reference could not be resolved")
-                require_nonempty(reference, "local voice reference")
-                command = [
-                    sys.executable,
-                    str(SCRIPTS_DIR / "generate_local_voice.py"),
-                    "--input",
-                    str(narration),
-                    "--output",
-                    str(audio),
-                    "--usage-output",
-                    str(usage),
-                    "--engine-dir",
-                    str(local_voice_engine_dir(project_dir, settings)),
-                    "--reference",
-                    str(reference),
-                    "--quality",
-                    str(settings.get("quality", "high")),
-                    "--language",
-                    str(settings.get("language", "auto")),
-                ]
-                for option in ("api_url", "engine", "speaking_rate", "max_wpm"):
-                    if option in settings:
-                        command.extend(["--" + option.replace("_", "-"), str(settings[option])])
-                if "reference_text" in settings:
-                    command.extend(["--ref-text", str(settings["reference_text"])])
-            else:
-                command = [
-                    sys.executable,
-                    str(SCRIPTS_DIR / "generate_tts.py"),
-                    "--input",
-                    str(narration),
-                    "--output",
-                    str(audio),
-                    "--usage-output",
-                    str(usage),
-                ]
-                for option in ("voice", "model"):
-                    if option in settings:
-                        command.extend([f"--{option}", str(settings[option])])
-            completed = subprocess.run(command, capture_output=True, text=True)
-            if completed.returncode != 0:
-                raise RuntimeError(completed.stderr or completed.stdout or "TTS failed")
+            run_command(
+                synthesis_command(project_dir, settings, narration, audio, usage), "TTS"
+            )
             require_nonempty(audio, "narration audio")
             require_nonempty(usage, "narration usage report")
             timing.write_text(
-                json.dumps(measure_narration(audio), indent=2) + "\n",
+                json.dumps(measure_narration(audio, narration), indent=2) + "\n",
                 encoding="utf-8",
             )
             build_cache.update_cache(project_dir, "tts", inputs)
@@ -372,6 +403,94 @@ def generate_narration(project_dir: Path, force: bool) -> dict:
         result["errors"].append(f"Narration failed: {exc}")
     result["duration"] = round(time.time() - started, 2)
     return result
+
+
+def matched_gains(
+    measurements: list[dict], target: float = -14.0, ceiling: float = -1.5
+) -> tuple[float, list[float]]:
+    """One common loudness every take reaches with linear gain under the ceiling."""
+    achievable = [
+        float(m["input_i"]) + ceiling - float(m["input_tp"]) for m in measurements
+    ]
+    common = min([target, *achievable])
+    return common, [common - float(m["input_i"]) for m in measurements]
+
+
+def generate_takes(project_dir: Path, count: int, force: bool) -> dict:
+    """Synthesize raw local takes, loudness-match copies, and rank them."""
+    started = time.time()
+    result = new_result(project_dir)
+    artifacts = project_dir / "artifacts"
+    narration = artifacts / "narration.txt"
+    takes_dir = artifacts / "narration-takes"
+    try:
+        require_nonempty(narration, "narration prompt")
+        settings = load_tts_settings(project_dir)
+        if settings.get("provider") != "local-voice-cloning":
+            raise RuntimeError(
+                "The takes phase synthesizes local voice-cloning takes only; set "
+                "provider local-voice-cloning (paid providers are never re-run for takes)"
+            )
+        takes_dir.mkdir(parents=True, exist_ok=True)
+        raws: list[Path] = []
+        for number in range(1, count + 1):
+            raw = takes_dir / f"take-{number}.wav"
+            if force or not raw.is_file() or raw.stat().st_size == 0:
+                run_command(
+                    synthesis_command(
+                        project_dir, settings, narration, raw,
+                        takes_dir / f"take-{number}.usage.json",
+                    ),
+                    f"Take {number}",
+                )
+            require_nonempty(raw, f"take {number}")
+            raws.append(raw)
+        (takes_dir / "settings.json").write_text(
+            json.dumps(settings, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
+        common, gains = matched_gains([merge_audio.measure_loudness(raw) for raw in raws])
+        for raw, gain in zip(raws, gains):
+            run_command(
+                ["ffmpeg", "-loglevel", "error", "-y", "-i", str(raw),
+                 "-af", f"volume={gain:.4f}dB", "-c:a", "pcm_s16le",
+                 str(raw.with_name(raw.stem + "-matched.wav"))],
+                "Loudness matching",
+            )
+        ranking = align_narration.rank_takes(takes_dir, narration.read_text(encoding="utf-8"))
+        ranking["comparison_lufs"] = round(common, 2)
+        (takes_dir / "ranking.json").write_text(
+            json.dumps(ranking, indent=2) + "\n", encoding="utf-8"
+        )
+        result["tts"] = "SUCCESS"
+        result["takes"] = ranking
+    except Exception as exc:
+        result["tts"] = "FAILED"
+        result["errors"].append(f"Takes failed: {exc}")
+    result["duration"] = round(time.time() - started, 2)
+    return result
+
+
+def select_take(project_dir: Path, choice: str) -> Path:
+    """Pin a ranked take's matched copy as the narration source."""
+    takes_dir = project_dir / "artifacts" / "narration-takes"
+    if choice == "recommended":
+        ranking = json.loads((takes_dir / "ranking.json").read_text(encoding="utf-8"))
+        choice = ranking["recommended"]
+    stem = Path(choice).stem.removesuffix("-matched")
+    matched = takes_dir / f"{stem}-matched.wav"
+    require_nonempty(matched, "selected take")
+    (project_dir / "tts-settings.json").write_text(
+        json.dumps(
+            {
+                "audio_source": str(matched.relative_to(project_dir)),
+                "audio_processing": "preserve",
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    return matched
 
 
 def timing_paths(project_dir: Path) -> list[Path]:
@@ -496,8 +615,13 @@ def merge_project(project_dir: Path, result: dict, force: bool) -> dict:
             "--project-dir",
             str(project_dir),
         ]
-        if load_tts_settings(project_dir).get("audio_processing") == "preserve":
+        settings = load_tts_settings(project_dir)
+        if settings.get("audio_processing") == "preserve":
             command.append("--preserve-audio")
+        bed = music_bed_path(project_dir, settings)
+        if bed is not None:
+            require_nonempty(bed, "music bed")
+            command.extend(["--bed", str(bed)])
         completed = subprocess.run(command, capture_output=True, text=True)
         if completed.returncode != 0:
             raise RuntimeError(completed.stderr or completed.stdout or "Merge failed")
@@ -568,13 +692,20 @@ def run_narration_phase(
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--phase", choices=("narration", "finish"), required=True)
+    parser.add_argument("--phase", choices=("takes", "narration", "finish"), required=True)
     parser.add_argument("--dirs", nargs="*", help="Directories or glob patterns")
     parser.add_argument("--force", action="store_true", help="Ignore stage caches")
     parser.add_argument(
         "--approve-timing",
         action="store_true",
         help="Approve current narration timing inputs before the finish phase",
+    )
+    parser.add_argument(
+        "--takes", type=int, default=3, help="Raw local takes to synthesize (takes phase)"
+    )
+    parser.add_argument(
+        "--select-take",
+        help="Pin a take (file name or 'recommended') as the narration source (takes phase)",
     )
     parser.add_argument("--tts-concurrency", type=int, default=3)
     parser.add_argument("--record-concurrency", type=int, default=2)
@@ -593,6 +724,10 @@ def validate_cli_args(args: argparse.Namespace) -> None:
         )
     if args.approve_timing and args.phase != "finish":
         raise ValueError("--approve-timing is valid only with --phase finish")
+    if args.select_take and args.phase != "takes":
+        raise ValueError("--select-take is valid only with --phase takes")
+    if args.takes < 1:
+        raise ValueError("--takes must be at least 1")
     for name in (
         "tts_concurrency",
         "record_concurrency",
@@ -610,6 +745,14 @@ def print_summary(results: list[dict]) -> None:
             f"{result['name']}: TTS={result['tts']} Record={result['record']} "
             f"Merge={result['merge']} Validate={result['validate']}"
         )
+        takes = result.get("takes")
+        if takes:
+            for take in takes["takes"]:
+                print(
+                    f"  {take['take']}: score {take['score']} "
+                    f"(WER {take['word_error_rate']:.0%}, {take['words_per_minute']} WPM)"
+                )
+            print(f"  recommended take: {takes['recommended']}")
         if result.get("review_sheet"):
             print(f"  review sheet: {result['review_sheet']}")
         for error in result["errors"]:
@@ -633,6 +776,17 @@ def main(argv: list[str] | None = None) -> int:
     except ValueError as exc:
         print(exc, file=sys.stderr)
         return 2
+
+    if args.phase == "takes":
+        if args.select_take:
+            for project in projects:
+                print(f"{project.name}: narration source -> {select_take(project, args.select_take)}")
+            print("Rerun --phase narration to import and time the selected take.")
+            return 0
+        # Local synthesis shares one device, so takes run one project at a time.
+        results = [generate_takes(project, args.takes, args.force) for project in projects]
+        print_summary(results)
+        return 1 if has_failures(results) else 0
 
     if args.phase == "narration":
         results = run_narration_phase(projects, args.force, args.tts_concurrency)
