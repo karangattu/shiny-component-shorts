@@ -19,7 +19,11 @@ SCRIPTS_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPTS_DIR))
 import build_cache  # noqa: E402
 import validate_demo  # noqa: E402
-from generate_local_voice import validate_api_url  # noqa: E402
+from generate_local_voice import (  # noqa: E402
+    MAX_SPEAKING_RATE,
+    MIN_SPEAKING_RATE,
+    validate_api_url,
+)
 
 
 BASE_PORT = 8000
@@ -139,14 +143,27 @@ def load_tts_settings(project_dir: Path) -> dict[str, str | float]:
         "api_url",
         "engine",
         "speaking_rate",
+        "max_wpm",
         "audio_processing",
     }
     if unknown:
         raise ValueError(f"Unknown TTS settings: {', '.join(sorted(unknown))}")
     for key, value in payload.items():
         if key == "speaking_rate":
-            if isinstance(value, bool) or not isinstance(value, (int, float)) or value != 1.0:
-                raise ValueError("speaking_rate must be 1.0 to preserve natural speech and pauses; retime the video")
+            if (
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not MIN_SPEAKING_RATE <= value <= MAX_SPEAKING_RATE
+            ):
+                raise ValueError(
+                    f"speaking_rate must be between {MIN_SPEAKING_RATE} and "
+                    f"{MAX_SPEAKING_RATE}; slow a rushed voice with a value below "
+                    "1.0 and retime the video instead of speeding it up"
+                )
+            continue
+        if key == "max_wpm":
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or value < 0:
+                raise ValueError("max_wpm must be a non-negative number (0 disables the pace gate)")
             continue
         if not isinstance(value, str) or not value.strip():
             raise ValueError(f"TTS setting {key!r} must be a non-empty string")
@@ -320,7 +337,7 @@ def generate_narration(project_dir: Path, force: bool) -> dict:
                     "--language",
                     str(settings.get("language", "auto")),
                 ]
-                for option in ("api_url", "engine", "speaking_rate"):
+                for option in ("api_url", "engine", "speaking_rate", "max_wpm"):
                     if option in settings:
                         command.extend(["--" + option.replace("_", "-"), str(settings[option])])
                 if "reference_text" in settings:

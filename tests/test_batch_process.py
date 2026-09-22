@@ -275,10 +275,59 @@ class BatchProcessTest(unittest.TestCase):
             settings = {"provider": "local-voice-cloning", "api_url": "http://127.0.0.1:8001", "speaking_rate": 1.0}
             path.write_text(json.dumps(settings))
             self.assertEqual(batch_process.load_tts_settings(project)["saved_voice"], "karan")
-            for bad in (0, 0.9, 1.1, 1.2, 2, 3, True, "fast"):
+            for bad in (0, 0.4, 0.49, 1.51, 1.6, 2, 3, True, "fast"):
                 path.write_text(json.dumps({**settings, "speaking_rate": bad}))
                 with self.assertRaises(ValueError):
                     batch_process.load_tts_settings(project)
+            for good in (0.5, 0.75, 0.9, 1.0, 1.25, 1.5):
+                path.write_text(json.dumps({**settings, "speaking_rate": good}))
+                self.assertEqual(batch_process.load_tts_settings(project)["speaking_rate"], good)
+            for good in (0, 120, 160.5):
+                path.write_text(json.dumps({**settings, "max_wpm": good}))
+                self.assertEqual(batch_process.load_tts_settings(project)["max_wpm"], good)
+            for bad in (-1, True, "fast"):
+                path.write_text(json.dumps({**settings, "max_wpm": bad}))
+                with self.assertRaises(ValueError):
+                    batch_process.load_tts_settings(project)
+
+    def test_local_voice_command_forwards_speed_and_pace_gate(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            project = make_project(root)
+            engine = root / "local-voice-cloning"
+            samples = engine / "voice_samples"
+            samples.mkdir(parents=True)
+            saved_voice = samples / "karan.wav"
+            saved_voice.write_bytes(b"reference voice")
+            (project / "tts-settings.json").write_text(
+                json.dumps(
+                    {
+                        "provider": "local-voice-cloning",
+                        "saved_voice": "karan",
+                        "engine_dir": str(engine),
+                        "speaking_rate": 0.9,
+                        "max_wpm": 150,
+                    }
+                ),
+                encoding="utf-8",
+            )
+            artifacts = project / "artifacts"
+            (artifacts / "narration.wav").write_bytes(b"wav")
+            (artifacts / "narration.usage.json").write_text("{}", encoding="utf-8")
+
+            with patch.object(batch_process, "measure_narration") as mock_measure, patch(
+                "subprocess.run"
+            ) as mock_run:
+                mock_run.return_value = MagicMock(returncode=0, stdout="ok", stderr="")
+                mock_measure.return_value = {"duration_seconds": 10.0, "sentence_windows": []}
+                result = batch_process.generate_narration(project, force=True)
+
+            self.assertEqual(result["tts"], "SUCCESS", result["errors"])
+            command = mock_run.call_args.args[0]
+            self.assertEqual(command[command.index("--speaking-rate") + 1], "0.9")
+            self.assertEqual(command[command.index("--max-wpm") + 1], "150")
 
     def test_voice_change_invalidates_approval_and_requires_regeneration(self):
         with tempfile.TemporaryDirectory() as directory:

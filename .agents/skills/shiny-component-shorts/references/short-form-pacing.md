@@ -78,4 +78,4 @@ All framing and editing elements must stay in the Shiny preset palette. Use Shin
 
 ## Natural narration
 
-Keep the voice at its original 1.0× speed and preserve normal pauses. Create pace through concise writing and purposeful on-screen actions. Generate and listen to narration first, then time reactions and code reveals to the actual spoken phrases. Shorten and regenerate an overlong script; never speed up the voice or cut its pauses to meet a target length. Review the merged video with sound before delivery.
+Keep the voice at natural speed and preserve normal pauses. For a rushed local voice, calibrate `speaking_rate` below 1.0 at synthesis time instead of accepting the fast take. Create pace through concise writing and purposeful on-screen actions. Generate and listen to narration first, then time reactions and code reveals to the actual spoken phrases. Shorten and regenerate an overlong script; never speed up the voice or cut its pauses to meet a target length. Review the merged video with sound before delivery.

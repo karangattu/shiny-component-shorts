@@ -21,7 +21,7 @@ Create one-screen Shiny demos that make one hidden component behavior obvious in
 - Use only the Shiny preset palette, led by `#007BC2`, with `#1D1F21` text on light surfaces and `#FFFFFF` text on dark surfaces.
 - Use official Shiny and shinychat documentation as the source of truth, and the source at the requested ref when the request starts from a changeset.
 - Run the bundled shared scripts; never generate a demo-specific recorder or validator.
-- Preserve the voice’s natural 1.0× speed and normal pauses. Fit the recording to the narration; never accelerate speech or trim pauses to hit the target duration. If needed, shorten the script and regenerate naturally before recording.
+- Preserve natural speech and pauses. Fit the recording to the narration; never accelerate the voice or trim pauses to hit the target duration. If the local voice runs fast, slow its engine rate (`speaking_rate` below 1.0) instead of accepting a rushed take; if needed, shorten the script and regenerate naturally before recording.
 - Never ship or record an app while a **Shiny Client Errors** panel is visible. Give every input a stable ID and use unique output IDs; any detected client-error panel is a blocking failure.
 - Treat runnable demo projects and their media as disposable outputs. Unless the user provides another destination, create them under `generated/demo-name/`, which is gitignored; never add generated demo directories or example-specific artifact tests to repository source.
 
