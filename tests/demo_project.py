@@ -12,6 +12,7 @@ Requires ffmpeg and ffprobe on PATH, which the validator needs anyway.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import struct
@@ -130,11 +131,15 @@ def _actions(orientation: str) -> str:
         "actions:\n"
         '  - wait_for: "#window_label"\n'
         "  - wait: 1200\n"
+        '  - cue: "tells you where"\n'
         '  - click: "#seven"\n'
         "  - wait: 2500\n"
+        '  - cue: "switch the window to seven days"\n'
         '  - click: "#ninety"\n'
         "  - wait: 2500\n"
+        '  - cue: "ninety days"\n'
         '  - click: "#thirty"\n'
+        '  - cue: "one argument"\n'
         "  - code:\n"
         '      title: "app.py"\n'
         "      start_line: 7\n"
@@ -146,15 +151,76 @@ def _actions(orientation: str) -> str:
     )
 
 
+NARRATION_OFFSET_SECONDS = 0.15  # mirrors align_narration.NARRATION_OFFSET_SECONDS
+CUE_PHRASES = ("tells you where", "switch the window to seven days", "ninety days", "one argument")
+
+
+def word_timing(count: int = len(NARRATION_SENTENCES)) -> list[dict]:
+    """Every transcript word spread evenly across its sentence's spoken window."""
+    from align_narration import normalize_tokens, spoken_transcript, transcript_sentences
+
+    sentences = transcript_sentences(spoken_transcript(_narration_text()))
+    words: list[dict] = []
+    for index, (sentence, window) in enumerate(zip(sentences, narration_windows(count))):
+        tokens = normalize_tokens(sentence)
+        step = (window["end"] - window["start"]) / len(tokens)
+        for position, token in enumerate(tokens):
+            start = window["start"] + step * position
+            words.append({"word": token, "sentence": index, "start": round(start, 3),
+                          "end": round(start + step, 3), "matched": True})
+    return words
+
+
+def cue_targets(count: int = len(NARRATION_SENTENCES)) -> list[float]:
+    """Video time each fixture cue phrase is spoken."""
+    from align_narration import find_phrase
+
+    words = word_timing(count)
+    return [round(find_phrase(words, phrase)["start"] + NARRATION_OFFSET_SECONDS, 2)
+            for phrase in CUE_PHRASES]
+
+
 def default_timeline(count: int = len(NARRATION_SENTENCES)) -> list[dict]:
-    """A timeline that lands each reaction on the sentence describing it."""
+    """A timeline that lands each reaction on the phrase describing it."""
     windows = narration_windows(count)
+    targets = cue_targets(count)
+    names = ("click", "click", "click", "code")
     return [
-        {"action": "click", "start": windows[0]["start"] + 0.2, "end": windows[0]["end"]},
-        {"action": "click", "start": windows[1]["start"], "end": windows[1]["end"]},
-        {"action": "click", "start": windows[2]["start"], "end": windows[2]["end"]},
-        {"action": "code", "start": windows[3]["start"], "end": windows[3]["end"]},
+        {
+            "action": name,
+            "start": round(target - 0.5, 2),
+            "end": windows[index]["end"] + NARRATION_OFFSET_SECONDS,
+            "reaction": target,
+            "cue": {"phrase": CUE_PHRASES[index], "target": target},
+        }
+        for index, (name, target) in enumerate(zip(names, targets))
     ]
+
+
+def _write_word_timing(artifacts: Path, count: int) -> None:
+    from align_narration import transcript_sentences, spoken_transcript
+
+    words = word_timing(count)
+    sentences = transcript_sentences(spoken_transcript(_narration_text()))
+    spans = [
+        {"text": text, "start": window["start"], "end": window["end"]}
+        for text, window in zip(sentences, narration_windows(count))
+    ]
+    digest = hashlib.sha256((artifacts / "narration.wav").read_bytes()).hexdigest()
+    (artifacts / "narration-timing.json").write_text(
+        json.dumps(
+            {
+                "audio_sha256": digest,
+                "alignment_method": "fixture word timing",
+                "words": words,
+                "sentences": spans,
+                "sentence_windows": [{"start": s["start"], "end": s["end"]} for s in spans],
+                "transcript_check": {"word_error_rate": 0.0, "differences": [],
+                                     "vocalizations": [], "passed": True},
+            }
+        ),
+        encoding="utf-8",
+    )
 
 
 def build_demo_project(
@@ -179,10 +245,13 @@ def build_demo_project(
     audio_seconds = narration_seconds(count)
     narration_wav = artifacts / "narration.wav"
     _write_narration_wav(narration_wav, count)
+    _write_word_timing(artifacts, count)
 
     width, height = resolution or RESOLUTIONS[orientation]
     demo_mp4 = artifacts / "demo.mp4"
-    _write_video(demo_mp4, width, height, audio_seconds + video_pad_seconds)
+    _write_video(
+        demo_mp4, width, height, audio_seconds + NARRATION_OFFSET_SECONDS + video_pad_seconds
+    )
     _run(["ffmpeg", "-y", "-i", str(demo_mp4), "-frames:v", "1", str(artifacts / "final.png")])
 
     if with_audio:

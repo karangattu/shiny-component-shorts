@@ -8,9 +8,14 @@ import json
 import re
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import yaml
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import align_narration  # noqa: E402
+from align_narration import NARRATION_OFFSET_SECONDS  # noqa: E402
 
 
 SUPPORTED_ACTIONS = frozenset(
@@ -25,6 +30,7 @@ SUPPORTED_ACTIONS = frozenset(
         "type",
         "press",
         "code",
+        "cue",
         "screenshot",
     }
 )
@@ -35,6 +41,12 @@ REMOVED_ACTIONS = {
 MEANINGFUL_ACTIONS = frozenset(
     {"click", "drag", "select_option", "hover", "fill", "type", "press"}
 )
+VISIBLE_ACTIONS = MEANINGFUL_ACTIONS | {"code"}
+# A cued reaction may lead its phrase by a second or trail it by half a second.
+CUE_EARLY_SECONDS = 1.0
+CUE_LATE_SECONDS = 0.5
+MIN_CUED_ACTIONS = 3
+CODE_EXIT_MS = 320  # the code card fades out before the next action runs
 TAG_RE = re.compile(r"\[[^\]]+\]")
 WORD_RE = re.compile(r"\b[\w’'-]+\b")
 FORBIDDEN_VOCALIZATION_RE = re.compile(
@@ -67,7 +79,7 @@ def estimate_action_seconds(actions: list[dict]) -> float:
             text = str(value.get("text", "")).rstrip("\n")
             context = str(value.get("before", "")) + str(value.get("after", ""))
             total_ms += len(text) * int(value.get("type_ms", 22))
-            total_ms += code_hold_ms(text, value.get("duration"), context)
+            total_ms += code_hold_ms(text, value.get("duration"), context) + CODE_EXIT_MS
     return total_ms / 1000
 
 
@@ -215,13 +227,93 @@ def code_block_source_errors(
     return problems
 
 
-def project_simulated_timeline(actions: list[dict]) -> list[dict]:
+def shift_windows(windows: list[dict] | None, offset: float) -> list[dict] | None:
+    """Narration windows in video time: the merge starts narration `offset` in."""
+    if windows is None:
+        return None
+    return [
+        {**window, "start": round(window["start"] + offset, 2),
+         "end": round(window["end"] + offset, 2)}
+        for window in windows
+    ]
+
+
+def cue_value(value: object) -> dict:
+    """Normalize a `cue` action: a phrase, {phrase, occurrence}, or {at: seconds}."""
+    if isinstance(value, str) and value.strip():
+        return {"phrase": value.strip(), "occurrence": 1}
+    if isinstance(value, dict):
+        if "at" in value and isinstance(value["at"], (int, float)):
+            return {"at": float(value["at"])}
+        phrase = value.get("phrase")
+        occurrence = value.get("occurrence", 1)
+        if isinstance(phrase, str) and phrase.strip() and isinstance(occurrence, int) and occurrence >= 1:
+            return {"phrase": phrase.strip(), "occurrence": occurrence}
+    raise ValueError(
+        "cue needs a spoken phrase, {phrase: ..., occurrence: N}, or {at: narration seconds}"
+    )
+
+
+def resolve_cue_times(actions: list[dict], timing: dict | None) -> dict[int, dict]:
+    """Video time of every cue, keyed by its 0-based action index."""
+    resolved: dict[int, dict] = {}
+    for index, action in enumerate(actions):
+        if not isinstance(action, dict) or "cue" not in action or len(action) != 1:
+            continue
+        spec = cue_value(action["cue"])
+        if "at" in spec:
+            resolved[index] = {"phrase": None, "narration": spec["at"]}
+        else:
+            if timing is None:
+                raise ValueError(
+                    "cue actions need word timing for the current narration.wav: run "
+                    "align_narration.py --project-dir <demo> (or batch --phase narration)"
+                )
+            found = align_narration.find_phrase(timing["words"], spec["phrase"], spec["occurrence"])
+            resolved[index] = {"phrase": spec["phrase"], "narration": found["start"]}
+        resolved[index]["target"] = round(resolved[index]["narration"] + NARRATION_OFFSET_SECONDS, 2)
+    return resolved
+
+
+def cue_problems(actions: list[dict]) -> list[str]:
+    """A cue anchors the very next visible action, so nothing may sit between them."""
+    problems: list[str] = []
+    for index, action in enumerate(actions):
+        if not isinstance(action, dict) or "cue" not in action:
+            continue
+        try:
+            cue_value(action["cue"])
+        except ValueError as exc:
+            problems.append(f"Action {index + 1}: {exc}")
+            continue
+        following = actions[index + 1] if index + 1 < len(actions) else None
+        name = next(iter(following)) if isinstance(following, dict) and following else None
+        if name not in VISIBLE_ACTIONS:
+            problems.append(
+                f"Action {index + 1}: a cue must be followed directly by the visible "
+                f"action it anchors (click, drag, select_option, hover, fill, type, press, "
+                f"or code); found {name or 'nothing'}"
+            )
+    return problems
+
+
+def project_simulated_timeline(
+    actions: list[dict], cue_times: dict[int, dict] | None = None
+) -> list[dict]:
     timeline: list[dict] = []
     current_ms = 0.0
-    for action in actions:
+    pending: dict | None = None
+    for index, action in enumerate(actions):
         if not isinstance(action, dict) or len(action) != 1:
             continue
         name, value = next(iter(action.items()))
+        if name == "cue":
+            pending = (cue_times or {}).get(index)
+            continue
+        if pending is not None and name in VISIBLE_ACTIONS:
+            # Pointer actions travel early, then react exactly on the phrase.
+            lead_ms = 0 if name in {"code", "press"} else 600
+            current_ms = max(current_ms, pending["target"] * 1000 - lead_ms)
         started = current_ms
         if name == "wait" and isinstance(value, (int, float)):
             current_ms += value
@@ -235,20 +327,27 @@ def project_simulated_timeline(actions: list[dict]) -> list[dict]:
             text = str(value.get("text", "")).rstrip("\n")
             context = str(value.get("before", "")) + str(value.get("after", ""))
             current_ms += len(text) * int(value.get("type_ms", 22))
-            current_ms += code_hold_ms(text, value.get("duration"), context)
+            current_ms += code_hold_ms(text, value.get("duration"), context) + CODE_EXIT_MS
         elif name == "screenshot":
             current_ms += 100
-        timeline.append(
-            {
-                "action": name,
-                "start": round(started / 1000.0, 2),
-                "end": round(current_ms / 1000.0, 2),
-            }
-        )
+        entry: dict = {
+            "action": name,
+            "start": round(started / 1000.0, 2),
+            "end": round(current_ms / 1000.0, 2),
+        }
+        if pending is not None and name in VISIBLE_ACTIONS:
+            lead = 0.0 if name in {"code", "press"} else 0.6
+            entry["reaction"] = round(max(pending["target"], started / 1000.0 + lead), 2)
+            entry["cue"] = {"phrase": pending["phrase"], "target": pending["target"]}
+            pending = None
+        timeline.append(entry)
     return timeline
 
 
 def load_or_estimate_sentence_windows(project_dir: Path) -> list[dict] | None:
+    timing = align_narration.load_timing(project_dir)
+    if timing is not None:
+        return timing["sentences"]
     timing_file = project_dir / "artifacts" / "narration-timing.json"
     if timing_file.is_file():
         try:
@@ -294,7 +393,8 @@ def validate_project(
     project_dir = project_dir.resolve()
     app_dir = (app_dir or project_dir).resolve()
     errors: list[str] = []
-    report: dict = {}
+    warnings: list[str] = []
+    report: dict = {"warnings": warnings}
 
     if not (app_dir / "app.py").is_file() and not (app_dir / "app.R").is_file():
         errors.append("App directory must contain app.py or app.R")
@@ -363,6 +463,7 @@ def validate_project(
 
     if meaningful < 3:
         errors.append(f"Need at least 3 meaningful actions; found {meaningful}")
+    errors.extend(cue_problems(actions))
     if screenshot_actions != 1:
         errors.append(f"Need exactly one final screenshot action; found {screenshot_actions}")
 
@@ -371,7 +472,7 @@ def validate_project(
         if not isinstance(action, dict) or len(action) != 1:
             continue
         name, value = next(iter(action.items()))
-        if name in MEANINGFUL_ACTIONS or name == "code":
+        if name in MEANINGFUL_ACTIONS or name in {"code", "cue"}:
             break
         if name == "wait" and isinstance(value, (int, float)):
             opening_wait_ms += value
@@ -382,7 +483,17 @@ def validate_project(
             "narration hook, and move slack to holds after reveals instead"
         )
 
-    action_seconds = estimate_action_seconds(actions)
+    word_timing = align_narration.load_timing(project_dir)
+    try:
+        cue_times = resolve_cue_times(actions, word_timing)
+    except ValueError as exc:
+        errors.append(str(exc))
+        cue_times = {}
+    projected = project_simulated_timeline(actions, cue_times)
+    # Cues hold actions until their phrase, so the projection beats a plain sum.
+    action_seconds = max(
+        estimate_action_seconds(actions), projected[-1]["end"] if projected else 0.0
+    )
     report["meaningful_actions"] = meaningful
     report["estimated_action_seconds"] = round(action_seconds, 2)
     report["opening_wait_ms"] = round(opening_wait_ms)
@@ -419,7 +530,7 @@ def validate_project(
                 errors.append(f"Narration must contain 95–130 spoken words; found {words}")
             if not 3 <= tags <= 6:
                 errors.append(f"Narration must contain 3–6 audio tags; found {tags}")
-            if action_seconds + 0.25 < narration_seconds:
+            if action_seconds + 0.25 < narration_seconds + NARRATION_OFFSET_SECONDS:
                 errors.append(
                     f"Estimated actions ({action_seconds:.2f}s) are shorter than narration "
                     f"with buffer ({narration_seconds:.2f}s)"
@@ -427,6 +538,27 @@ def validate_project(
 
     timeline: list = []
     sentence_windows: list[dict] | None = None
+    if word_timing is not None:
+        report["alignment_method"] = word_timing.get("alignment_method")
+        check = word_timing.get("transcript_check") or {}
+        report["transcript_check"] = {
+            key: check.get(key) for key in ("word_error_rate", "differences", "vocalizations")
+        }
+        errors.extend(
+            f"Narration audio: {problem}" for problem in align_narration.check_problems(word_timing)
+        )
+        rate = check.get("word_error_rate") or 0.0
+        if align_narration.WARN_WORD_ERROR_RATE < rate <= align_narration.MAX_WORD_ERROR_RATE:
+            warnings.append(
+                f"Narration differs from the transcript in places (word error rate {rate:.0%}); "
+                "check transcript_check.differences for mispronounced code"
+            )
+    elif require_audio:
+        errors.append(
+            "No word timing for the current narration.wav: run align_narration.py "
+            "--project-dir <demo> (or batch --phase narration) so cues and sync checks "
+            "use the spoken words instead of silence gaps"
+        )
     if not simulate_timing:
         if require_nonempty(video_path, errors):
             try:
@@ -453,12 +585,12 @@ def validate_project(
                     )
                 measured_narration = report.get("measured_narration_seconds")
                 if measured_narration:
-                    overrun = video["duration"] - measured_narration
+                    overrun = video["duration"] - measured_narration - NARRATION_OFFSET_SECONDS
                     if not 0.75 <= overrun <= 3.5:
                         errors.append(
                             f"Video runs {overrun:.2f}s past the narration "
                             f"({video['duration']:.2f}s video vs {measured_narration:.2f}s "
-                            "audio); the payoff needs 1–3 s of screen time after the last "
+                            f"audio starting at {NARRATION_OFFSET_SECONDS:.2f}s); the payoff needs 1–3 s of screen time after the last "
                             "sentence — adjust the closing holds, never the opening wait"
                         )
                 elif narration_seconds and video["duration"] + 0.25 < narration_seconds:
@@ -477,16 +609,18 @@ def validate_project(
                 )
             except json.JSONDecodeError:
                 timeline = []
-        sentence_windows = narration_sentence_windows(
-            project_dir / "artifacts" / "narration.wav"
+        sentence_windows = (
+            word_timing["sentences"]
+            if word_timing is not None
+            else narration_sentence_windows(project_dir / "artifacts" / "narration.wav")
         )
     else:
         report["simulated_timing"] = True
-        timeline = project_simulated_timeline(actions)
+        timeline = projected
         sentence_windows = load_or_estimate_sentence_windows(project_dir)
         measured_or_est = report.get("measured_narration_seconds") or report.get("estimated_narration_seconds") or narration_seconds
         if measured_or_est:
-            overrun = action_seconds - measured_or_est
+            overrun = action_seconds - measured_or_est - NARRATION_OFFSET_SECONDS
             if not 0.75 <= overrun <= 3.5:
                 errors.append(
                     f"Simulated actions run {overrun:.2f}s past narration "
@@ -495,10 +629,12 @@ def validate_project(
                     "sentence — adjust the closing holds, never the opening wait"
                 )
 
+    sentence_windows = shift_windows(sentence_windows, NARRATION_OFFSET_SECONDS)
     if timeline:
         report["action_timeline"] = timeline
     if sentence_windows:
         report["narration_sentences"] = sentence_windows
+    errors.extend(cue_timing_errors(timeline, actions, require_audio and word_timing is not None))
     if timeline and sentence_windows:
         narration_end = sentence_windows[-1]["end"]
         visible_events = [
@@ -507,16 +643,20 @@ def validate_project(
             if entry.get("action") in MEANINGFUL_ACTIONS
             or entry.get("action") == "code"
         ]
+        def moment(entry: dict) -> float:
+            """When the viewer sees the action: its reaction, else its start."""
+            return float(entry.get("reaction", entry["start"]))
+
         first_meaningful = next(
             (entry for entry in visible_events if entry["action"] in MEANINGFUL_ACTIONS),
             None,
         )
         if (
             first_meaningful is not None
-            and first_meaningful["start"] > sentence_windows[0]["end"] + 0.5
+            and moment(first_meaningful) > sentence_windows[0]["end"] + 0.5
         ):
             errors.append(
-                f"First meaningful action starts at {first_meaningful['start']:.2f}s, "
+                f"First meaningful action starts at {moment(first_meaningful):.2f}s, "
                 f"after the first narration sentence ends at "
                 f"{sentence_windows[0]['end']:.2f}s; re-time the opening so the action "
                 "is underway during the hook"
@@ -524,24 +664,24 @@ def validate_project(
         late = [
             entry
             for entry in visible_events
-            if entry["start"] > narration_end + 0.25
+            if moment(entry) > narration_end + 0.25
         ]
         if late:
             errors.append(
                 f"{len(late)} visible action(s) start after the narration ends at "
                 f"{narration_end:.2f}s (first: {late[0]['action']} at "
-                f"{late[0]['start']:.2f}s); everything the viewer must see belongs "
+                f"{moment(late[0]):.2f}s); everything the viewer must see belongs "
                 "inside the spoken track — after it, only hold the payoff"
             )
         previous_end = 0.0
         for entry in visible_events:
-            if entry["start"] >= narration_end:
+            if moment(entry) >= narration_end:
                 break
-            gap = entry["start"] - previous_end
+            gap = moment(entry) - previous_end
             if gap > 8.0:
                 errors.append(
                     f"Dead air: no visible action between {previous_end:.2f}s and "
-                    f"{entry['start']:.2f}s while narration plays; keep a reaction, "
+                    f"{moment(entry):.2f}s while narration plays; keep a reaction, "
                     "contrast, or the code card on screen at least every 8 s"
                 )
             previous_end = max(previous_end, entry["end"])
@@ -560,6 +700,40 @@ def validate_project(
         require_nonempty(project_dir / "artifacts" / "final_with_audio.mp4", errors)
 
     return errors, report
+
+
+def cue_timing_errors(timeline: list, actions: list[dict], require_cues: bool) -> list[str]:
+    """Hold every cued reaction to the moment its phrase is spoken."""
+    errors: list[str] = []
+    cued = [entry for entry in timeline if isinstance(entry, dict) and entry.get("cue")]
+    for entry in cued:
+        target = float(entry["cue"]["target"])
+        reaction = float(entry.get("reaction", entry.get("start", 0.0)))
+        offset = reaction - target
+        if not -CUE_EARLY_SECONDS <= offset <= CUE_LATE_SECONDS:
+            label = entry["cue"].get("phrase") or f"{target:.2f}s"
+            errors.append(
+                f"{entry['action']} reacts at {reaction:.2f}s, {offset:+.2f}s from its cue "
+                f"{label!r} at {target:.2f}s (allowed −{CUE_EARLY_SECONDS:.1f} to "
+                f"+{CUE_LATE_SECONDS:.1f} s); shorten the waits before it or move the cue"
+            )
+    if require_cues:
+        names = [next(iter(a)) for a in actions if isinstance(a, dict) and len(a) == 1]
+        anchored = {
+            names[i + 1] for i, name in enumerate(names[:-1]) if name == "cue"
+        }
+        cued_meaningful = sum(
+            1 for i, name in enumerate(names[:-1])
+            if name == "cue" and names[i + 1] in MEANINGFUL_ACTIONS
+        )
+        if cued_meaningful < MIN_CUED_ACTIONS:
+            errors.append(
+                f"Anchor at least {MIN_CUED_ACTIONS} meaningful actions to the phrases "
+                f"that describe them with `cue` actions; found {cued_meaningful}"
+            )
+        if "code" in names and "code" not in anchored:
+            errors.append("Anchor the code action to the sentence that introduces the code with a `cue`")
+    return errors
 
 
 def write_report(project_dir: Path, report: dict) -> Path | None:
@@ -587,7 +761,7 @@ def timing_lines(report: dict) -> list[str]:
         action = entry.get("action")
         if action not in MEANINGFUL_ACTIONS and action != "code":
             continue
-        start = float(entry.get("start", 0.0))
+        start = float(entry.get("reaction", entry.get("start", 0.0)))
         index = next(
             (
                 number
@@ -598,6 +772,10 @@ def timing_lines(report: dict) -> list[str]:
             None,
         )
         landing = f"sentence {index}" if index else "no sentence"
+        cue = entry.get("cue")
+        if cue:
+            offset = start - float(cue["target"])
+            landing += f", {offset:+.2f}s from cue {cue.get('phrase') or cue['target']!r}"
         lines.append(f"  {action:<14} {start:6.2f}s  {landing}")
     return lines
 
@@ -666,6 +844,8 @@ def main() -> int:
             print(line)
         if report_path is not None:
             print(f"full report: {report_path}")
+    for warning in report.get("warnings", []):
+        print(f"WARNING: {warning}")
     if errors:
         for error in errors:
             print(f"ERROR: {error}")

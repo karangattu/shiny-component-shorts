@@ -353,6 +353,7 @@ class SharedRecorderContractTest(unittest.TestCase):
                 "type",
                 "press",
                 "code",
+                "cue",
                 "screenshot",
             },
         )
@@ -712,7 +713,8 @@ class DemoValidatorContractTest(unittest.TestCase):
             {"type": {"selector": "#notes", "value": "abcd", "delay": 50}},
             {"code": {"text": "x", "duration": 4000, "type_ms": 20}},
         ]
-        self.assertAlmostEqual(validator.estimate_action_seconds(actions), 7.22)
+        # 0.32 s of the total is the code card fading out.
+        self.assertAlmostEqual(validator.estimate_action_seconds(actions), 7.54)
 
     def test_narration_estimate_counts_spoken_words_and_tags(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

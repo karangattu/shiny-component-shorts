@@ -21,6 +21,10 @@ from urllib.parse import urlsplit
 
 import yaml
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import align_narration  # noqa: E402
+import validate_demo  # noqa: E402
+
 _active_processes = set()
 
 def _cleanup_processes():
@@ -45,12 +49,24 @@ SUPPORTED_ACTIONS = frozenset(
         "type",
         "press",
         "code",
+        "cue",
         "screenshot",
         "caption",
         "beat",
         "label",
     }
 )
+VISIBLE_ACTIONS = validate_demo.VISIBLE_ACTIONS
+# Video time zero sits this long before the first action, so the opening frame
+# already shows the settled app with the cursor at rest.
+LEAD_SECONDS = 0.7
+# An anchored pointer arrives this early, then presses exactly on the phrase.
+ARRIVE_EARLY_SECONDS = 0.3
+# The overshoot-and-settle after a glide, and the quickest a hurried glide runs.
+SETTLE_SECONDS = 0.07
+MIN_GLIDE_MS = 260.0
+OUTPUT_FPS = 30
+SCREENCAST_QUALITY = 92
 
 SHINY_CLIENT_ERROR_GUARD_JS = r"""(() => {
     const marker = 'Shiny Client Errors';
@@ -317,10 +333,18 @@ CODE_OVERLAY_JS = r"""async (cfg) => {
         + 'box-shadow:inset 2px 0 #007BC2;}'
         + 'html.__demo_code_side__ body{width:54vw!important;max-width:54vw!important;'
         + 'margin-left:2vw!important;margin-right:0!important;overflow-x:hidden!important;}'
-        + 'html.__demo_code_side__ body>*:not(#__code_overlay__){max-width:100%!important;}';
+        + 'html.__demo_code_side__ body>*:not(#__code_overlay__){max-width:100%!important;}'
+        // Enter and leave like an edit, not a glitch: fade and slide the card,
+        // and ease the side-by-side reflow instead of snapping the app over.
+        + '#__code_overlay__{transition:opacity 260ms ease,transform 300ms cubic-bezier(.2,.7,.2,1);}'
+        + '#__code_overlay__.__code_hidden__{opacity:0;transform:'
+        + (sideBySide ? 'translateX(28px)' : 'translateY(22px)') + ';}'
+        + 'html.__demo_code_anim__ body{transition:width 260ms ease,max-width 260ms ease,'
+        + 'margin 260ms ease;}';
     document.head.appendChild(style);
     const el = document.createElement('div');
     el.id = '__code_overlay__';
+    el.className = '__code_hidden__';
     el.style.cssText = sideBySide
         ? 'position:fixed;top:20%;bottom:20%;right:3%;width:41%;z-index:99999;'
             + 'display:flex;flex-direction:column;background:#1D1F21;'
@@ -330,7 +354,13 @@ CODE_OVERLAY_JS = r"""async (cfg) => {
             + 'display:flex;flex-direction:column;background:#1D1F21;'
             + 'border:1px solid #48505F;border-radius:10px;'
             + 'box-shadow:0 18px 60px rgba(29,31,33,.55);overflow:hidden;';
-    if (sideBySide) document.documentElement.classList.add('__demo_code_side__');
+    if (sideBySide) {
+        // Pin the current width so the reflow animates from a length, not auto.
+        document.body.style.width = document.body.getBoundingClientRect().width + 'px';
+        document.documentElement.classList.add('__demo_code_anim__');
+        document.body.getBoundingClientRect();
+        document.documentElement.classList.add('__demo_code_side__');
+    }
     const titlebar = document.createElement('div');
     titlebar.style.cssText = 'height:30px;display:grid;grid-template-columns:64px 1fr 64px;'
         + 'align-items:center;background:#202020;border-bottom:1px solid rgba(205,212,218,.18);'
@@ -429,12 +459,27 @@ CODE_OVERLAY_JS = r"""async (cfg) => {
     workbench.append(activity, editor);
     el.append(titlebar, workbench);
     document.body.appendChild(el);
+    el.getBoundingClientRect();
+    el.classList.remove('__code_hidden__');
     for (let i = 1; i <= cfg.text.length; i++) {
         const typed = cfg.text.slice(0, i);
         renderLines(focusBlock, typed, focusStart, true);
         updateStatus(typed);
         await new Promise(resolve => setTimeout(resolve, cfg.typeMs));
     }
+}"""
+
+
+CODE_OVERLAY_REMOVE_JS = r"""async () => {
+    const root = document.documentElement;
+    const el = document.getElementById('__code_overlay__');
+    el?.classList.add('__code_hidden__');
+    root.classList.remove('__demo_code_side__');
+    await new Promise(resolve => setTimeout(resolve, 320));
+    el?.remove();
+    document.getElementById('__code_overlay_style__')?.remove();
+    root.classList.remove('__demo_code_anim__');
+    document.body.style.removeProperty('width');
 }"""
 
 
@@ -734,23 +779,67 @@ def _ease_in_out(t: float) -> float:
     return 4 * t**3 if t < 0.5 else 1 - ((-2 * t + 2) ** 3) / 2
 
 
-def _glide(page, x0: float, y0: float, x1: float, y1: float, steps: int) -> None:
-    """Move the cursor with ease-in-out pacing and a subtle overshoot-and-settle."""
-    distance = ((x1 - x0) ** 2 + (y1 - y0) ** 2) ** 0.5
+def glide_duration_ms(distance: float) -> float:
+    """Fitts-style travel time: short hops are quick, long reaches take longer."""
+    return min(950.0, 240.0 + 1.1 * distance)
+
+
+def wait_until(page, deadline: float | None) -> None:
+    """Block on the page clock until a monotonic deadline; late is a no-op."""
+    if deadline is None:
+        return
+    remaining = deadline - time.monotonic()
+    if remaining > 0.005:
+        page.wait_for_timeout(remaining * 1000)
+
+
+def _glide(
+    page, x0: float, y0: float, x1: float, y1: float, duration_ms: float | None = None
+) -> None:
+    """Travel a gentle arc on a wall-clock schedule, overshoot slightly, settle."""
+    dx, dy = x1 - x0, y1 - y0
+    distance = (dx**2 + dy**2) ** 0.5
     if distance < 2:
         page.mouse.move(x1, y1)
         return
-    overshoot = min(8.0, distance * 0.05)
-    ox = x1 + (x1 - x0) / distance * overshoot
-    oy = y1 + (y1 - y0) / distance * overshoot
-    for i in range(1, steps + 1):
-        e = _ease_in_out(i / steps)
-        page.mouse.move(x0 + (ox - x0) * e, y0 + (oy - y0) * e)
+    duration = (duration_ms if duration_ms is not None else glide_duration_ms(distance)) / 1000
+    # Hands arc rather than rule straight lines; bend a little to either side.
+    bend = distance * random.uniform(0.05, 0.12) * random.choice((-1.0, 1.0))
+    cx = (x0 + x1) / 2 - dy / distance * bend
+    cy = (y0 + y1) / 2 + dx / distance * bend
+    overshoot = min(6.0, distance * 0.03)
+    ox, oy = x1 + dx / distance * overshoot, y1 + dy / distance * overshoot
+    started = time.monotonic()
+    while True:
+        step_started = time.monotonic()
+        t = (step_started - started) / duration
+        if t >= 1:
+            break
+        e = _ease_in_out(t)
+        u = 1 - e
+        page.mouse.move(
+            u * u * x0 + 2 * u * e * cx + e * e * ox,
+            u * u * y0 + 2 * u * e * cy + e * e * oy,
+        )
+        # Keep sampling near 60 Hz even when a move returns instantly.
+        spent = (time.monotonic() - step_started) * 1000
+        if spent < 14:
+            page.wait_for_timeout(14 - spent)
+    page.mouse.move(ox, oy)
     for i in range(1, 4):
+        page.wait_for_timeout(16)
         page.mouse.move(ox + (x1 - ox) * i / 3, oy + (y1 - oy) * i / 3)
 
 
-def move_cursor_to(page, selector: str) -> tuple[float, float]:
+def rest_cursor(page, width: int, height: int) -> None:
+    """Park the visible cursor in the empty bottom band before the first frame."""
+    x, y = width * 0.64, height * 0.86
+    page.mouse.move(x, y)
+    page._demo_cursor_pos = (x, y)
+
+
+def move_cursor_to(page, selector: str, arrive_by: float | None = None) -> tuple[float, float]:
+    """Glide to `selector`; with `arrive_by`, leave just late enough to land then."""
     locator = page.locator(selector).first
     locator.scroll_into_view_if_needed()
     box = locator.bounding_box()
@@ -759,21 +848,36 @@ def move_cursor_to(page, selector: str) -> tuple[float, float]:
     x = box["x"] + box["width"] * random.uniform(0.42, 0.58)
     y = box["y"] + box["height"] * random.uniform(0.42, 0.58)
     origin = getattr(page, "_demo_cursor_pos", None) or (x - 240, y - 160)
-    _glide(page, origin[0], origin[1], x, y, random.randint(16, 24))
+    duration = glide_duration_ms(((x - origin[0]) ** 2 + (y - origin[1]) ** 2) ** 0.5)
+    if arrive_by is not None:
+        # A pointer running behind hurries, as a person would, but never jumps.
+        available = (arrive_by - time.monotonic() - SETTLE_SECONDS) * 1000
+        duration = max(MIN_GLIDE_MS, min(duration, available))
+        wait_until(page, arrive_by - SETTLE_SECONDS - duration / 1000)
+    _glide(page, origin[0], origin[1], x, y, duration)
     page._demo_cursor_pos = (x, y)
+    page._demo_arrived_at = time.monotonic()
     page.wait_for_timeout(random.randint(90, 180))
     return x, y
 
 
-def human_click(page, selector: str) -> None:
-    move_cursor_to(page, selector)
+def human_click(page, selector: str, anchor: float | None = None) -> float:
+    """Click like a person; with `anchor`, the press lands on that moment."""
+    move_cursor_to(page, selector, None if anchor is None else anchor - ARRIVE_EARLY_SECONDS)
+    wait_until(page, anchor)
+    reaction = time.monotonic()
     page.mouse.down()
     page.wait_for_timeout(random.randint(70, 135))
     page.mouse.up()
+    return reaction
 
 
-def human_drag(page, config: dict) -> None:
-    x, y = move_cursor_to(page, config["selector"])
+def human_drag(page, config: dict, anchor: float | None = None) -> float:
+    x, y = move_cursor_to(
+        page, config["selector"], None if anchor is None else anchor - ARRIVE_EARLY_SECONDS
+    )
+    wait_until(page, anchor)
+    reaction = time.monotonic()
     page.mouse.down()
     page.wait_for_timeout(random.randint(90, 150))
     tx = x + float(config.get("delta_x", 0))
@@ -786,6 +890,27 @@ def human_drag(page, config: dict) -> None:
     page._demo_cursor_pos = (tx, ty)
     page.wait_for_timeout(random.randint(90, 150))
     page.mouse.up()
+    return reaction
+
+
+def typing_pause_ms(char: str, delay: float) -> float:
+    """A person's uneven rhythm around `delay`: quicker runs, beats at breaks."""
+    pause = delay * random.uniform(0.6, 1.3)
+    if char == " ":
+        pause *= 1.35
+    elif char in ".,;:!?\n":
+        pause *= 2.2
+    return pause
+
+
+def human_type(page, selector: str, text: str, delay: float) -> None:
+    """Type one key at a time on a schedule, so the average pace stays `delay`."""
+    locator = page.locator(selector)
+    deadline = time.monotonic()
+    for char in text:
+        locator.press_sequentially(char, delay=0)
+        deadline += typing_pause_ms(char, delay) / 1000
+        wait_until(page, deadline)
 
 
 def validate_action_shape(action: object) -> str:
@@ -828,10 +953,19 @@ def run_actions(
     overlays: dict | None = None,
     orientation: str = "vertical",
     clock_zero: float | None = None,
+    cues: dict[int, dict] | None = None,
+    video_zero: float | None = None,
 ) -> list[dict]:
+    """Run the action list; each entry records start, end, and reaction times.
+
+    `cues` maps a cue action's index to its target video time; the next visible
+    action then reacts on `video_zero + target` instead of after fixed waits.
+    """
     timeline: list[dict] = []
     zero = clock_zero if clock_zero is not None else time.monotonic()
-    for action in actions:
+    origin = video_zero if video_zero is not None else zero
+    pending: dict | None = None
+    for index, action in enumerate(actions):
         name = validate_action_shape(action)
         value = action[name]
         started = time.monotonic() - zero
@@ -839,37 +973,67 @@ def run_actions(
             raise ValueError(
                 f"The {name!r} action requires an `overlays` block in actions.yaml"
             )
+        if name == "cue":
+            if cues is None or index not in cues:
+                raise ValueError(
+                    f"Action {index + 1}: cue was not resolved against narration timing"
+                )
+            pending = cues[index]
+            timeline.append(
+                {
+                    "action": "cue",
+                    "start": round(started, 2),
+                    "end": round(started, 2),
+                    "phrase": pending["phrase"],
+                    "target": pending["target"],
+                }
+            )
+            continue
+        anchor = origin + pending["target"] if pending and name in VISIBLE_ACTIONS else None
+        reaction: float | None = None
         if name == "wait_for":
             page.wait_for_selector(value, state="attached", timeout=15000)
         elif name == "wait":
             page.wait_for_timeout(value)
         elif name == "click":
-            human_click(page, value)
+            reaction = human_click(page, value, anchor)
         elif name == "drag":
-            human_drag(page, value)
+            reaction = human_drag(page, value, anchor)
         elif name == "select_option":
-            move_cursor_to(page, value["selector"])
+            move_cursor_to(
+                page, value["selector"], None if anchor is None else anchor - ARRIVE_EARLY_SECONDS
+            )
+            wait_until(page, anchor)
+            reaction = time.monotonic()
             page.locator(value["selector"]).select_option(value["value"])
         elif name == "hover":
-            move_cursor_to(page, value)
+            move_cursor_to(page, value, anchor)
+            # A hover reacts when the pointer lands, not after it settles.
+            reaction = getattr(page, "_demo_arrived_at", None) or time.monotonic()
         elif name == "fill":
-            human_click(page, value["selector"])
+            human_click(page, value["selector"], None if anchor is None else anchor - 0.2)
+            wait_until(page, anchor)
+            reaction = time.monotonic()
             page.locator(value["selector"]).fill(value["value"])
         elif name == "type":
-            human_click(page, value["selector"])
+            human_click(page, value["selector"], None if anchor is None else anchor - 0.2)
             page.eval_on_selector(
                 value["selector"],
                 "el => { el.focus(); if (el.setSelectionRange) "
                 "el.setSelectionRange(el.value.length, el.value.length); }",
             )
-            page.locator(value["selector"]).press_sequentially(
-                value["value"], delay=value.get("delay", 45)
-            )
+            wait_until(page, anchor)
+            reaction = time.monotonic()
+            human_type(page, value["selector"], value["value"], value.get("delay", 45))
         elif name == "press":
+            wait_until(page, anchor)
+            reaction = time.monotonic()
             page.locator(value["selector"]).press(value["key"])
         elif name == "code":
             config = code_overlay_config(orientation, value)
             text = config["text"]
+            wait_until(page, anchor)
+            reaction = time.monotonic()
             page.evaluate(CODE_OVERLAY_JS, config)
             page.wait_for_timeout(
                 code_hold_ms(
@@ -878,11 +1042,7 @@ def run_actions(
                     config["before"] + config["after"],
                 )
             )
-            page.evaluate(
-                "() => { document.getElementById('__code_overlay__')?.remove();"
-                " document.getElementById('__code_overlay_style__')?.remove();"
-                " document.documentElement.classList.remove('__demo_code_side__'); }"
-            )
+            page.evaluate(CODE_OVERLAY_REMOVE_JS)
         elif name == "screenshot":
             target = project_dir / value["path"]
             target.parent.mkdir(parents=True, exist_ok=True)
@@ -894,8 +1054,8 @@ def run_actions(
             page.wait_for_timeout(300)
         elif name == "beat":
             assert overlays is not None
-            index = resolve_beat_index(value, overlays["beats"])
-            page.evaluate("index => window.__demo_overlays__?.setBeat(index)", index)
+            index_value = resolve_beat_index(value, overlays["beats"])
+            page.evaluate("index => window.__demo_overlays__?.setBeat(index)", index_value)
             page.wait_for_timeout(300)
         elif name == "label":
             page.evaluate(
@@ -903,14 +1063,126 @@ def run_actions(
             )
             page.wait_for_timeout(300)
         assert_branding_visible(page)
-        timeline.append(
-            {
-                "action": name,
-                "start": round(started, 2),
-                "end": round(time.monotonic() - zero, 2),
-            }
-        )
+        entry: dict = {
+            "action": name,
+            "start": round(started, 2),
+            "end": round(time.monotonic() - zero, 2),
+        }
+        if reaction is not None:
+            entry["reaction"] = round(reaction - zero, 2)
+        if anchor is not None and pending is not None:
+            entry["cue"] = {"phrase": pending["phrase"], "target": pending["target"]}
+            pending = None
+        timeline.append(entry)
     return timeline
+
+
+class ScreencastCapture:
+    """Full-resolution compositor frames stamped on the same wall clock as the actions.
+
+    Chromium sends a JPEG each time the page repaints and holds the newest
+    frame until it is acknowledged, so a slow consumer lowers the frame rate
+    without ever dropping the final state of a change.
+    """
+
+    def __init__(self, context, page, frames_dir: Path, width: int, height: int) -> None:
+        self.frames: list[tuple[float, Path]] = []
+        self.dir = frames_dir
+        self.width, self.height = width, height
+        self.dir.mkdir(parents=True, exist_ok=True)
+        self.session = context.new_cdp_session(page)
+        self.session.on("Page.screencastFrame", self._on_frame)
+
+    def _on_frame(self, event: dict) -> None:
+        # Acknowledge first so Chromium can compose the next frame while this
+        # one is written; a late ack is what stretches gaps between frames.
+        self.session.send("Page.screencastFrameAck", {"sessionId": event["sessionId"]})
+        path = self.dir / f"{len(self.frames):06d}.jpg"
+        path.write_bytes(base64.b64decode(event["data"]))
+        self.frames.append((float(event["metadata"]["timestamp"]), path))
+
+    def start(self) -> None:
+        self.session.send(
+            "Page.startScreencast",
+            {
+                "format": "jpeg",
+                "quality": SCREENCAST_QUALITY,
+                "maxWidth": self.width,
+                "maxHeight": self.height,
+                "everyNthFrame": 1,
+            },
+        )
+
+    def stop(self) -> None:
+        self.session.send("Page.stopScreencast")
+
+
+def screencast_manifest(frames: list[tuple[float, Path]], start: float, end: float) -> str:
+    """An ffconcat script showing each frame from its timestamp until the next one.
+
+    `start` and `end` are wall-clock seconds; the frame already on screen at
+    `start` opens the video so a static opening is never blank.
+    """
+    ordered = sorted(frames, key=lambda frame: frame[0])
+    kept = [frame for frame in ordered if frame[0] < end]
+    opening = max((i for i, frame in enumerate(kept) if frame[0] <= start), default=0)
+    kept = kept[opening:]
+    if not kept:
+        raise RuntimeError("The screencast captured no frames inside the recording window")
+
+    def quoted(path: Path) -> str:
+        return "'" + str(path).replace("'", "'\\''") + "'"
+
+    lines = ["ffconcat version 1.0"]
+    for index, (stamp, path) in enumerate(kept):
+        begin = max(stamp, start)
+        finish = kept[index + 1][0] if index + 1 < len(kept) else end
+        lines.append(f"file {quoted(path)}")
+        lines.append(f"duration {max(finish - begin, 0.001):.6f}")
+    # The concat demuxer ignores the last duration unless the file repeats.
+    lines.append(f"file {quoted(kept[-1][1])}")
+    return "\n".join(lines) + "\n"
+
+
+def encode_screencast(
+    frames: list[tuple[float, Path]],
+    start: float,
+    end: float,
+    output: Path,
+    width: int,
+    height: int,
+) -> None:
+    manifest = output.with_suffix(".ffconcat")
+    manifest.write_text(screencast_manifest(frames, start, end), encoding="utf-8")
+    try:
+        subprocess.run(
+            [
+                "ffmpeg",
+                "-loglevel",
+                "error",
+                "-y",
+                "-f",
+                "concat",
+                "-safe",
+                "0",
+                "-i",
+                str(manifest),
+                "-vf",
+                f"fps={OUTPUT_FPS},scale={width}:{height}:flags=lanczos,format=yuv420p",
+                "-c:v",
+                "libx264",
+                "-crf",
+                "16",
+                "-preset",
+                "medium",
+                "-movflags",
+                "+faststart",
+                str(output),
+            ],
+            check=True,
+        )
+    finally:
+        manifest.unlink(missing_ok=True)
 
 
 def terminate_process(proc: subprocess.Popen) -> None:
@@ -1003,7 +1275,15 @@ def action_shape_problems(actions: list[dict], run: dict) -> list[str]:
                     raise ValueError(f"the {name!r} action needs a `selector`")
         except (ValueError, KeyError, TypeError) as exc:
             problems.append(f"Action {index}: {exc}")
+    problems.extend(validate_demo.cue_problems(actions))
     return problems
+
+
+def resolve_cues(actions: list[dict], project_dir: Path) -> dict[int, dict]:
+    """Target video time for every cue, from the current narration's word timing."""
+    if not any(isinstance(action, dict) and "cue" in action for action in actions):
+        return {}
+    return validate_demo.resolve_cue_times(actions, align_narration.load_timing(project_dir))
 
 
 def phone_preview(screenshot_path: Path) -> Path | None:
@@ -1064,7 +1344,16 @@ def preflight_project(
         "phone_screenshot": None,
         "app_log": None,
         "problems": action_shape_problems(actions, run),
+        "cues": [],
     }
+    if not report["problems"]:
+        try:
+            report["cues"] = [
+                {"action": index + 1, **cue}
+                for index, cue in sorted(resolve_cues(actions, project_dir).items())
+            ]
+        except ValueError as exc:
+            report["problems"].append(str(exc))
     if report["problems"]:
         # A malformed action list cannot be checked against a live page.
         return report
@@ -1144,6 +1433,7 @@ def record_project(
     app_dir: Path | None = None,
     port_override: int | None = None,
     logo_override: Path | None = None,
+    capture: str = "screencast",
 ) -> Path:
     from playwright.sync_api import ViewportSize, sync_playwright
 
@@ -1151,6 +1441,8 @@ def record_project(
     app_dir = (app_dir or project_dir).resolve()
     if not app_dir.is_dir():
         raise FileNotFoundError(f"App directory does not exist: {app_dir}")
+    if capture not in {"screencast", "playwright"}:
+        raise ValueError(f"Unsupported capture mode: {capture}")
 
     run = prepare_run(actions_path, orientation_override, port_override, logo_override)
     config = run["config"]
@@ -1161,22 +1453,34 @@ def record_project(
     overlays = run["overlays"]
     logo_path = run["logo_path"]
     logo = run["logo"]
+    problems = action_shape_problems(config["actions"], run)
+    if problems:
+        raise ValueError("; ".join(problems))
+    cues = resolve_cues(config["actions"], project_dir)
     width, height = viewport_size(orientation)
     viewport = ViewportSize(width=width, height=height)
     size = ViewportSize(width=width * 2, height=height * 2)
 
     artifacts = project_dir / "artifacts"
     artifacts.mkdir(parents=True, exist_ok=True)
+    video_name = config.get("video_name", "demo.webm")
+    mp4_path = artifacts / Path(video_name).with_suffix(".mp4").name
+    frames_dir = artifacts / ".screencast-frames"
+    shutil.rmtree(frames_dir, ignore_errors=True)
     proc = start_app_with_retry(app_dir, app_type, bind_host, port, url)
     try:
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch(
                 args=["--force-device-scale-factor=2", "--high-dpi-support=1"]
             )
-            context = browser.new_context(
-                viewport=viewport,
-                record_video_dir=str(artifacts),
-                record_video_size=size,
+            context = (
+                browser.new_context(
+                    viewport=viewport,
+                    record_video_dir=str(artifacts),
+                    record_video_size=size,
+                )
+                if capture == "playwright"
+                else browser.new_context(viewport=viewport)
             )
             context.add_init_script(CURSOR_OVERLAY_JS)
             context.add_init_script(SHINY_CLIENT_ERROR_GUARD_JS)
@@ -1187,11 +1491,20 @@ def record_project(
                 )
             page = context.new_page()
             video = page.video
-            if video is None:
+            if capture == "playwright" and video is None:
                 raise RuntimeError("Playwright did not attach a video recorder")
+            screencast = (
+                ScreencastCapture(context, page, frames_dir, size["width"], size["height"])
+                if capture == "screencast"
+                else None
+            )
             recording_started = time.monotonic()
+            wall_started = time.time()
+            if screencast is not None:
+                screencast.start()
             page.goto(url)
             page.wait_for_load_state("networkidle")
+            rest_cursor(page, width, height)
             page.wait_for_timeout(3000)
             assert_no_shiny_client_errors(page)
             missing = [
@@ -1204,6 +1517,9 @@ def record_project(
                     "Selectors not found on initial page: " + ", ".join(missing)
                 )
             preamble_seconds = time.monotonic() - recording_started
+            # Trim the page-load preamble so the first action lands near the
+            # start of the deliverable and narration timed from zero stays in sync.
+            trim_seconds = max(0.0, preamble_seconds - LEAD_SECONDS)
             timeline = run_actions(
                 page,
                 config["actions"],
@@ -1211,85 +1527,119 @@ def record_project(
                 overlays,
                 orientation,
                 clock_zero=recording_started,
+                cues=cues,
+                video_zero=recording_started + trim_seconds,
             )
             assert_no_shiny_client_errors(page)
             assert_branding_visible(page)
+            if screencast is not None:
+                screencast.stop()
             context.close()
-            video_source = Path(video.path())
+            # The video file is final once its context closes; read its path
+            # while Playwright is still running.
+            video_source = Path(video.path()) if capture == "playwright" and video else None
             browser.close()
-
-        video_name = config.get("video_name", "demo.webm")
-        webm_path = artifacts / video_name
-        if webm_path.exists() and webm_path != video_source:
-            webm_path.unlink()
-        if video_source != webm_path:
-            shutil.move(str(video_source), webm_path)
-        if not webm_path.is_file() or webm_path.stat().st_size == 0:
-            raise RuntimeError("Playwright did not produce a non-empty WebM recording")
 
         if shutil.which("ffmpeg") is None:
             raise RuntimeError("ffmpeg is required to create artifacts/demo.mp4")
-        mp4_path = artifacts / Path(video_name).with_suffix(".mp4").name
-        # Trim the page-load preamble so the first action lands near the start
-        # of the deliverable and narration timed from zero stays in sync.
-        trim_seconds = max(0.0, preamble_seconds - 0.7)
         # Cut the tail at the final screenshot: capturing it re-rasterizes the
         # page at 1x, which records as a shrunken frame on a gray canvas.
-        tail_args: list[str] = []
         screenshot_start = next(
-            (
-                entry["start"]
-                for entry in timeline
-                if entry["action"] == "screenshot"
-            ),
+            (entry["start"] for entry in timeline if entry["action"] == "screenshot"),
             None,
         )
-        if screenshot_start is not None and screenshot_start - 0.05 > trim_seconds:
-            tail_args = ["-t", f"{screenshot_start - 0.05 - trim_seconds:.2f}"]
-        subprocess.run(
-            [
-                "ffmpeg",
-                "-loglevel",
-                "error",
-                "-y",
-                "-i",
-                str(webm_path),
-                "-ss",
-                f"{trim_seconds:.2f}",
-                *tail_args,
-                "-c:v",
-                "libx264",
-                "-crf",
-                "17",
-                "-preset",
-                "fast",
-                "-pix_fmt",
-                "yuv420p",
-                "-movflags",
-                "+faststart",
-                str(mp4_path),
-            ],
-            check=True,
+        tail = (
+            screenshot_start - 0.05
+            if screenshot_start is not None and screenshot_start - 0.05 > trim_seconds
+            else timeline[-1]["end"] if timeline else trim_seconds + 1.0
         )
+        if screencast is not None:
+            # Frames and actions share one clock, so the cut is exact.
+            encode_screencast(
+                screencast.frames,
+                wall_started + trim_seconds,
+                wall_started + tail,
+                mp4_path,
+                size["width"],
+                size["height"],
+            )
+            frame_count = len(screencast.frames)
+            shutil.rmtree(frames_dir, ignore_errors=True)
+        else:
+            assert video_source is not None
+            webm_path = artifacts / video_name
+            if webm_path.exists() and webm_path != video_source:
+                webm_path.unlink()
+            if video_source != webm_path:
+                shutil.move(str(video_source), webm_path)
+            if not webm_path.is_file() or webm_path.stat().st_size == 0:
+                raise RuntimeError("Playwright did not produce a non-empty WebM recording")
+            frame_count = None
+            subprocess.run(
+                [
+                    "ffmpeg",
+                    "-loglevel",
+                    "error",
+                    "-y",
+                    "-i",
+                    str(webm_path),
+                    "-ss",
+                    f"{trim_seconds:.2f}",
+                    "-t",
+                    f"{tail - trim_seconds:.2f}",
+                    "-c:v",
+                    "libx264",
+                    "-crf",
+                    "17",
+                    "-preset",
+                    "fast",
+                    "-pix_fmt",
+                    "yuv420p",
+                    "-movflags",
+                    "+faststart",
+                    str(mp4_path),
+                ],
+                check=True,
+            )
         if not mp4_path.is_file() or mp4_path.stat().st_size == 0:
             raise RuntimeError("ffmpeg did not produce a non-empty MP4 recording")
+
+        def shifted(value: float) -> float:
+            return round(value - trim_seconds, 2)
+
         (artifacts / "recording.json").write_text(
             json.dumps(
                 {
                     "action_timeline": [
                         {
-                            "action": entry["action"],
-                            "start": round(entry["start"] - trim_seconds, 2),
-                            "end": round(entry["end"] - trim_seconds, 2),
+                            **entry,
+                            "start": shifted(entry["start"]),
+                            "end": shifted(entry["end"]),
+                            **(
+                                {"reaction": shifted(entry["reaction"])}
+                                if "reaction" in entry
+                                else {}
+                            ),
                         }
                         for entry in timeline
                     ],
+                    "capture": {
+                        "mode": capture,
+                        "fps": OUTPUT_FPS if capture == "screencast" else 25,
+                        "source_frames": frame_count,
+                        "clock": (
+                            "screencast frame timestamps (exact)"
+                            if capture == "screencast"
+                            else "Playwright video start (approximate)"
+                        ),
+                    },
                     "logo": {
                         "source": logo_path.name,
                         "width": logo["width"],
                         "top": logo["top"],
                         "left": logo["left"],
                     },
+                    "narration_offset_seconds": align_narration.NARRATION_OFFSET_SECONDS,
                     "orientation": orientation,
                     "overlays": overlays,
                     "scale_factor": 2,
@@ -1307,6 +1657,7 @@ def record_project(
         return mp4_path
     finally:
         terminate_process(proc)
+        shutil.rmtree(frames_dir, ignore_errors=True)
 
 
 def parse_args() -> argparse.Namespace:
@@ -1321,6 +1672,13 @@ def parse_args() -> argparse.Namespace:
         "--logo",
         type=Path,
         help="Override the top-left brand logo; defaults to the skill's shiny-logo.png",
+    )
+    parser.add_argument(
+        "--capture",
+        choices=["screencast", "playwright"],
+        default="screencast",
+        help="screencast: full-quality 30 fps frames on the action clock (default); "
+        "playwright: the legacy 25 fps WebM recorder",
     )
     parser.add_argument(
         "--dry-run",
@@ -1344,6 +1702,8 @@ def print_preflight(project_dir: Path, report: dict) -> None:
         )
     if report["deferred"]:
         print(f"  deferred to wait_for: {', '.join(report['deferred'])}")
+    for cue in report.get("cues", []):
+        print(f"  cue {cue['action']}: {cue['phrase'] or 'fixed time'!r} at {cue['target']:.2f}s video time")
     if report["screenshot"]:
         print(f"  frame: {report['screenshot']}")
     if report["phone_screenshot"]:
@@ -1394,6 +1754,7 @@ def main() -> int:
         app_dir,
         args.port,
         args.logo,
+        args.capture,
     )
     print(f"Recorded: {mp4_path}")
     return 0

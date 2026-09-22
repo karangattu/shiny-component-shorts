@@ -31,6 +31,7 @@ BASE_ACTIONS = {
     "type",
     "press",
     "code",
+    "cue",
     "screenshot",
 }
 OVERLAY_ACTIONS = {"caption", "beat", "label"}
