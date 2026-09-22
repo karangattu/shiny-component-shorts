@@ -22,6 +22,7 @@ Create one-screen Shiny demos that make one hidden component behavior obvious in
 - Use official Shiny and shinychat documentation as the source of truth, and the source at the requested ref when the request starts from a changeset.
 - Run the bundled shared scripts; never generate a demo-specific recorder or validator.
 - Preserve natural speech and pauses. Fit the recording to the narration; never accelerate the voice or trim pauses to hit the target duration. If the local voice runs fast, slow its engine rate (`speaking_rate` below 1.0) instead of accepting a rushed take; if needed, shorten the script and regenerate naturally before recording.
+- Time narrated videos from measured word timing, not by ear: anchor each reaction and the code card to its phrase with a `cue` action, and read the transcript check instead of guessing from silence gaps. Listening is extra verification when available; never claim it when it was not.
 - Never ship or record an app while a **Shiny Client Errors** panel is visible. Give every input a stable ID and use unique output IDs; any detected client-error panel is a blocking failure.
 - Treat runnable demo projects and their media as disposable outputs. Unless the user provides another destination, create them under `generated/demo-name/`, which is gitignored; never add generated demo directories or example-specific artifact tests to repository source.
 
@@ -174,7 +175,7 @@ python .claude/skills/shiny-component-shorts/scripts/batch_process.py \
   --tts-concurrency 3
 ```
 
-For each demo, listen to `artifacts/narration.wav`, inspect `artifacts/narration-timing.json`, and adjust `actions.yaml` so reactions align with the measured sentence windows. Then explicitly approve those exact inputs and finish the videos:
+For each demo, the narration phase writes word timing and a transcript check to `artifacts/narration-timing.json` and fails a take that says something other than the transcript. Read its differences, anchor `actions.yaml` with `cue` actions quoting the phrases that describe each reaction, and run the recorder's `--dry-run` to see every cue resolved to a video time. For new local narration, run `--phase takes` first to generate, loudness-match, rank, and pin a take (see the TTS reference). Then explicitly approve those exact inputs and finish the videos:
 
 ```bash
 python .claude/skills/shiny-component-shorts/scripts/batch_process.py \
@@ -201,9 +202,9 @@ After the batch succeeds, each assigned agent must still inspect the first, reve
 
 Generate the audio before recording so action timing follows the real narration instead of a word-count estimate:
 
-1. Write `artifacts/narration.txt` and generate `artifacts/narration.wav` (see [references/tts-and-costs.md](references/tts-and-costs.md)); verify the WAV is non-empty and listen for defects before recording anything. When the user supplies existing narration — a WAV or a previously narrated video — import it with `import_narration.py` instead of calling TTS (see the same reference); the transcript in `narration.txt` must match what that audio actually says.
-2. Measure the audio: exact duration with `ffprobe`, candidate pause boundaries with `ffmpeg -af silencedetect`; listen and map the actual spoken phrases to visible reactions (see the recording contract's Timing section).
-3. Author or adjust `actions.yaml` against those measurements: the first meaningful action must be underway during the hook's first sentence, each visible reaction must begin at or slightly before the sentence that describes it, and the video must run one to three seconds past the narration.
+1. Write `artifacts/narration.txt` and generate `artifacts/narration.wav` (see [references/tts-and-costs.md](references/tts-and-costs.md)); for new local narration, generate three takes with `batch_process.py --phase takes` and pin the ranked choice. When the user supplies existing narration — a WAV or a previously narrated video — import it with `import_narration.py` instead of calling TTS; the transcript in `narration.txt` must match what that audio actually says.
+2. Measure the audio with `align_narration.py --project-dir generated/demo-name` (the batch narration phase runs it for you). It writes each word's spoken time and a transcript check to `artifacts/narration-timing.json` and fails when the audio differs from the transcript or contains a vocalization; regenerate rather than record over a failing take.
+3. Author `actions.yaml` with a `cue` before each reaction and before the code card, quoting the transcript phrase that describes it. The recorder then lands each reaction on its phrase at any machine speed. Cue the first action to a word about 1.5–3 s in so it is visible during the hook, and let the video run one to three seconds past the narration.
 4. Preflight with `record_demo.py --dry-run`, then record and validate with `--require-audio`, then merge with the bundled script:
 
 ```bash
@@ -211,7 +212,7 @@ python .claude/skills/shiny-component-shorts/scripts/merge_audio.py \
   --project-dir generated/demo-name
 ```
 
-It measures loudness and uses constant gain toward -14 LUFS within -1.5 dBTP headroom, accepting a quieter result to preserve dynamics. For an approved take, use `--preserve-audio` or batch `"audio_processing": "preserve"` to bypass gain and filtering. It encodes 48 kHz 192 kbps AAC, copies video, and pads the final hold. Use the shared helper so merge behavior stays consistent.
+It measures loudness and uses constant gain toward -14 LUFS within -1.5 dBTP headroom, accepting a quieter result to preserve dynamics. For an approved take, use `--preserve-audio` or batch `"audio_processing": "preserve"` to bypass gain and filtering. In both modes it starts the narration 0.15 s into the video (the offset every cue is timed to), fades only the silent tail after the last word, encodes 48 kHz 192 kbps AAC, copies video, and pads the final hold. An optional user-supplied music bed (`--bed`) sits about 24 LU under the voice; disclose it when used. Use the shared helper so merge behavior stays consistent.
 
 If edited overlays are requested, preserve `artifacts/demo.mp4` as the clean browser recording and write edited outputs separately. Do not overwrite the clean recording.
 
@@ -274,6 +275,7 @@ Keep narration around 95–130 spoken words. Make every sentence describe someth
 - Use `type` for text visibly entered by a person and `fill` only for clearing or paste-like actions.
 - Keep ordinary waits between 500 and 3000 ms; vary them and let the biggest reveal breathe.
 - Keep the total wait before the first meaningful action at or under 1500 ms; the first action must be underway while the narration's opening words are spoken. The validator rejects opening waits over 2000 ms.
+- In narrated videos, put a `cue` directly before at least three meaningful actions and before the `code` action; the validator rejects a cued reaction more than 1.0 s early or 0.5 s late for its phrase.
 - Include one animated `code` action timed to the narration's code sentence. Give it authentic context: dimmed `before`/`after` blocks copied verbatim from the app — for a UI trick, the enclosing UI component plus the related server logic — typically 6–14 context lines, with only the decisive line or two highlighted. In vertical mode the card renders in the lower half of the frame below the component.
 - Do not use `zoom` or any camera punch-in; the recorder rejects it. Make readouts phone-legible through the app's own type sizes instead.
 - In horizontal mode, the `code` action must use the recorder's side-by-side layout so the app remains visible beside the code; do not cover the app with the code panel.
@@ -300,13 +302,14 @@ For a recording:
 - Confirm no **Shiny Client Errors** panel appears in any tile; the shared recorder also fails when it detects one.
 - Confirm the visible cursor reaches each interactive target.
 - Confirm the narration would finish before the video ends.
-- For narrated videos, read the validator's `timing (visible action → narration sentence)` lines; each visible reaction should land in the sentence that describes it. A `no sentence` landing means that action drifted outside the spoken track.
+- For narrated videos, read the validator's `timing (visible action → narration sentence)` lines; each cued reaction shows its offset from its phrase and must sit within −1.0 to +0.5 s. A `no sentence` landing means that action drifted outside the spoken track.
 
 For audio:
 
-- For new local narration, use conversational transcript wording and compare three fresh takes at matched loudness before choosing the narration; follow [references/tts-and-costs.md](references/tts-and-costs.md#choose-a-natural-local-take).
+- For new local narration, use conversational transcript wording and choose between three fresh takes with `--phase takes`: it matches their loudness and ranks them by transcript accuracy, pace, pauses, and clipping. Audition the top takes when listening is available; follow [references/tts-and-costs.md](references/tts-and-costs.md#choose-a-natural-local-take).
+- Confirm `transcript_check` in `artifacts/narration-timing.json` passes, and read its differences for mispronounced code names.
 - Confirm `artifacts/narration.wav` and `artifacts/final_with_audio.mp4` are non-empty.
-- Watch the final video with sound at normal playback speed. Verify each reaction and code reveal against its actual spoken phrase; a passing duration check or silence-derived sentence window alone is insufficient. Fix drift and re-record before showing a finished preview.
+- When listening is available, watch the final video with sound at normal playback speed and confirm each reaction and code reveal against its spoken phrase. When it is not, rely on the transcript check and the cue offsets, and say that the result was not auditioned.
 - Listen for truncation, incorrect code pronunciation, mismatched timing, laughing, giggling, chuckling, or any other unintended vocal sound.
 - Check background continuity around words and sentence gaps in both the WAV and merged video. Hiss switching into silence needs the noise-floor workflow in [references/tts-and-costs.md](references/tts-and-costs.md#continuous-background-and-speech-transitions), not simply shorter pauses. Disclose when listening was unavailable; technical checks alone do not establish audible quality.
 

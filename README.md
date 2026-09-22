@@ -213,21 +213,21 @@ flowchart TD
         Q4 --> T
         P2 --> T
         T --> T1{"Narration source?"}
-        T1 -- "Generate TTS" --> T2["Generate + listen to narration.wav"]
+        T1 -- "Generate TTS" --> T2["Generate narration.wav<br/>local: rank 3 takes, pin one"]
         T1 -- "Existing audio" --> T3["Import audio, match transcript"]
         T2 --> T4
         T3 --> T4
 
-        T4["Measure duration and sentence boundaries"]
-        T4 --> T5["Align actions.yaml to measured speech"]
+        T4["Measure word timing + transcript check"]
+        T4 --> T5["Anchor actions.yaml with cue phrases"]
         T5 --> T6{"Multiple videos?"}
 
         T6 -- "No" --> T7["Record + validate with --require-audio"]
         T7 --> T8["Merge using merge_audio.py"]
 
         T6 -- "Yes" --> U["Batch narration phase"]
-        U --> U1["Listen + inspect timing reports"]
-        U1 --> U2["Adjust actions.yaml"]
+        U --> U1["Read transcript checks + cue times"]
+        U1 --> U2["Adjust cues in actions.yaml"]
         U2 --> U3["Approve exact timing inputs"]
         U3 --> U4["Batch record · merge · validate"]
     end
@@ -247,7 +247,7 @@ flowchart TD
         V1 --> V2["Behavior and selectors work"]
         V2 --> V3["Validate resolution, cursor, timing, media"]
         V3 --> V4["Inspect first, reveal, code, final frames"]
-        V4 --> V5["For audio: listen while watching"]
+        V4 --> V5["For audio: cue offsets + transcript check;<br/>listen when possible"]
 
         V5 --> W{"Every check passes?"}
         W -- "No" --> X["Revise the weakest layer<br/>Concept · App · Actions · Timing · Audio"]
@@ -350,7 +350,9 @@ Every recording must:
 
 The storyboard follows `Problem → Reveal → Proof → Code → Payoff`, but those labels never appear on screen — the browser recording stays clean.
 
-During the code beat, a syntax-highlighted code card styled like a real VS Code window shows real source context: a verbatim slice of the app with dimmed `before`/`after` lines around one animated, highlighted decisive line, and honest gutter numbers. In vertical videos it renders in the lower half of the frame, below the component; in horizontal videos the app and code sit side by side.
+Recordings are captured from Chromium's compositor at full resolution and encoded at 30 fps on the same clock as the actions. The cursor rests in frame from the first second, travels in gentle arcs timed by distance, and types with a natural rhythm.
+
+During the code beat, a syntax-highlighted code card styled like a real VS Code window shows real source context: a verbatim slice of the app with dimmed `before`/`after` lines around one animated, highlighted decisive line, and honest gutter numbers. In vertical videos it renders in the lower half of the frame, below the component; in horizontal videos the app and code sit side by side. It fades and slides in and out rather than popping.
 
 Narration is speech only — laughing, giggling, and other non-speech sounds are rejected by validation. Detailed pacing rules live in each skill's `references/` directory.
 
@@ -392,7 +394,9 @@ Just describe what you want in the prompt:
 
 - **Pin a voice or model** — add a per-video `tts-settings.json` with `{"voice": "Kore"}` and the agent uses it for that video.
 
-For narrated videos, the agent generates the audio first, measures it, and only records after the action timing is reviewed against the real narration — so reactions land on the sentences that describe them. Audio merging uses constant gain toward -14 LUFS within peak headroom, preserving dynamics. Selected takes can bypass gain and filtering with `audio_processing: "preserve"`.
+For narrated videos, the agent generates the audio first and measures every word's spoken time locally with faster-whisper. A transcript check catches dropped or mispronounced words and non-speech sounds without anyone having to listen. `actions.yaml` then anchors each reaction to the phrase that describes it with a `cue` action, so clicks and the code card land on their words at any machine speed, and the validator rejects any cued reaction more than a second early or half a second late. New local narration is generated as three takes that are loudness-matched and ranked objectively before one is pinned.
+
+Audio merging uses constant gain toward -14 LUFS within peak headroom, preserving dynamics. Selected takes can bypass gain and filtering with `audio_processing: "preserve"`. Either way the narration starts 0.15 s in, its silent tail fades out instead of cutting to digital silence, and an optional user-supplied music bed can sit far beneath the voice.
 
 ## Glossary
 
@@ -403,7 +407,8 @@ For narrated videos, the agent generates the audio first, measures it, and only 
 - **Beats** — the five-part storyboard structure: `Problem → Reveal → Proof → Code → Payoff`.
 - **Sidecar directory** — for videos about an existing app: `actions.yaml`, narration, and artifacts live in `generated/demo-name/` while the original app is never modified.
 - **Changeset** — a pull request, commit, or SHA that a video is made from; the video demos exactly one user-facing change in it.
-- **Preflight** — a dry run of the recorder that starts the app and resolves every selector without recording anything.
+- **Preflight** — a dry run of the recorder that starts the app, resolves every selector, and resolves every cue to a video time without recording anything.
+- **Cue** — an `actions.yaml` action that anchors the next visible action to the moment a transcript phrase is spoken.
 - **Shiny Client Errors panel** — an error overlay Shiny shows for client-side errors; any recording with one visible fails validation.
 
 ## Troubleshooting

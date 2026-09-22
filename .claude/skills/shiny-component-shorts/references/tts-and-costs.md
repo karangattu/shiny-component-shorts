@@ -46,7 +46,7 @@ For a narrated series, vary the performance direction as deliberately as the vis
 
 ## Generate audio
 
-For a narrated deliverable, generate the audio before recording the video: the WAV's measured duration and silence gaps are what `actions.yaml` timing must follow (see the recording contract's Timing section). Word-count estimates drift enough to push actions out of sync with the spoken sentences.
+For a narrated deliverable, generate the audio before recording the video: the WAV's measured word timing is what `actions.yaml` cues resolve against (see the recording contract's Timing section). Word-count estimates drift enough to push actions out of sync with the spoken sentences.
 
 Do not call Gemini unless the user requested audio. Never print, persist, or ask for the API key value.
 
@@ -122,25 +122,48 @@ The user can select another saved WAV name or reference recording, correct `refe
 
 Keep narration at a natural speed with natural pauses. The adapter forwards `speaking_rate` (0.5–1.5, default 1.0) to the engine's `speed` control; when the local voice runs fast, calibrate it down (typically 0.85–0.95) instead of accepting a rushed take. Never raise the rate above 1.0 to fit a recording, and never use `atempo`, time stretching, or silence removal to fit one either. Global performance prose and emphasis tags do not steer the local model; pause tags, punctuation, and the engine rate set the delivery. If delivery still sounds rushed after a rate change, revise the script or reference and regenerate.
 
-After any voice, reference, transcript, or engine change, rerun `--phase narration`, review the new audio and measured timing, retime `actions.yaml`, and rerun `--phase finish --approve-timing`. The finish gate rejects stale local narration even when timing approval is requested. Approval includes narration inputs and reference audio hashes.
+After any voice, reference, transcript, or engine change, rerun `--phase narration`, then rerun the recorder's `--dry-run`: `cue` actions re-resolve against the new word timing on their own, so check the printed cue times rather than hand-retiming waits. Then rerun `--phase finish --approve-timing`. The finish gate rejects stale local narration even when timing approval is requested. Approval includes narration inputs and reference audio hashes.
 
-Sentence windows come from silence detection, **not word-level forced alignment**. Natural pauses do not always coincide with complete sentences, and several sentences may share a detected span. Do not treat an action landing in a detected span as proof that the matching words describe its visible state. Listen while viewing the final video and check each reaction and the code reveal; keep the final payoff 1–3 seconds beyond the actual WAV. A timing mismatch requires retiming and recording again.
+## Measure word timing
+
+Every narration source — Gemini, local voice, or imported audio — is measured the same way. The batch narration phase runs this automatically; run it yourself after writing or replacing `artifacts/narration.wav` outside the batch:
+
+```bash
+python .claude/skills/shiny-component-shorts/scripts/align_narration.py \
+  --project-dir generated/demo-name
+```
+
+It transcribes the WAV locally with faster-whisper word timestamps (no API call, $0), aligns the recognized words to the `Transcript:`, and writes `artifacts/narration-timing.json` with every word's start and end, one span per transcript sentence, and a `transcript_check`: the word error rate, each expected-versus-heard difference, and any non-speech sound the recognizer heard. It prints the sentence times and the differences, and exits non-zero when the audio says something else (word error rate above 25%) or contains a laugh, sigh, or similar vocalization. The report is tied to the WAV's hash, so a replaced WAV is never timed with stale words.
+
+This replaces listening as the gate for timing and content. Read the differences: a digit heard as a word ("8" for "eight") is normal and already normalized, but a heard `card` for an expected `chart`, or a dropped code name, means the take mispronounced it — regenerate. The model is `base.en` by default; set `SHORTS_ALIGN_MODEL` to use another faster-whisper model. When you can listen, still watch the final video with sound; when you cannot, say so, and rely on the transcript check and cue timings rather than guessing from silence gaps.
 
 Keep the normal prompt envelope and its 3–6 cues in `narration.txt` so concept review and validation stay consistent. Before local synthesis, the adapter extracts only `Transcript:`, strips performance tags, and turns each pause tag into a line break (closing the previous thought with sentence punctuation). The whole text is then synthesized in **one request** and the engine's audio is used byte-for-byte: the engine places its own short pause at line breaks, so planned breath points survive without any inserted, joined, or post-processed audio. Punctuation supplies phrasing inside each line.
 
-The local adapter writes the same `narration.wav`, timing report, and usage report as the Gemini path. Its usage report records `$0` paid API cost plus the measured pace (`words_per_minute`, articulation rate, pause density) and the `pace_gate_max_wpm` setting; `synthesis_requests` is 1 and `audio_modified` is false because the engine's audio is never assembled or altered. Every take is measured against the pace gate (`--max-wpm`, default 160 WPM, `max_wpm` in `tts-settings.json`; `0` disables it): a take above the gate is rejected automatically, so slow the voice or add pauses instead of approving a rushed take. Listen to the result and approve its measured timing before the finish phase, exactly as with any other narration source.
+The local adapter writes the same `narration.wav`, timing report, and usage report as the Gemini path. Its usage report records `$0` paid API cost plus the measured pace (`words_per_minute`, articulation rate, pause density) and the `pace_gate_max_wpm` setting; `synthesis_requests` is 1 and `audio_modified` is false because the engine's audio is never assembled or altered. Every take is measured against the pace gate (`--max-wpm`, default 160 WPM, `max_wpm` in `tts-settings.json`; `0` disables it): a take above the gate is rejected automatically, so slow the voice or add pauses instead of approving a rushed take. Check its transcript check and cue times, listen when you can, and approve its measured timing before the finish phase, exactly as with any other narration source.
 
 ### Choose a natural local take
 
-For new local narration, generate three independent takes of the same finalized transcript, reference voice, engine, language, quality, and `speaking_rate` (default 1.0) before timing the recording. Each take is one continuous single-request synthesis with the same pause-tagged transcript, so the takes stay comparable. Generate sequentially on the local device and reuse a running service or loaded model where practical. Keep each raw WAV and its settings in `artifacts/narration-takes/`; do not obtain “takes” by duplicating a cached WAV or processing the same synthesis three ways. Imported narration does not need regeneration, and this local default does not authorize extra paid-provider calls.
+For new local narration, generate three independent takes of the finalized transcript and let the batch processor compare them:
 
-Create separate comparison WAVs at the same measured integrated loudness using two-pass linear normalization (a -14 LUFS / -1.5 dBTP starting target). Verify the resulting loudness and peaks rather than assuming equal peak amplitude means equal perceived volume. If any take cannot reach the target with linear gain under the peak ceiling, lower the common comparison target for all three instead of compressing one take differently. Do not denoise, gate, add background sound, or change tempo for the comparison. Retain untouched raw takes so processing cannot hide a poor generation.
+```bash
+python .claude/skills/shiny-component-shorts/scripts/batch_process.py \
+  --phase takes --dirs generated/demo-name --takes 3
+```
 
-Audition the three takes at the same playback volume. Choose by natural emphasis and rhythm, complete and correctly pronounced words, and clean transitions around quiet word endings and gaps. Duration and loudness measurements cannot select the most natural take. If listening is unavailable, present the three labeled comparison clips to the user for selection and leave the current narration and video intact; report them as candidates, not a verified winner. Once selected, record the take identity and settings. Pin its comparison WAV using `{"audio_source": "artifacts/narration-takes/take-2-matched.wav", "audio_processing": "preserve"}` in `tts-settings.json` (replace generation settings, which stay in the take metadata). The import path reuses the chosen audio on reruns instead of synthesizing another take; preserve mode bypasses merge gain, high-pass filtering, and edge fades. Promote it to the narration workflow, apply only requested cleanup, remeasure timing, and record against that take. Do not replace narration under an already timed video without retiming and reviewing it.
+Each take is one continuous single-request synthesis with the video's `tts-settings.json` (same reference voice, engine, language, quality, and `speaking_rate`), generated one after another on the local device. The phase keeps every raw take in `artifacts/narration-takes/`, writes a copy of each at one common integrated loudness with linear gain only (-14 LUFS, lowered for all takes when any would pass -1.5 dBTP; never compressed, denoised, gated, or tempo-changed), and ranks the raw takes in `ranking.json` by objective penalties: transcript accuracy (word error rate), pace away from about 150 WPM, pauses longer than 1.4 s, clipping, and vocalizations. The phase only runs local voice cloning, so it never multiplies paid-provider calls; imported narration needs no takes.
+
+The ranking replaces "listen and pick" when listening is unavailable, and narrows the audition when it is available: play the top takes' matched copies at the same volume and prefer natural emphasis and rhythm when two scores are close. Pin the choice — the recommended take or a named one — without hand-editing settings:
+
+```bash
+python .claude/skills/shiny-component-shorts/scripts/batch_process.py \
+  --phase takes --dirs generated/demo-name --select-take recommended
+```
+
+That rewrites `tts-settings.json` to `{"audio_source": "artifacts/narration-takes/take-2-matched.wav", "audio_processing": "preserve"}`; the generation settings stay in `narration-takes/settings.json`. Rerun `--phase narration` to import and time the chosen take; the import path reuses it on reruns instead of synthesizing another. Report which take was chosen, its score, and whether it was auditioned. Do not replace narration under an already recorded video without re-running preflight and the finish phase.
 
 ### Continuous background and speech transitions
 
-Check the reference sample, generated WAV, and merged AAC at normal playback speed. Listen through quiet word endings and sentence gaps for hiss or room tone switching on/off, pumping, clicks, and clipped consonants. Pause duration and background continuity are separate problems: shortening a gap does not repair a noise floor that drops to digital zero. Compare raw and merged audio to locate the change before processing it; loudness normalization is not noise removal.
+When listening is available, check the reference sample, generated WAV, and merged AAC at normal playback speed. Listen through quiet word endings and sentence gaps for hiss or room tone switching on/off, pumping, clicks, and clipped consonants. Pause duration and background continuity are separate problems: shortening a gap does not repair a noise floor that drops to digital zero. Compare raw and merged audio to locate the change before processing it; loudness normalization is not noise removal.
 
 For new local narration, synthesize the single-request transcript described above. The engine's audio is used as-is — no inserted bed, no joins, no trims — so if it has audible background noise, prefer a cleaner reference copy and regenerate before recording; preserve the saved original voice sample. Do not hand-edit gaps or apply a hard noise gate to make speech sound cleaner.
 
@@ -159,7 +182,7 @@ python .claude/skills/shiny-component-shorts/scripts/import_narration.py \
   --usage-output generated/demo-name/artifacts/narration.usage.json
 ```
 
-The script verifies the source has an audio stream, converts it to the pipeline's mono 24 kHz PCM WAV, and writes a `$0` usage report marked `Imported audio`. From there the workflow is identical to generated narration: listen to the WAV, measure its duration and sentence gaps, and time `actions.yaml` against it. Keep the `narration.txt` envelope's transcript matched to what the imported audio actually says, since the validator compares action timing against its sentence windows.
+The script verifies the source has an audio stream, converts it to the pipeline's mono 24 kHz PCM WAV, and writes a `$0` usage report marked `Imported audio`. From there the workflow is identical to generated narration: run `align_narration.py` (the batch narration phase does it for you) and anchor `actions.yaml` with cues. Keep the `narration.txt` envelope's transcript matched to what the imported audio actually says; the transcript check fails when they differ.
 
 For batch processing, set `{"audio_source": "path/to/narrated.mp4"}` in the video's `tts-settings.json` (relative paths resolve against the video directory); the narration phase then imports instead of synthesizing and adds the source file to the cache key. `audio_source` cannot be combined with `voice` or `model`.
 
@@ -174,9 +197,15 @@ python .claude/skills/shiny-component-shorts/scripts/merge_audio.py \
   --project-dir generated/demo-name
 ```
 
-By default, the script measures narration through a 70 Hz high-pass and applies constant gain toward -14 LUFS, limited by -1.5 dBTP headroom. It accepts a quieter result rather than invoking loudnorm dynamic compression, and does not automatically fade word edges. Use `--preserve-audio` for an approved take that must retain its gain and processing; batch runs use `"audio_processing": "preserve"`. Both modes encode 48 kHz 192 kbps AAC, copy the video stream, and pad the ending. Check the encoded result: AAC conversion can change true peaks slightly.
+By default, the script measures narration through a 70 Hz high-pass and applies constant gain toward -14 LUFS, limited by -1.5 dBTP headroom. It accepts a quieter result rather than invoking loudnorm dynamic compression. Use `--preserve-audio` for an approved take that must retain its gain and processing; batch runs use `"audio_processing": "preserve"`. Both modes:
 
-Listen to the final output. Reject truncated narration, audible tag names, laughter, giggling, chuckling, any other unintended vocalization, awkward tag transitions, mispronounced code that changes meaning, or voiceover that describes a different state from the screen. If any laugh-like sound is present, regenerate after simplifying the inline direction; do not mask it with music or leave it in the final video.
+- start the narration 0.15 s into the video (`NARRATION_OFFSET_SECONDS`), so the first word never lands on frame zero; the recorder and validator already time every cue to that offset,
+- fade only the silent tail after the last word over about 0.3 s, so room tone eases out instead of cutting to digital silence; no word edge is ever faded,
+- encode 48 kHz 192 kbps AAC, copy the video stream, and pad the ending.
+
+A very quiet music bed is optional: pass `--bed path/to/bed.wav` (or set `"music_bed"` in `tts-settings.json` for batch runs). The bed loops to the video's length at -38 LUFS integrated by default (`--bed-lufs`), about 24 LU under the voice, and fades in and out over 1.2 s. Use only music the user supplied and has rights to; never add a bed silently, and disclose it in the final response. Check the encoded result: AAC conversion can change true peaks slightly.
+
+Listen to the final output when you can. Reject truncated narration, audible tag names, laughter, giggling, chuckling, any other unintended vocalization, awkward tag transitions, mispronounced code that changes meaning, or voiceover that describes a different state from the screen. If any laugh-like sound is present, regenerate after simplifying the inline direction; do not mask it with music or leave it in the final video.
 
 ## Cost reporting
 

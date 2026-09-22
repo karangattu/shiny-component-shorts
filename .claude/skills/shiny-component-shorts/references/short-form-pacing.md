@@ -13,7 +13,7 @@ Do not render the hook as an in-app eyebrow, series label, or oversized headline
 
 Use `Reveal`, `Proof`, `Code`, and `Payoff` only as planning labels in the storyboard and edit timeline. Do not show those labels, numbered state chips, or a beat rail in the video.
 
-Add narration captions separately in the lower-middle safe zone. Use one or two lines, usually 2–7 words per caption card. Captions support the narration; they do not repeat the persistent headline.
+Captions belong to a later edit, never to the browser recording: `actions.yaml` has no caption actions. If an edit adds them, place them just above the bottom branding band, use one or two lines of 2–7 words, and never show one while the code card is on screen. Captions support the narration; they do not repeat a headline.
 
 ## Hook pattern
 
@@ -27,7 +27,7 @@ Stronger:
 
 > Still stacking the same notification five times?
 
-Then reveal the component behavior that solves it. The first visible state change must begin by second 2.
+Then reveal the component behavior that solves it. The first visible state change must land during the hook sentence — anchor it with a `cue` to a word about 1.5–3 s into the narration so the pointer has time to travel.
 
 ## Visual rhythm
 
@@ -38,9 +38,9 @@ Use a stable composition with frequent information changes:
 - Keep the full app in frame; state changes must be legible without camera moves.
 - Use a compact Shiny-branded code card sized by reading time (typewriter animation + a hold computed from character count); keep the live app visible.
 - Return to the full app for the payoff.
-- Make one visual change every 1.5–3 seconds: interaction, reaction, crop, or caption.
+- Aim for a visible app change every 1.5–3 seconds, from interactions and their reactions. The validator rejects any gap over 8 seconds while narration plays.
 
-Do not add motion that competes with the component. Pointer movement alone is not a visual change.
+Do not add motion that competes with the component, and never crop, zoom, or punch in. Pointer movement alone is not a visual change.
 
 ## Frame composition
 
@@ -59,23 +59,23 @@ All framing and editing elements must stay in the Shiny preset palette. Use Shin
 
 ## Suggested 45-second edit rhythm
 
+These are the same beats and times as the story table in `SKILL.md`; the times are targets, and the measured narration sets the real ones.
+
 | Time | Beat | Retention treatment |
 | ---: | --- | --- |
-| 0–3 | Pain | Spoken hook begins; first action starts |
-| 3–10 | Reveal | App reacts; first caption supports the change |
-| 10–21 | Proof | Second state; the changing readout carries the beat |
-| 21–28 | Contrast | Reverse or reset to strengthen the proof |
-| 28–38 | Code | Vertical: compact card over the app. Horizontal: app and code side-by-side |
-| 38–45 | Payoff | Strongest interaction, full app, short takeaway |
+| 0–4 | Problem | Spoken hook begins; the first action is underway |
+| 4–12 | Reveal | The app reacts; the changing readout carries the beat |
+| 12–27 | Proof | Repeat, reverse, or contrast the behavior |
+| 27–40 | Code | Vertical: card in the bottom half, below the component. Horizontal: app and code side-by-side |
+| 40–45 | Payoff | Strongest result, full app, short takeaway |
 
 ## Editing restraint
 
 - Use Shiny blue `#007BC2` as the default accent; introduce another Shiny semantic color only when it communicates state.
 - Use one caption style; do not add a display headline inside the app.
-- Prefer hard cuts or quick 120–220 ms scale moves; avoid novelty transitions.
-- Keep captions and the code card from overlapping.
-- Never show all overlay layers at once. Show either a caption or the code card over the app.
+- Prefer hard cuts in any later edit; do not add scale moves, punch-ins, or novelty transitions. The code card's own short fade and slide is the only built-in transition.
+- Keep captions and the code card from overlapping: show either a caption or the code card, never both.
 
 ## Natural narration
 
-Keep the voice at natural speed and preserve normal pauses. For a rushed local voice, calibrate `speaking_rate` below 1.0 at synthesis time instead of accepting the fast take. Create pace through concise writing and purposeful on-screen actions. Generate and listen to narration first, then time reactions and code reveals to the actual spoken phrases. Shorten and regenerate an overlong script; never speed up the voice or cut its pauses to meet a target length. Review the merged video with sound before delivery.
+Keep the voice at natural speed and preserve normal pauses. For a rushed local voice, calibrate `speaking_rate` below 1.0 at synthesis time instead of accepting the fast take. Create pace through concise writing and purposeful on-screen actions. Generate the narration first, measure its word timing, and anchor each reaction and the code reveal to the phrase that describes it with a `cue`. Shorten and regenerate an overlong script; never speed up the voice or cut its pauses to meet a target length. Review the merged video with sound before delivery whenever listening is available.

@@ -21,6 +21,7 @@ Options:
 - `--orientation vertical|horizontal` overrides `orientation:` in the YAML.
 - Vertical is the default. Set horizontal only when the user explicitly requests it.
 - The recorder preserves a 720×1280 or 1280×720 logical layout and launches Chromium in native 2× HiDPI mode, producing true 1440×2560 or 2560×1440 video without changing the composition.
+- `--capture screencast` (the default) records Chromium's own compositor frames at full resolution, stamped on the same clock as the actions, and encodes constant 30 fps H.264. The action timeline and the video therefore agree exactly. `--capture playwright` falls back to Playwright's 25 fps WebM recorder, whose start is only approximately aligned; use it only if screencast capture fails on a machine.
 
 Author the app with an empty top 20% and bottom 20% for later branding. The app belongs in the middle 60% band and should span the available horizontal space between 3–5% side gutters.
 
@@ -40,7 +41,7 @@ python .claude/skills/shiny-component-shorts/scripts/record_demo.py \
   --dry-run
 ```
 
-It records no video, writes no `demo.mp4`, `recording.json`, or `final.png`, and exits non-zero when anything is wrong. It writes three artifacts instead:
+It also resolves every `cue` against the current narration's word timing and prints each cue's video time, so a misquoted phrase or stale timing fails here instead of mid-take. It records no video, writes no `demo.mp4`, `recording.json`, or `final.png`, and exits non-zero when anything is wrong. It writes three artifacts instead:
 
 - `artifacts/preflight.png` — the composition at recording viewport, for checking gutters, the empty top and bottom bands, and control padding.
 - `artifacts/preflight-phone.png` — the same frame at phone width; read this one.
@@ -90,6 +91,7 @@ orientation: "vertical"
 actions:
   - wait_for: "#notes"
   - wait: 900
+  - cue: "type a few standup notes"
   - type:
       selector: "#notes"
       value: "Standup notes:\n- demo the resize"
@@ -110,6 +112,7 @@ actions:
   - press:
       selector: "#notes"
       key: "Escape"
+  - cue: "one argument does it"
   - code:
       title: "app.py"
       start_line: 42
@@ -124,20 +127,21 @@ actions:
       path: "artifacts/final.png"
 ```
 
-Supported actions are `wait_for`, `wait`, `click`, `drag`, `select_option`, `hover`, `fill`, `type`, `press`, `code`, and `screenshot`. Each list item must contain exactly one action. The recorder also accepts the legacy overlay actions `caption`, `beat`, and `label`, but the skill does not use them for clean videos.
+Supported actions are `wait_for`, `wait`, `cue`, `click`, `drag`, `select_option`, `hover`, `fill`, `type`, `press`, `code`, and `screenshot`. Each list item must contain exactly one action. The recorder also accepts the legacy overlay actions `caption`, `beat`, and `label`, but the skill does not use them for clean videos.
 
 ## Action semantics
 
 - `wait_for` waits for a selector to be attached, including content inside a collapsed component.
 - `wait` uses milliseconds. Keep ordinary waits between 500 and 3000 ms.
-- `click` visibly moves the injected cursor and shows a press pulse.
+- `cue` anchors the very next visible action (`click`, `drag`, `select_option`, `hover`, `fill`, `type`, `press`, or `code`) to the moment a phrase is spoken: `cue: "switch to seven days"`, `cue: {phrase: "run it", occurrence: 2}` for a repeated phrase, or `cue: {at: 12.4}` for a narration time in seconds. Quote words exactly as they appear in the `Transcript:`; case, punctuation, hyphens, and digits-versus-words do not matter. The pointer leaves early enough to arrive, then presses, types, drags, or shows the code card exactly on the phrase — whatever the machine speed. Nothing may sit between a cue and its action.
+- `click` visibly moves the injected cursor along a gentle arc — quicker for short hops, slower for long reaches — then settles and shows a press pulse. The cursor already rests in the empty bottom band on the first frame.
 - `drag` moves from the center of `selector` by `delta_x` and `delta_y` pixels with an optional `steps` count. Use it for sliders, splitters, and other genuine drag interactions.
 - `select_option` targets a native select value.
 - `hover` moves the visible cursor without clicking.
 - `fill` changes a field instantly; reserve it for clearing or realistic paste actions.
-- `type` clicks, focuses, moves the caret to the end, and types sequentially. Use 35–70 ms per character.
+- `type` clicks, focuses, moves the caret to the end, and types one key at a time with a person's uneven rhythm — quicker runs, short beats after spaces and punctuation — averaging `delay` (35–70 ms per character).
 - `press` sends one named key to the selector.
-- `code` types a compact, syntax-highlighted Shiny-branded editor card, holds it by reading time, then removes it. Its `text` is the highlighted focus line; `before` and `after` blocks show dimmed real source context, and `start_line` keeps the gutter honest. Make that context an authentic slice of the app: include the code that surrounds the trick — for a UI feature, the enclosing UI component plus the related server logic (or the reverse when the server line is the star) — copied verbatim from the app source, typically 6–14 dimmed lines total, and highlight only the decisive line or two. Do not paste the whole app or invent tidied pseudo-source: every non-comment line must exist in the app source exactly, and indentation must mirror the source — the validator permits only one uniform dedent across the whole card, so relative indentation is preserved for both Python and R. In YAML, use a block indentation indicator (for example `text: |2` or `after: |2`) whenever a block's lines all share leading whitespace, otherwise YAML strips it silently. Place any explanatory comment at the end of `before`, directly above the focus line — never in `after`, where a comment below the highlighted code reads as an afterthought and distracts from it. In vertical mode the card fills the bottom half of the frame, anchored near the bottom edge; in horizontal mode it uses the side-by-side layout instead of overlaying the app.
+- `code` types a compact, syntax-highlighted Shiny-branded editor card, holds it by reading time, then fades it out. Its `text` is the highlighted focus line; `before` and `after` blocks show dimmed real source context, and `start_line` keeps the gutter honest. Make that context an authentic slice of the app: include the code that surrounds the trick — for a UI feature, the enclosing UI component plus the related server logic (or the reverse when the server line is the star) — copied verbatim from the app source, typically 6–14 dimmed lines total, and highlight only the decisive line or two. Do not paste the whole app or invent tidied pseudo-source: every non-comment line must exist in the app source exactly, and indentation must mirror the source — the validator permits only one uniform dedent across the whole card, so relative indentation is preserved for both Python and R. In YAML, use a block indentation indicator (for example `text: |2` or `after: |2`) whenever a block's lines all share leading whitespace, otherwise YAML strips it silently. Place any explanatory comment at the end of `before`, directly above the focus line — never in `after`, where a comment below the highlighted code reads as an afterthought and distracts from it. In vertical mode the card fills the bottom half of the frame, anchored near the bottom edge; in horizontal mode it uses the side-by-side layout instead of overlaying the app. The card fades and slides in and out (about 0.3 s), and the horizontal app reflow eases instead of snapping.
 - `screenshot` writes a full-page screenshot relative to the demo directory.
 - Legacy `caption`, `beat`, and `label` actions inject visible overlays and require an `overlays` block. Do not use them in skill-generated recordings. In particular, storyboard beat names such as `Reveal` and `Proof` are planning metadata, not action entries.
 
@@ -167,38 +171,45 @@ For selectize, inspect the rendered DOM and use values derived from the app’s 
 Estimate narration as:
 
 ```text
-spoken words ÷ 2.5 + one second per audio tag + two-second buffer
+spoken words ÷ 2.5 + one second per pause tag + two-second buffer
 ```
 
-Estimate action time from waits, typing duration, approximately one second per interaction (1.5 seconds per drag), and the code overlay’s typing plus reading hold. If actions are too short, add another proof or reversal and distribute short waits after reactions. Do not pad with a long idle wait, and never pad the opening: keep the total wait before the first meaningful action at or under 1500 ms (the validator rejects over 2000 ms) so the first action is underway while the narration's opening words are spoken.
+Only Gemini performs other tags; the local voice strips them and turns pause tags into line breaks. Estimate action time from waits, typing duration, approximately one second per interaction (1.5 seconds per drag), and the code overlay’s typing, reading hold, and exit fade; a cue holds its action until the phrase. If actions are too short, add another proof or reversal. Do not pad with a long idle wait, and never pad the opening: keep the total wait before the first meaningful action at or under 1500 ms (the validator rejects over 2000 ms).
 
-For a narrated deliverable, preserve natural speech speed and pauses. Adjust action timing and recording duration to the audio; never compress the audio or remove pauses. If a fixed duration cannot accommodate natural delivery, shorten the transcript and regenerate it before recording. Do not time actions against the word-count estimate. Generate `artifacts/narration.wav` first, then measure it:
+For a narrated deliverable, preserve natural speech speed and pauses. Adjust action timing and recording duration to the audio; never compress the audio or remove pauses. If a fixed duration cannot accommodate natural delivery, shorten the transcript and regenerate it before recording. Do not time actions against the word-count estimate, and do not hand-tune waits against silence gaps. Generate `artifacts/narration.wav`, measure its word timing (the batch narration phase does this; otherwise run `align_narration.py`, see the TTS reference), then anchor the storyboard with cues:
 
-```bash
-ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1 artifacts/narration.wav
-ffmpeg -i artifacts/narration.wav -af "silencedetect=noise=-30dB:d=0.4" -f null -
+```yaml
+actions:
+  - wait_for: "#window"
+  - wait: 500
+  - cue: "switch to seven days"      # the click lands on these words
+  - click: "#seven"
+  - cue: "ninety days"
+  - click: "#ninety"
+  - cue: "one argument"               # the code card appears on this phrase
+  - code: { ... }
 ```
 
-Use silence gaps only as candidate boundaries. Listen to the unchanged 1.0× narration and identify the actual phrase that describes each reaction and code reveal; a gap is not necessarily a sentence boundary. Write the mapping down before touching the waits: put a comment block at the top of `actions.yaml` listing every measured sentence window and the action beat assigned to it. Timing is then a hard contract, not a vibe:
+Cue the phrase that names the visible change, not the start of a long sentence. Timing is a hard contract, and the validator enforces it from `recording.json`:
 
-- Every visible reaction must begin inside `[sentence_start − 1.0 s, sentence_start + 0.5 s]` of the sentence that describes it. When the narration says "switch to seven days," the seven-day click lands within a second of those words.
-- The first meaningful action must start before the first sentence ends (the validator rejects later starts), even when the second sentence names the action — start the pointer travel early so the click lands on the sentence boundary.
-- The code card must start within one second of the sentence that introduces the code.
-- No visible action may start after the narration ends; the validator rejects it. After the last sentence, only hold the payoff.
-- While narration plays, never leave the screen static for more than 8 seconds between visible actions (the validator rejects longer gaps).
-- Keep the video one to three seconds longer than the WAV (the validator enforces 0.75–3.5 s); place any slack in the holds after reveals or before the code card — never at the start.
+- Every cued reaction must land within 1.0 s before to 0.5 s after its phrase is spoken.
+- A narrated video needs at least three cued meaningful actions and a cued code card.
+- The first meaningful action must be visible before the first sentence ends. The pointer needs roughly a second from its resting place, so cue the first action to a word about 1.5–3 s into the narration rather than the first word.
+- No visible action may land after the narration ends; after the last sentence, only hold the payoff.
+- While narration plays, never leave the screen without a visible reaction for more than 8 seconds.
+- Keep the video one to three seconds longer than the narration (the validator enforces 0.75–3.5 s after the narration's end, including its 0.15 s lead-in); place slack in the holds after reveals or the final wait — never at the start.
 
-After recording, watch the merged video with audio at 1.0× and check the actual words against each visible reaction, including the code reveal. Duration checks and silence detection alone do not prove semantic synchronization. Also compare `action_timeline` in `artifacts/recording.json` with the sentence windows and confirm every reaction falls inside its window. If any beat drifts more than a second, adjust the waits and re-record; do not ship a drifting take.
+The validator prints one line per visible action with the sentence it lands in and its offset from its cue, and `--simulate-timing` projects the same check before recording. When you can, also watch the merged video with sound; the cue offsets prove timing, but only listening proves the delivery sounds natural.
 
-The code hold defaults to `4800 + 70 × focus characters + 18 × context characters` milliseconds, clamped between 7500 and 16000 ms, so richer dimmed context earns a slightly longer read and the code stays on screen long enough to copy. Its typewriter animation runs before that hold.
+The code hold defaults to `4800 + 70 × focus characters + 18 × context characters` milliseconds, clamped between 7500 and 16000 ms, so richer dimmed context earns a slightly longer read and the code stays on screen long enough to copy. Its typewriter animation runs before that hold, and its 0.3 s exit fade after it.
 
 The validator requires `artifacts/narration.txt` to contain the complete `Audio profile:`, `Scene:`, `Director's notes:`, and `Transcript:` envelope, even for silent recordings.
 
 ## Outputs
 
-- `artifacts/demo.webm` is the Playwright intermediate.
+- `artifacts/demo.webm` is the Playwright intermediate, written only with `--capture playwright`.
 - `artifacts/demo.mp4` is the clean browser deliverable.
-- `artifacts/recording.json` records the resolved orientation, dimensions, trimmed preamble, and an `action_timeline` of per-action start/end timestamps relative to the trimmed video; the validator compares that timeline against the narration's sentence windows and rejects a first meaningful action that starts after the first sentence ends.
+- `artifacts/recording.json` records the resolved orientation, dimensions, trimmed preamble, capture mode and frame rate, and an `action_timeline` of per-action start, end, and `reaction` timestamps relative to the trimmed video, plus each cued action's phrase and target; the validator compares that timeline against the narration's sentence windows and rejects a first meaningful action that starts after the first sentence ends.
 - `artifacts/final.png` captures the ending state.
 - `artifacts/validation.json` is the validator's full report; the console gets a summary.
 - `artifacts/review.png` is the phone-size review sheet.
