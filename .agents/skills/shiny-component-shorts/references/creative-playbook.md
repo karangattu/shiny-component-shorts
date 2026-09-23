@@ -145,6 +145,7 @@ Keep the hook short enough to speak while the first action begins.
 ## Narration
 
 - Write for a coworker at their desk, not a conference audience.
+- Rewrite every transcript with the `simple-english` skill (pragmatic mode) before you save it. Keep contractions and "you"; they override its no-contractions rule because this text is spoken. Leave code names, labels, and values as they are.
 - Use contractions and varied sentence lengths.
 - Describe exact visible labels and values.
 - Use at most one metaphor or aphorism.

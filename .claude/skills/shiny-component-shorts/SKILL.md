@@ -265,7 +265,7 @@ Use this sequence:
 
 These beat names are planning labels only; never render them in the video.
 
-Keep narration around 95–130 spoken words. Make every sentence describe something literally visible. Use contractions and natural developer language; avoid stock AI phrasing, parameter tours, and forced punchlines. Never use laughter, giggling, chuckling, or other non-speech vocalizations. For audio, use the prompt-and-tag hierarchy and verification rules in [references/tts-and-costs.md](references/tts-and-costs.md); tags must support the visible moment rather than decorate every sentence.
+Keep narration around 95–130 spoken words. Make every sentence describe something literally visible. Write and then rewrite every transcript with the `simple-english` skill in pragmatic mode before you save `narration.txt` or generate audio; this is required for every script, including silent timing envelopes and user edits. Adapt its rules for speech: keep contractions (spoken English uses them, so they override rule 4.2), address the viewer as "you", and never rewrite code names, labels, or values. Keep its short sentences, one thought per sentence, active voice, simple tenses, one name per thing, and no hedges or filler. Avoid stock AI phrasing, parameter tours, and forced punchlines. Never use laughter, giggling, chuckling, or other non-speech vocalizations. For audio, use the prompt-and-tag hierarchy and verification rules in [references/tts-and-costs.md](references/tts-and-costs.md); tags must support the visible moment rather than decorate every sentence.
 
 ## Recording rules
 
