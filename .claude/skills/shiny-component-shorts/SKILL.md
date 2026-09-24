@@ -188,7 +188,7 @@ python .claude/skills/shiny-component-shorts/scripts/batch_process.py \
 
 The timing approval is bound to hashes of the current WAV, timing report, and actions file; changing any of them requires another review and approval. Recording defaults to two concurrent browsers to avoid resource contention. Merging always calls `merge_audio.py`, and validation always reruns even for cached recordings. Use `--force` only to rebuild the selected phase. The old combined `--tts --merge` invocation is deprecated because it skips the timing-adjustment gate.
 
-To lock a specific voice or model for one video, add an optional `tts-settings.json` beside its app containing `{"voice": "Kore", "model": "gemini-3.1-flash-tts-preview"}`. The batch processor passes these settings to the TTS generator and includes the file in that video's narration cache key.
+To lock a specific voice or model for one video, add an optional `tts-settings.json` beside its app containing `{"voice": "Kore", "model": "gemini-3.8-flash-tts"}`. The batch processor passes these settings to the TTS generator and includes the file in that video's narration cache key.
 
 For new narrated videos in this workspace, default to local voice cloning with saved voice `karan` unless the user chooses another provider or supplies narration. Start or reuse the local REST service as described in the TTS reference and write explicit per-video settings. Users can select another saved voice or tweak engine, quality, language, and reference transcript. After every change, regenerate narration and retime the recording.
 

@@ -370,7 +370,7 @@ The skill also asks the agent to keep one video per session and to run the recor
 
 Just describe what you want in the prompt:
 
-- **Generated narration** (default when you ask for audio) — the agent writes the script and synthesizes it with Gemini 3.1 Flash TTS Preview, then times every on-screen action to the measured audio.
+- **Generated narration** (default when you ask for audio) — the agent writes the script and synthesizes it with Gemini 3.8 Flash TTS, then times every on-screen action to the measured audio.
 - **Reuse existing narration** — point the agent at a WAV or an already-narrated video and it uses that audio instead of calling TTS. No API key needed.
 
   ```text

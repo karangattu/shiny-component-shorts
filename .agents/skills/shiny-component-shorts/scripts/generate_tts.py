@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""Generate a WAV narration file with Gemini 3.1 Flash TTS Preview."""
+"""Generate a WAV narration file with Gemini 3.8 Flash TTS."""
 
 from __future__ import annotations
 
 import argparse
 import base64
+import io
 import json
+from datetime import date
 import os
 import re
 import secrets
@@ -13,10 +15,9 @@ import sys
 import wave
 from pathlib import Path
 
-DEFAULT_MODEL = "gemini-3.1-flash-tts-preview"
-DEFAULT_VOICES = ("Kore", "Erinome", "Charon", "Achird")
-INPUT_USD_PER_MILLION_TOKENS = 1.0
-OUTPUT_USD_PER_MILLION_TOKENS = 20.0
+DEFAULT_MODEL = "gemini-3.8-flash-tts"
+DEFAULT_VOICES = ("Sulafat", "Achird", "Callirrhoe", "Zubenelgenubi")
+
 PRICING_URL = "https://ai.google.dev/gemini-api/docs/pricing"
 
 TAG_RE = re.compile(r"\[[^\]]+\]")
@@ -66,13 +67,46 @@ def decode_audio_data(data: bytes | str) -> bytes:
     return base64.b64decode(data) if isinstance(data, str) else data
 
 
+def speech_input(prompt: str) -> list[dict]:
+    """Keep production notes out of spoken text; translate legacy pause cues."""
+    transcript = prompt.split("Transcript:", 1)[-1].strip()
+    parts = []
+    style = "conversational, relaxed, warm"
+    for section in re.split(r"(\[slightly firmer\])", transcript):
+        if section == "[slightly firmer]":
+            style = "conversational, slightly firmer emphasis"
+            continue
+        text = section
+        for pause in ("short", "medium", "long"):
+            text = text.replace(f"[{pause} pause]", f"<{pause if pause != 'medium' else 'short'} pause>")
+        text = TAG_RE.sub("", text).strip()
+        if text:
+            parts.append({"type": "text", "text": text,
+                          "annotations": [{"type": "speech_metadata", "style": style}]})
+    return [{"type": "user_input", "content": parts}]
+
+
+def audio_pcm(data: bytes | str) -> bytes:
+    """Unwrap the 3.8 WAV container without encoding its header as speech."""
+    decoded = decode_audio_data(data)
+    if decoded.startswith(b"RIFF"):
+        with wave.open(io.BytesIO(decoded), "rb") as wav:
+            if (wav.getnchannels(), wav.getsampwidth(), wav.getframerate()) != (1, 2, 24000):
+                raise RuntimeError("Expected mono 24 kHz 16-bit PCM WAV from Gemini")
+            return wav.readframes(wav.getnframes())
+    return decoded
+
+
 def generate_pcm(client, *, model: str, prompt: str, voice: str) -> tuple[bytes, int, int, str]:
     """Generate PCM with the newest SDK API, falling back to generateContent."""
+    modern = model.startswith("gemini-3.8-")
     interactions = getattr(client, "interactions", None)
+    if modern and interactions is None:
+        raise RuntimeError("Gemini 3.8 requires the Interactions API; install google-genai>=2.25.0")
     if interactions is not None:
         interaction = interactions.create(
             model=model,
-            input=prompt,
+            input=speech_input(prompt) if modern else prompt,
             response_format={"type": "audio"},
             generation_config={"speech_config": [{"voice": voice}]},
         )
@@ -83,7 +117,7 @@ def generate_pcm(client, *, model: str, prompt: str, voice: str) -> tuple[bytes,
         input_tokens = int(getattr(usage, "total_input_tokens", 0) or 0)
         output_tokens = int(getattr(usage, "total_output_tokens", 0) or 0)
         return (
-            decode_audio_data(audio.data),
+            audio_pcm(audio.data),
             input_tokens,
             output_tokens,
             "Gemini Interactions API",
@@ -122,7 +156,7 @@ def generate_pcm(client, *, model: str, prompt: str, voice: str) -> tuple[bytes,
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Synthesize a text file with Gemini 3.1 Flash TTS Preview."
+        description="Synthesize a text file with Gemini 3.8 Flash TTS."
     )
     parser.add_argument("--input", required=True, type=Path, help="TTS prompt text file")
     parser.add_argument("--output", required=True, type=Path, help="Output .wav file")
@@ -149,12 +183,17 @@ def write_usage_report(
     duration_seconds: float,
     usage_source: str,
 ) -> float | None:
-    pricing_applies = model == DEFAULT_MODEL
+    rates = {
+        "gemini-3.1-flash-tts-preview": (1.0, 20.0),
+        "gemini-3.8-flash-tts": (0.5, 9.0) if date.today() < date(2027, 1, 1) else (1.0, 18.0),
+        "gemini-3.8-flash-lite-tts": (0.5, 6.0) if date.today() < date(2027, 1, 1) else (1.0, 12.0),
+    }.get(model)
+    pricing_applies = rates is not None
     estimated_cost = None
     if pricing_applies:
         estimated_cost = (
-            input_tokens * INPUT_USD_PER_MILLION_TOKENS
-            + output_tokens * OUTPUT_USD_PER_MILLION_TOKENS
+            input_tokens * rates[0]
+            + output_tokens * rates[1]
         ) / 1_000_000
     report = {
         "provider": "Google Gemini API",
@@ -166,10 +205,10 @@ def write_usage_report(
         "usage_source": usage_source,
         "pricing": {
             "currency": "USD",
-            "input_usd_per_million_tokens": INPUT_USD_PER_MILLION_TOKENS,
-            "output_usd_per_million_audio_tokens": OUTPUT_USD_PER_MILLION_TOKENS,
+            "input_usd_per_million_tokens": rates[0] if rates else None,
+            "output_usd_per_million_audio_tokens": rates[1] if rates else None,
             "source": PRICING_URL,
-            "checked_on": "2026-07-14",
+            "checked_on": "2026-09-24",
         },
         "estimated_paid_tier_cost_usd": (
             round(estimated_cost, 8) if estimated_cost is not None else None

@@ -1023,6 +1023,46 @@ class GeminiTTSContractTest(unittest.TestCase):
         self.assertEqual(source, "Gemini Interactions API")
         self.assertEqual(interactions.kwargs["input"], "Read this")
 
+    def test_38_sends_transcript_metadata_and_decodes_wav(self) -> None:
+        import base64
+        import wave
+        buffer = io.BytesIO()
+        with wave.open(buffer, "wb") as wav:
+            wav.setnchannels(1)
+            wav.setsampwidth(2)
+            wav.setframerate(24000)
+            wav.writeframes(b"\x01\x00" * 100)
+        class Interactions:
+            def create(self, **kwargs):
+                self.kwargs = kwargs
+                return SimpleNamespace(output_audio=SimpleNamespace(
+                    data=base64.b64encode(buffer.getvalue()).decode()), usage=None)
+        interactions = Interactions()
+        pcm, _, _, _ = tts.generate_pcm(
+            SimpleNamespace(interactions=interactions), model=tts.DEFAULT_MODEL,
+            prompt="Audio profile: Do not read me.\nTranscript: Hello. [short pause] There.",
+            voice="Sulafat")
+        self.assertEqual(pcm, b"\x01\x00" * 100)
+        content = interactions.kwargs["input"][0]["content"][0]
+        self.assertEqual(content["text"], "Hello. <short pause> There.")
+        self.assertEqual(content["annotations"][0]["type"], "speech_metadata")
+
+    def test_38_requires_interactions(self) -> None:
+        with self.assertRaisesRegex(RuntimeError, "Interactions API"):
+            tts.generate_pcm(SimpleNamespace(), model=tts.DEFAULT_MODEL,
+                             prompt="Hello", voice="Sulafat")
+
+    def test_wave_sample_rate_is_checked(self) -> None:
+        import wave
+        buffer = io.BytesIO()
+        with wave.open(buffer, "wb") as wav:
+            wav.setnchannels(1)
+            wav.setsampwidth(2)
+            wav.setframerate(16000)
+            wav.writeframes(b"\x00\x00" * 10)
+        with self.assertRaisesRegex(RuntimeError, "24 kHz"):
+            tts.audio_pcm(buffer.getvalue())
+
     def test_missing_narrated_outputs_are_reported(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             built = demo_project.build_demo_project(Path(temp_dir), with_audio=False)

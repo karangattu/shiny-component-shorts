@@ -59,7 +59,7 @@ python .agents/skills/shiny-component-shorts/scripts/generate_tts.py \
   --usage-output generated/demo-name/artifacts/narration.usage.json
 ```
 
-The generator statically validates the prompt (envelope structure, 95–130 words, 3–6 tags, and absence of laughter cues) before calling the API to prevent wasted spend. It uses Gemini 3.1 Flash TTS Preview and chooses from the curated Kore, Erinome, Charon, and Achird voices unless `--voice` overrides it. Treat preview model names and prices as unstable.
+The generator statically validates the prompt (envelope structure, 95–130 words, 3–6 tags, and absence of laughter cues) before calling the API to prevent wasted spend. It uses Gemini 3.8 Flash TTS and chooses from the curated Sulafat (warm), Achird (friendly), Callirrhoe (easy-going), and Zubenelgenubi (casual) voices unless `--voice` overrides it. The 3.8 adapter sends only the transcript as structured Interactions API text, uses concise speech metadata, and translates square-bracket pause cues to angle brackets. It unwraps WAV output before saving PCM. Naturalness still needs an audition; voice descriptions are selection guidance, not a quality guarantee. Install the pinned `google-genai` dependency before generating. Prices were checked on 2026-09-24: standard Flash TTS costs $0.50/M input tokens and $9/M audio tokens through 2026-12-31, then $1/M and $18/M. See [Google pricing](https://ai.google.dev/gemini-api/docs/pricing).
 
 If both key variables exist and authentication fails, note that the Google SDK may prioritize `GOOGLE_API_KEY`; do not reveal either value.
 
