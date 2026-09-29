@@ -41,7 +41,7 @@ https://github.com/user-attachments/assets/a3459a49-3647-4136-b171-1801008269f1
 
 ## What you can create
 
-- Short Shiny mini-apps (Python or R), including [shinychat](https://github.com/posit-dev/shinychat) chat apps
+- Short Shiny mini-apps (Python or R), including [shinychat](https://github.com/posit-dev/shinychat) chat apps and [shinyreact](https://github.com/posit-dev/shinyreact) React frontends
 - 30-second video storyboards and narration scripts
 - Automated browser recordings with a VS Code-style code card
 - Narrated, finished vertical videos
@@ -127,9 +127,23 @@ Point the skill at a change instead of a component and it finds the one behavior
 /shiny-component-shorts What's demo-worthy in rstudio/shiny commit a1b2c3d?
 ```
 
-It works for `rstudio/shiny`, `posit-dev/py-shiny`, and `posit-dev/shinychat` (both `pkg-py/` and `pkg-r/`). The agent resolves the ref with `gh`, reads the changelog entry before the code, ranks the public API surface above docs, tests, typing, and CI, and installs that exact build into a throwaway environment so the demo runs against the changed code rather than the released package. Unreleased changes are described as just landed, never as a version number that has not shipped. If the changeset is an internal refactor with nothing visible, the agent says so instead of manufacturing a demo.
+It works for `rstudio/shiny`, `posit-dev/py-shiny`, `posit-dev/shinychat`, and `posit-dev/shinyreact` (Python, R, and shared JavaScript changes). The agent resolves the ref with `gh`, reads the changelog entry before the code, ranks the public API surface above docs, tests, typing, and CI, and installs that exact build into a throwaway environment so the demo runs against the changed code rather than the released package. Unreleased changes are described as just landed, never as a version number that has not shipped. If the changeset is an internal refactor with nothing visible, the agent says so instead of manufacturing a demo.
 
 shinychat demos never call a real LLM — canned replies and canned streams keep recordings repeatable and key-free.
+
+### shinyreact
+
+[posit-dev/shinyreact](https://github.com/posit-dev/shinyreact) connects a React UI to a Python or R Shiny server. Ask for one visible behavior, such as two controls sharing an input or a server result updating the UI:
+
+```text
+/shiny-component-shorts Create a runnable shinyreact mini-app proving shared input state in Python.
+/shiny-component-shorts Make a vertical video about a shinyreact output status in R.
+/shiny-component-shorts Find one demo-worthy change in posit-dev/shinyreact commit <sha>.
+```
+
+The skill defaults to Python Express plus `www/ui.js` and `www/ui.css`, using the package's bundled React without a frontend build. Existing JSX/TSX projects use their own build instructions. Record with `--app-type python` or `r`, matching the server. Code cards can select frontend files with `source_file: www/ui.js`.
+
+Install shinyreact only in the demo environment, after the baseline requirements: `python -m pip install shinyreact`, or install the requested Git SHA from the repository root. Its Shiny requirement can be newer than this repo's baseline pin, so do not reinstall the baseline afterward; check the resolved versions with `python -m pip check`. For R, install `posit-dev/shinyreact/pkg-r` into a demo-local library. See the [shinyreact reference](.agents/skills/shiny-component-shorts/references/shinyreact.md) for details.
 
 ### Multi-video series
 

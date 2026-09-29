@@ -202,7 +202,7 @@ def code_block_source_errors(
         block = str(value.get(key) or "")
         for line in block.strip("\n").split("\n"):
             stripped = line.strip()
-            if not stripped or stripped.startswith("#"):
+            if not stripped or stripped.startswith(("#", "//")):
                 continue
             indent = len(line) - len(line.lstrip(" "))
             candidates = {
@@ -454,8 +454,26 @@ def validate_project(
             errors.append(f"Action {index} has an invalid wait")
         elif name == "wait" and value > 3000:
             errors.append(f"Action {index} has an idle wait over 3000 ms")
-        if name == "code" and isinstance(value, dict) and app_source_lines is not None:
-            errors.extend(code_block_source_errors(index, value, app_source_lines))
+        if name == "code" and isinstance(value, dict):
+            source_lines = app_source_lines
+            if "source_file" in value:
+                source_file = value["source_file"]
+                if not isinstance(source_file, str) or not source_file.strip():
+                    errors.append(f"Action {index} code source_file must be a non-empty relative path")
+                    source_lines = None
+                else:
+                    source_path = (app_dir / source_file).resolve()
+                    if Path(source_file).is_absolute() or not source_path.is_relative_to(app_dir.resolve()):
+                        errors.append(f"Action {index} code source_file must stay inside the app directory")
+                        source_lines = None
+                    else:
+                        try:
+                            source_lines = source_path.read_text(encoding="utf-8").split("\n")
+                        except (OSError, UnicodeError) as exc:
+                            errors.append(f"Action {index} cannot read code source_file {source_file!r}: {exc}")
+                            source_lines = None
+            if source_lines is not None:
+                errors.extend(code_block_source_errors(index, value, source_lines))
         if name == "screenshot":
             screenshot_actions += 1
             if not isinstance(value, dict) or value.get("path") != "artifacts/final.png":

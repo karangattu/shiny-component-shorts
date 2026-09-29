@@ -278,17 +278,26 @@ CODE_OVERLAY_JS = r"""async (cfg) => {
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;');
     const highlightCode = (source, language) => {
-        const keywords = new Set(language === 'r'
+        const isJS = ['javascript', 'typescript', 'js', 'jsx', 'ts', 'tsx'].includes(language);
+        const keywords = new Set(isJS
+            ? ['const', 'let', 'var', 'function', 'return', 'if', 'else', 'import', 'from',
+                'export', 'default', 'async', 'await', 'new', 'true', 'false', 'null',
+                'undefined', 'class', 'extends', 'type', 'interface', 'as']
+            : language === 'r'
             ? ['function', 'if', 'else', 'for', 'while', 'in', 'return', 'TRUE', 'FALSE', 'NULL']
             : ['and', 'as', 'async', 'await', 'break', 'class', 'continue', 'def', 'elif',
                 'else', 'False', 'finally', 'for', 'from', 'if', 'import', 'in', 'is',
                 'lambda', 'None', 'not', 'or', 'pass', 'raise', 'return', 'True',
                 'try', 'while', 'with', 'yield']);
-        const builtins = new Set(language === 'r'
+        const builtins = new Set(isJS
+            ? ['React', 'ReactDOM', 'Array', 'Object', 'String', 'Number', 'Math', 'JSON']
+            : language === 'r'
             ? ['c', 'list', 'min', 'max', 'length', 'paste', 'paste0']
             : ['dict', 'enumerate', 'float', 'int', 'len', 'list', 'max', 'min',
                 'range', 'set', 'str', 'tuple', 'zip']);
-        const pattern = /(#[^\n]*)|("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')|(@[A-Za-z_][A-Za-z0-9_.]*)|([A-Za-z_][A-Za-z0-9_]*)|([0-9]+(?:\.[0-9]+)?)/g;
+        const pattern = isJS
+            ? /(\/\/[^\n]*)|("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`)|(@[A-Za-z_][A-Za-z0-9_.]*)|([A-Za-z_$][A-Za-z0-9_$]*)|([0-9]+(?:\.[0-9]+)?)/g
+            : /(#[^\n]*)|("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')|(@[A-Za-z_][A-Za-z0-9_.]*)|([A-Za-z_][A-Za-z0-9_]*)|([0-9]+(?:\.[0-9]+)?)/g;
         let html = '';
         let cursor = 0;
         for (const match of source.matchAll(pattern)) {
@@ -387,7 +396,9 @@ CODE_OVERLAY_JS = r"""async (cfg) => {
     const tab = document.createElement('div');
     tab.id = '__code_tab__';
     tab.innerHTML = '<span></span><span></span><span>×</span>';
-    tab.children[0].textContent = cfg.language === 'r' ? 'R' : 'PY';
+    const languageLabel = {r: 'R', python: 'Python', javascript: 'JavaScript',
+        js: 'JavaScript', jsx: 'JavaScript', typescript: 'TypeScript', ts: 'TypeScript', tsx: 'TypeScript'}[cfg.language] || cfg.language;
+    tab.children[0].textContent = {R: 'R', Python: 'PY', JavaScript: 'JS', TypeScript: 'TS'}[languageLabel] || languageLabel;
     tab.children[0].style.cssText = 'color:#03C7E8;font-weight:800;';
     tab.children[1].textContent = cfg.title;
     tab.style.cssText = 'display:flex;align-items:center;gap:8px;padding:0 12px;background:#1D1F21;'
@@ -447,7 +458,7 @@ CODE_OVERLAY_JS = r"""async (cfg) => {
         + 'padding:0 10px;background:#007BC2;color:#FFFFFF;font:10px/1 ' + uiFont + ';';
     const updateStatus = typed => {
         const column = (typed.split('\n').at(-1) || '').length + 1;
-        status.textContent = `Ln ${focusStart}, Col ${column}   Spaces: 4   UTF-8   ${cfg.language === 'r' ? 'R' : 'Python'}`;
+        status.textContent = `Ln ${focusStart}, Col ${column}   Spaces: 4   UTF-8   ${languageLabel}`;
     };
     updateStatus('');
     editor.append(tabs, breadcrumb, codeViewport, status);
@@ -488,10 +499,13 @@ def resolve_orientation(cli_value: str | None, config: dict) -> str:
 def code_overlay_config(orientation: str, action: dict) -> dict:
     if orientation not in {"vertical", "horizontal"}:
         raise ValueError(f"Unsupported orientation: {orientation}")
-    title = action.get("title", "app.py")
+    title = action.get("title") or action.get("source_file") or "app.py"
+    source_name = action.get("source_file") or title
+    languages = {".r": "r", ".js": "javascript", ".jsx": "javascript",
+                 ".ts": "typescript", ".tsx": "typescript"}
     language = str(
         action.get("language")
-        or ("r" if str(title).lower().endswith(".r") else "python")
+        or languages.get(Path(str(source_name)).suffix.lower(), "python")
     )
     return {
         "title": title,

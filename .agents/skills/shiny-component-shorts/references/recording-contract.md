@@ -15,7 +15,7 @@ python .agents/skills/shiny-component-shorts/scripts/record_demo.py \
 
 Options:
 
-- `--app-type python|r` selects the Shiny runtime.
+- `--app-type python|r` selects the Shiny server runtime, including shinyreact apps. Build any JSX/TSX frontend before starting the recorder; there is no separate React runtime flag.
 - `--app-dir` optionally selects a separate source directory containing `app.py` or `app.R`; it defaults to `--project-dir`.
 - `--actions` is relative to the demo directory unless absolute.
 - `--orientation vertical|horizontal` overrides `orientation:` in the YAML.
@@ -248,3 +248,17 @@ The console output is a summary: action counts, video dimensions and duration, n
 Use the demo-local Python interpreter when the app depends on a pinned Shiny or shinychat build; the recorder launches the app with its own interpreter. Run both dry-run and recording with that interpreter. Inspect the phone preflight, not only selector success: size the entire interactive stage to the middle 60% of the viewport, including labels, chat inputs, and output cards. A fixed tall chat height can put inputs below the branding band even though every selector resolves. Use viewport-relative component heights, account for label height, and keep side gutters aligned near the logo's 4% inset. Check text readability and component bounds again after populated states and the code reveal.
 
 The code card uses 20 logical px text in portrait and 18 px in landscape. Keep enough context to explain the change without hiding the highlighted line; inspect wrapping at phone size. `start_line` is the first line of the `before` block, or the highlighted text when no context precedes it. Review sheets prefer the first click, key press, selection, or drag after typing for the reveal tile; inspect additional frames if an asynchronous response arrives later.
+
+## Frontend code cards (shinyreact)
+
+A code action can set `source_file` to an app-relative source path. The validator reads it relative to `--app-dir` (or `--project-dir` when omitted), requires it to stay inside that directory, and checks the card against that file alone. Without this field, validation still uses `app.py` or `app.R`. `title` is only a display label. Set one source file per card; never combine Python and JavaScript lines into one card.
+
+```yaml
+- code:
+    source_file: www/ui.js
+    title: ui.js
+    text: |
+      const count = useShinyOutputValue("count", 0);
+```
+
+Copy the actual line and surrounding `before`/`after` context from the app. JS/JSX and TS/TSX filenames select JavaScript or TypeScript highlighting automatically; a `language` override is optional. Standalone `//` commentary is allowed, while executable lines must match the selected source. Frontend source, CSS, lockfiles, and built assets participate in recording cache checks; `node_modules` does not.

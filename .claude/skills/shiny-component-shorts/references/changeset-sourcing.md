@@ -10,6 +10,8 @@ Use this reference when the request starts from a pull request, a commit, or a b
 | Shiny for Python | `posit-dev/py-shiny` | Python | `CHANGELOG.md` | `pip install "git+https://github.com/posit-dev/py-shiny@<sha>"` |
 | shinychat (Python) | `posit-dev/shinychat` | Python, in `pkg-py/` | `pkg-py/CHANGELOG.md` | `pip install "git+https://github.com/posit-dev/shinychat@<sha>"` |
 | shinychat (R) | `posit-dev/shinychat` | R, in `pkg-r/` | `pkg-r/NEWS.md` | `pak::pak("posit-dev/shinychat/pkg-r@<sha>")` |
+| shinyreact (Python) | `posit-dev/shinyreact` | Python, in `pkg-py/`; shared client in `pkg-js/` | `pkg-py/CHANGELOG.md` | `pip install "git+https://github.com/posit-dev/shinyreact@<sha>"` |
+| shinyreact (R) | `posit-dev/shinyreact` | R, in `pkg-r/`; shared client in `pkg-js/` | `pkg-r/NEWS.md` | `pak::pak("posit-dev/shinyreact/pkg-r@<sha>")` |
 
 `posit-dev/shiny` does not exist; R Shiny lives at `rstudio/shiny`. shinychat is one monorepo holding two packages, and its GitHub releases are tagged `py/vX.Y.Z` and `r/vX.Y.Z`. Install its Python package from the repo root, not `#subdirectory=pkg-py`: the `pyproject.toml` lives at the root and points hatchling at `pkg-py/src/shinychat`, so a subdirectory install fails with "does not appear to be a Python project". Only the R package needs the `/pkg-r` suffix.
 
@@ -123,3 +125,7 @@ observeEvent(input$review_chat_user_input, {
 - `chat_ui()` defaults to `width="min(680px, 100%)"` and `fill=True`. For the vertical frame, set `width="100%"` and a fixed `height` so the transcript stays inside the middle 60% band instead of stretching into the reserved top and bottom areas.
 - Verified no-key visual candidates: streaming responses, suggestion chips and suggestion cards (`class="suggestion"`, autosubmit via `data-suggestion-submit="true"`), the greeting that clears on first submit (`chat_greeting()`), markdown rendering with a code-block copy button, `enable_cancel`, `chat_clear()` / `await chat.clear_messages()`, live placeholder changes (`update_chat_user_input()` / `chat.update_user_input()`), and `markdown_stream()` / `MarkdownStream` streaming outside a chat.
 - Everything else in this skill still applies to a chat demo: the safe area, the Shiny palette, the typography rotation, no visible app title, stable IDs, and a verbatim code card.
+
+## shinyreact specifics
+
+Read [shinyreact.md](shinyreact.md) for app layout and recording. The Python package installs from the repository root, not `#subdirectory=pkg-py`; R uses `/pkg-r`. For `pkg-js/` changes, choose the requested server language (Python by default), verify the installed bundle contains the change, and rebuild the assets from the same SHA if needed using the upstream build instructions. Record both the package version and source SHA. A successful package install alone does not prove the browser bundle includes an unreleased hook change.

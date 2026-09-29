@@ -17,6 +17,7 @@ IGNORED_INPUT_DIRS = {
     "__pycache__",
     "artifacts",
     "venv",
+    "node_modules",
 }
 IGNORED_INPUT_FILES = {".DS_Store"}
 
