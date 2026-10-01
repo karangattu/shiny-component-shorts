@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import contextlib
+import hashlib
 import io
 import json
 import sys
@@ -13,8 +14,10 @@ SCRIPTS_DIR = ROOT_DIR / ".agents" / "skills" / "shiny-component-shorts" / "scri
 sys.path.insert(0, str(SCRIPTS_DIR))
 
 import batch_process  # noqa: E402
+import check_local_voice  # noqa: E402
 import check_narration_voice  # noqa: E402
 import generate_tts  # noqa: E402
+import narration_map  # noqa: E402
 
 
 def make_project(root: Path, prompt: str) -> Path:
@@ -133,6 +136,137 @@ class NarrationVoiceLintTest(unittest.TestCase):
             (SCRIPTS_DIR / "check_narration_voice.py").read_text(encoding="utf-8"),
             claude_copy.read_text(encoding="utf-8"),
         )
+
+
+class NarrationMapTest(unittest.TestCase):
+    def make_timing_project(self, root: Path) -> Path:
+        project = root / "demo"
+        artifacts = project / "artifacts"
+        artifacts.mkdir(parents=True)
+        audio = artifacts / "narration.wav"
+        audio.write_bytes(b"fake wav bytes")
+        timing = {
+            "audio_sha256": hashlib.sha256(audio.read_bytes()).hexdigest(),
+            "duration_seconds": 2.3,
+            "words": [
+                {"word": "watch", "sentence": 0, "start": 0.1, "end": 0.4, "matched": True},
+                {"word": "the", "sentence": 0, "start": 0.4, "end": 0.5, "matched": True},
+                {"word": "wire", "sentence": 0, "start": 0.5, "end": 0.9, "matched": True},
+                {"word": "now", "sentence": 1, "start": 1.4, "end": 1.8, "matched": True},
+                {"word": "again", "sentence": 1, "start": 1.8, "end": 2.3, "matched": True},
+            ],
+            "sentences": [
+                {"text": "Watch the wire", "start": 0.1, "end": 0.9},
+                {"text": "Now again", "start": 1.4, "end": 2.3},
+            ],
+        }
+        (artifacts / "narration-timing.json").write_text(json.dumps(timing), encoding="utf-8")
+        return project
+
+    def test_map_prints_sentences_and_resolves_phrases(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project = self.make_timing_project(Path(temp_dir))
+            printed = io.StringIO()
+            with contextlib.redirect_stdout(printed):
+                exit_code = narration_map.main(
+                    ["--project-dir", str(project), "--phrase", "the wire"]
+                )
+
+            self.assertEqual(exit_code, 0)
+            out = printed.getvalue()
+            self.assertIn("Watch the wire", out)
+            self.assertIn(
+                "'the wire' (occurrence 1): narration 0.40-0.90s -> video 0.55s (sentence 1)",
+                out,
+            )
+
+    def test_map_requires_measured_timing(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project = Path(temp_dir) / "demo"
+            (project / "artifacts").mkdir(parents=True)
+            printed = io.StringIO()
+            with contextlib.redirect_stdout(printed):
+                exit_code = narration_map.main(["--project-dir", str(project)])
+
+            self.assertEqual(exit_code, 1)
+            self.assertIn("No usable word timing", printed.getvalue())
+
+    def test_narration_tools_are_documented(self) -> None:
+        references = ROOT_DIR / ".agents" / "skills" / "shiny-component-shorts" / "references"
+        recording = (references / "recording-contract.md").read_text(encoding="utf-8")
+        tts_reference = (references / "tts-and-costs.md").read_text(encoding="utf-8")
+        self.assertIn("narration_map.py", recording)
+        self.assertIn("check_local_voice.py", tts_reference)
+        self.assertIn("stale code", tts_reference)
+
+
+class LocalVoiceDoctorTest(unittest.TestCase):
+    def make_engine(self, root: Path) -> Path:
+        engine = root / "local-voice-cloning"
+        samples = engine / "voice_samples"
+        samples.mkdir(parents=True)
+        (samples / "karan.wav").write_bytes(b"reference voice")
+        (samples / "karan.json").write_text(json.dumps({"transcript": "Hello there."}))
+        return engine
+
+    def run_doctor(self, engine: Path, health: dict, durations: tuple[float, float]) -> tuple[int, str]:
+        def fake_multipart(url, fields, files, timeout=600.0):
+            if url.endswith("/synthesize"):
+                speed = float(fields["speed"])
+                return {"x-duration-seconds": str(durations[0] if speed == 1.0 else durations[1])}, b"x" * 2048
+            return {}, b""
+
+        printed = io.StringIO()
+        with patch.object(check_local_voice, "request_json", return_value=health), patch.object(
+            check_local_voice, "request_multipart", side_effect=fake_multipart
+        ), contextlib.redirect_stdout(printed):
+            exit_code = check_local_voice.main(
+                ["--engine-dir", str(engine), "--saved-voice", "karan"]
+            )
+        return exit_code, printed.getvalue()
+
+    def test_stale_service_and_ignored_speed_are_flagged(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            engine = self.make_engine(Path(temp_dir))
+
+            exit_code, out = self.run_doctor(
+                engine, {"status": "ok", "model_loaded": True}, (2.0, 2.1)
+            )
+
+            self.assertEqual(exit_code, 0)
+            self.assertIn("may be running stale code", out)
+            self.assertIn("speed is not honored", out)
+            self.assertIn("doctor: OK with", out)
+
+    def test_current_service_with_working_speed_reports_clean(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            engine = self.make_engine(Path(temp_dir))
+
+            exit_code, out = self.run_doctor(
+                engine,
+                {"status": "ok", "model_loaded": True, "version": "1.2.3"},
+                (2.0, 3.5),
+            )
+
+            self.assertEqual(exit_code, 0)
+            self.assertIn("version: 1.2.3", out)
+            self.assertNotIn("speed is not honored", out)
+            self.assertIn("doctor: OK", out)
+            self.assertNotIn("warning", out.split("doctor: OK")[1])
+
+    def test_unreachable_service_fails_with_startup_hint(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            engine = self.make_engine(Path(temp_dir))
+            printed = io.StringIO()
+            with patch.object(
+                check_local_voice, "request_json", side_effect=OSError("refused")
+            ), contextlib.redirect_stdout(printed):
+                exit_code = check_local_voice.main(
+                    ["--engine-dir", str(engine), "--saved-voice", "karan"]
+                )
+
+            self.assertEqual(exit_code, 1)
+            self.assertIn("uvicorn src.api:app", printed.getvalue())
 
 
 if __name__ == "__main__":
