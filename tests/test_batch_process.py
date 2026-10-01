@@ -15,6 +15,7 @@ sys.path.insert(0, str(SCRIPTS_DIR))
 
 import batch_process  # noqa: E402
 import build_cache  # noqa: E402
+import check_narration_voice  # noqa: E402
 
 
 def make_project(root: Path, name: str = "video") -> Path:
@@ -24,7 +25,9 @@ def make_project(root: Path, name: str = "video") -> Path:
     (project / "actions.yaml").write_text("actions: []\n", encoding="utf-8")
     artifacts = project / "artifacts"
     artifacts.mkdir()
-    (artifacts / "narration.txt").write_text("Transcript:\nHello\n", encoding="utf-8")
+    (artifacts / "narration.txt").write_text(
+        check_narration_voice.GOOD_PROMPT, encoding="utf-8"
+    )
     return project
 
 

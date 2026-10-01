@@ -19,6 +19,7 @@ SCRIPTS_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPTS_DIR))
 import align_narration  # noqa: E402
 import build_cache  # noqa: E402
+import check_narration_voice  # noqa: E402
 import merge_audio  # noqa: E402
 import validate_demo  # noqa: E402
 from generate_local_voice import (  # noqa: E402
@@ -288,6 +289,17 @@ def require_nonempty(path: Path, label: str) -> None:
         raise RuntimeError(f"Missing or empty {label}: {path}")
 
 
+def require_spoken_voice(narration: Path, source: Path | None) -> None:
+    """Written-sounding scripts fail before any synthesis spend."""
+    if source is not None:
+        return  # imported audio keeps its own wording
+    problems = check_narration_voice.voice_problems(
+        narration.read_text(encoding="utf-8")
+    )
+    if problems:
+        raise RuntimeError("Narration voice check failed: " + "; ".join(problems))
+
+
 def measure_narration(audio_path: Path, prompt_path: Path) -> dict:
     """Word-timed narration report; a failed transcript check stops the phase."""
     report = align_narration.measure(audio_path, prompt_path.read_text(encoding="utf-8"))
@@ -387,6 +399,7 @@ def generate_narration(project_dir: Path, force: bool) -> dict:
         if not force and build_cache.check_cache(project_dir, "tts", inputs, outputs):
             result["tts"] = "CACHED"
         else:
+            require_spoken_voice(narration, source)
             run_command(
                 synthesis_command(project_dir, settings, narration, audio, usage), "TTS"
             )
@@ -432,6 +445,7 @@ def generate_takes(project_dir: Path, count: int, force: bool) -> dict:
                 "provider local-voice-cloning (paid providers are never re-run for takes)"
             )
         takes_dir.mkdir(parents=True, exist_ok=True)
+        require_spoken_voice(narration, None)
         raws: list[Path] = []
         for number in range(1, count + 1):
             raw = takes_dir / f"take-{number}.wav"
