@@ -145,7 +145,7 @@ Keep the hook short enough to speak while the first action begins.
 ## Narration
 
 - Write for a coworker at their desk, not a conference audience.
-- Rewrite every transcript with the `simple-english` skill (pragmatic mode) before you save it. Keep contractions and "you"; they override its no-contractions rule because this text is spoken. Leave code names, labels, and values as they are.
+- Rewrite every transcript you write with the `simple-english` skill (pragmatic mode) before you save it, but take only its meaning rules: one thought per sentence, active voice, simple tenses, one name per thing, and no hedges or filler. Its short-sentence rhythm does not belong here; sentence rhythm is the speech texture pass's job. Keep contractions and "you"; they override its no-contractions rule because this text is spoken. Leave code names, labels, and values as they are. A transcript of user-supplied audio is never rewritten: it is a transcript, not a script.
 - Use contractions and varied sentence lengths.
 - Describe exact visible labels and values.
 - Use at most one metaphor or aphorism.

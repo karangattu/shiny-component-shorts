@@ -158,6 +158,20 @@ class CodexSkillContractTest(unittest.TestCase):
             ).is_file()
         )
 
+    def test_simple_english_rules_are_narrowed_and_user_audio_is_exempt(self) -> None:
+        skill = CODEX_SKILL.read_text(encoding="utf-8")
+        playbook = (SKILL / "references/creative-playbook.md").read_text(encoding="utf-8")
+        tts_reference = (SKILL / "references/tts-and-costs.md").read_text(encoding="utf-8")
+        for marker in (
+            "meaning rules",
+            "never for a transcript of user-supplied audio",
+            "never rewrite it for style",
+        ):
+            self.assertIn(marker, skill)
+        for marker in ("meaning rules", "transcript, not a script"):
+            self.assertIn(marker, playbook)
+        self.assertIn("Do not rewrite it for style", tts_reference)
+
     def test_multi_video_series_documents_hybrid_two_phase_production(self) -> None:
         skill = CODEX_SKILL.read_text(encoding="utf-8")
         for marker in (

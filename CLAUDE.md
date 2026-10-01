@@ -14,6 +14,6 @@ Defaults:
 - Reserve the top 20% and bottom 20% of the frame for branding and fill the middle band's horizontal space.
 - Every recording is stamped with the Shiny wordmark in the top-left, sized to read on a phone; the recorder adds it, so never put a logo in the app.
 - Use only the official Shiny preset palette with accessible light- or dark-mode text.
-- Write every voiceover script with the `simple-english` skill, keeping contractions so it sounds spoken.
+- Write every voiceover script with the `simple-english` skill for meaning-level clarity (one thought per sentence, active voice, one name per thing, no hedges or filler), keeping contractions so it sounds spoken; sentence rhythm and texture come from the speech-texture pass.
 - Do not include laughing, giggling, chuckling, or other non-speech narration sounds.
 - In horizontal videos, show code beside the live app rather than over it.

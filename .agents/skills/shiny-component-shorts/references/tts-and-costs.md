@@ -184,7 +184,7 @@ python .agents/skills/shiny-component-shorts/scripts/import_narration.py \
   --usage-output generated/demo-name/artifacts/narration.usage.json
 ```
 
-The script verifies the source has an audio stream, converts it to the pipeline's mono 24 kHz PCM WAV, and writes a `$0` usage report marked `Imported audio`. From there the workflow is identical to generated narration: run `align_narration.py` (the batch narration phase does it for you) and anchor `actions.yaml` with cues. Keep the `narration.txt` envelope's transcript matched to what the imported audio actually says; the transcript check fails when they differ.
+The script verifies the source has an audio stream, converts it to the pipeline's mono 24 kHz PCM WAV, and writes a `$0` usage report marked `Imported audio`. From there the workflow is identical to generated narration: run `align_narration.py` (the batch narration phase does it for you) and anchor `actions.yaml` with cues. Keep the `narration.txt` envelope's transcript matched to what the imported audio actually says; the transcript check fails when they differ. Do not rewrite it for style: it is a transcript, not a script.
 
 For batch processing, set `{"audio_source": "path/to/narrated.mp4"}` in the video's `tts-settings.json` (relative paths resolve against the video directory); the narration phase then imports instead of synthesizing and adds the source file to the cache key. `audio_source` cannot be combined with `voice` or `model`.
 
