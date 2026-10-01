@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import concurrent.futures
+import hashlib
 import json
 import os
 import re
@@ -429,13 +430,61 @@ def matched_gains(
     return common, [common - float(m["input_i"]) for m in measurements]
 
 
+TAKE_ATTEMPTS = 3
+
+
+def take_fingerprint(narration: Path, settings: dict) -> str:
+    """Raw takes are stale as soon as their script or their settings change."""
+    payload = narration.read_bytes() + json.dumps(settings, sort_keys=True).encode()
+    return hashlib.sha256(payload).hexdigest()
+
+
+def fingerprint_record(takes_dir: Path) -> str | None:
+    path = takes_dir / "fingerprint.json"
+    if not path.is_file():
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8")).get("fingerprint")
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
+def write_fingerprint(takes_dir: Path, fingerprint: str, settings: dict) -> None:
+    (takes_dir / "fingerprint.json").write_text(
+        json.dumps(
+            {"fingerprint": fingerprint, "settings": settings}, indent=2, sort_keys=True
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+
+def reject_take(takes_dir: Path, number: int, attempt: int) -> Path | None:
+    """Park a rejected take for audition where the ranking cannot see it."""
+    rejected = takes_dir / "rejected"
+    rejected.mkdir(exist_ok=True)
+    kept: Path | None = None
+    for suffix in (".wav", ".usage.json"):
+        source = takes_dir / f"take-{number}{suffix}"
+        if source.is_file():
+            kept = source.replace(rejected / f"take-{number}-attempt-{attempt}{suffix}")
+    return kept
+
+
 def generate_takes(project_dir: Path, count: int, force: bool) -> dict:
-    """Synthesize raw local takes, loudness-match copies, and rank them."""
+    """Synthesize raw local takes, loudness-match copies, and rank them.
+
+    A rejected take (one over the pace gate, say) is retried and then parked
+    in `rejected/` where ranking cannot see it; the remaining takes are still
+    matched and ranked. Takes are regenerated whenever their script or their
+    settings change, because raw take files alone cannot show their provenance.
+    """
     started = time.time()
     result = new_result(project_dir)
     artifacts = project_dir / "artifacts"
     narration = artifacts / "narration.txt"
     takes_dir = artifacts / "narration-takes"
+    attempts: list[dict] = []
     try:
         require_nonempty(narration, "narration prompt")
         settings = load_tts_settings(project_dir)
@@ -446,22 +495,57 @@ def generate_takes(project_dir: Path, count: int, force: bool) -> dict:
             )
         takes_dir.mkdir(parents=True, exist_ok=True)
         require_spoken_voice(narration, None)
+        fingerprint = take_fingerprint(narration, settings)
+        stale = fingerprint_record(takes_dir) != fingerprint
+
+        def synthesize(number: int) -> Path | None:
+            raw = takes_dir / f"take-{number}.wav"
+            usage = takes_dir / f"take-{number}.usage.json"
+            for attempt in range(1, TAKE_ATTEMPTS + 1):
+                try:
+                    run_command(
+                        synthesis_command(
+                            project_dir, settings, narration, raw, usage,
+                        ),
+                        f"Take {number}",
+                    )
+                    require_nonempty(raw, f"take {number}")
+                    attempts.append({"take": raw.name, "attempt": attempt, "status": "kept"})
+                    return raw
+                except Exception as exc:
+                    rejected = reject_take(takes_dir, number, attempt)
+                    attempts.append({
+                        "take": f"take-{number}.wav",
+                        "attempt": attempt,
+                        "status": "rejected",
+                        "error": str(exc),
+                        "kept_at": str(rejected) if rejected else None,
+                    })
+            return None
+
         raws: list[Path] = []
         for number in range(1, count + 1):
             raw = takes_dir / f"take-{number}.wav"
-            if force or not raw.is_file() or raw.stat().st_size == 0:
-                run_command(
-                    synthesis_command(
-                        project_dir, settings, narration, raw,
-                        takes_dir / f"take-{number}.usage.json",
-                    ),
-                    f"Take {number}",
-                )
-            require_nonempty(raw, f"take {number}")
-            raws.append(raw)
+            if force or stale or not raw.is_file() or raw.stat().st_size == 0:
+                raw = synthesize(number)
+            else:
+                attempts.append({"take": raw.name, "attempt": 0, "status": "cached"})
+            if raw is not None:
+                raws.append(raw)
+        if len(raws) < 2:
+            details = "; ".join(
+                f"{entry['take']} attempt {entry['attempt']}: {entry['error']}"
+                for entry in attempts
+                if entry["status"] == "rejected"
+            )
+            raise RuntimeError(
+                f"Only {len(raws)} usable take(s) after {TAKE_ATTEMPTS} attempts each"
+                + (f" — {details}" if details else "")
+            )
         (takes_dir / "settings.json").write_text(
             json.dumps(settings, indent=2, sort_keys=True) + "\n", encoding="utf-8"
         )
+        write_fingerprint(takes_dir, fingerprint, settings)
         common, gains = matched_gains([merge_audio.measure_loudness(raw) for raw in raws])
         for raw, gain in zip(raws, gains):
             run_command(
@@ -472,6 +556,7 @@ def generate_takes(project_dir: Path, count: int, force: bool) -> dict:
             )
         ranking = align_narration.rank_takes(takes_dir, narration.read_text(encoding="utf-8"))
         ranking["comparison_lufs"] = round(common, 2)
+        ranking["attempts"] = attempts
         (takes_dir / "ranking.json").write_text(
             json.dumps(ranking, indent=2) + "\n", encoding="utf-8"
         )
@@ -480,6 +565,7 @@ def generate_takes(project_dir: Path, count: int, force: bool) -> dict:
     except Exception as exc:
         result["tts"] = "FAILED"
         result["errors"].append(f"Takes failed: {exc}")
+        result["take_attempts"] = attempts
     result["duration"] = round(time.time() - started, 2)
     return result
 
@@ -767,6 +853,14 @@ def print_summary(results: list[dict]) -> None:
                     f"(WER {take['word_error_rate']:.0%}, {take['words_per_minute']} WPM)"
                 )
             print(f"  recommended take: {takes['recommended']}")
+        for attempt in result.get("take_attempts") or (takes or {}).get("attempts") or []:
+            if attempt.get("status") == "rejected":
+                print(
+                    f"  rejected {attempt['take']} attempt {attempt['attempt']}: "
+                    f"{attempt['error']}"
+                )
+                if attempt.get("kept_at"):
+                    print(f"    kept for audition: {attempt['kept_at']}")
         if result.get("review_sheet"):
             print(f"  review sheet: {result['review_sheet']}")
         for error in result["errors"]:

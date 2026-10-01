@@ -445,5 +445,119 @@ class BatchProcessTest(unittest.TestCase):
         self.assertTrue(batch_process.has_failures([result]))
 
 
+class TakeResilienceTest(unittest.TestCase):
+    def make_local_project(self, root: Path) -> Path:
+        project = make_project(root)
+        engine = root / "local-voice-cloning"
+        samples = engine / "voice_samples"
+        samples.mkdir(parents=True)
+        (samples / "karan.wav").write_bytes(b"reference voice")
+        (project / "tts-settings.json").write_text(
+            json.dumps(
+                {
+                    "provider": "local-voice-cloning",
+                    "saved_voice": "karan",
+                    "engine_dir": str(engine),
+                }
+            ),
+            encoding="utf-8",
+        )
+        return project
+
+    @staticmethod
+    def synthesis_mock(reject: set[int], calls: list[int]):
+        """Write take files like the synthesizer does; fail selected takes."""
+
+        def run(command, capture_output=True, text=True):
+            name = Path(command[0]).name
+            if "generate_local_voice.py" in " ".join(command):
+                number = int(Path(command[command.index("--output") + 1]).stem.split("-")[1])
+                calls.append(number)
+                Path(command[command.index("--output") + 1]).write_bytes(b"take audio")
+                Path(command[command.index("--usage-output") + 1]).write_text("{}")
+                if number in reject:
+                    raise RuntimeError("Narration pace 170 WPM exceeds the 160 WPM gate")
+            else:
+                Path(command[-1]).write_bytes(b"matched")
+            return MagicMock(returncode=0, stdout="ok", stderr="", name=name)
+
+        return run
+
+    @patch.object(batch_process.align_narration, "rank_takes")
+    @patch.object(batch_process.merge_audio, "measure_loudness")
+    @patch("subprocess.run")
+    def test_rejected_take_is_retried_then_parked_while_others_rank(
+        self, mock_run, mock_loudness, mock_rank
+    ) -> None:
+        mock_loudness.return_value = {"input_i": -20.0, "input_tp": -2.0}
+        mock_rank.return_value = {
+            "recommended": "take-1.wav",
+            "takes": [
+                {"take": "take-1.wav", "score": 1.0, "word_error_rate": 0.01, "words_per_minute": 150},
+                {"take": "take-3.wav", "score": 2.0, "word_error_rate": 0.02, "words_per_minute": 152},
+            ],
+        }
+        calls: list[int] = []
+        mock_run.side_effect = self.synthesis_mock({2}, calls)
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project = self.make_local_project(Path(temp_dir))
+
+            result = batch_process.generate_takes(project, 3, force=True)
+
+            self.assertEqual(result["tts"], "SUCCESS", result["errors"])
+            self.assertEqual(calls, [1, 2, 2, 2, 3])
+            rejected = sorted(
+                (project / "artifacts" / "narration-takes" / "rejected").iterdir()
+            )
+            self.assertTrue(any("take-2-attempt-3" in path.name for path in rejected))
+            statuses = [entry["status"] for entry in result["takes"]["attempts"]]
+            self.assertEqual(statuses, ["kept", "rejected", "rejected", "rejected", "kept"])
+
+    @patch.object(batch_process.align_narration, "rank_takes")
+    @patch.object(batch_process.merge_audio, "measure_loudness")
+    @patch("subprocess.run")
+    def test_takes_regenerate_when_settings_change(
+        self, mock_run, mock_loudness, mock_rank
+    ) -> None:
+        mock_loudness.return_value = {"input_i": -20.0, "input_tp": -2.0}
+        mock_rank.return_value = {"recommended": "take-1.wav", "takes": []}
+        calls: list[int] = []
+        mock_run.side_effect = self.synthesis_mock(set(), calls)
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project = self.make_local_project(Path(temp_dir))
+            batch_process.generate_takes(project, 2, force=False)
+
+            cached = batch_process.generate_takes(project, 2, force=False)
+            self.assertEqual(calls, [1, 2])
+            self.assertEqual(
+                [entry["status"] for entry in cached["takes"]["attempts"]],
+                ["cached", "cached"],
+            )
+
+            settings = json.loads((project / "tts-settings.json").read_text())
+            (project / "tts-settings.json").write_text(
+                json.dumps({**settings, "speaking_rate": 0.9})
+            )
+            batch_process.generate_takes(project, 2, force=False)
+
+            self.assertEqual(calls, [1, 2, 1, 2])
+
+    @patch.object(batch_process.merge_audio, "measure_loudness")
+    @patch("subprocess.run")
+    def test_phase_fails_when_too_few_takes_survive(
+        self, mock_run, mock_loudness
+    ) -> None:
+        calls: list[int] = []
+        mock_run.side_effect = self.synthesis_mock({1, 2}, calls)
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project = self.make_local_project(Path(temp_dir))
+
+            result = batch_process.generate_takes(project, 2, force=True)
+
+            self.assertEqual(result["tts"], "FAILED")
+            self.assertTrue(any("usable take" in error for error in result["errors"]))
+            self.assertEqual(calls, [1, 1, 1, 2, 2, 2])
+
+
 if __name__ == "__main__":
     unittest.main()
