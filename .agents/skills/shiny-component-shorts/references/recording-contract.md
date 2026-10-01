@@ -129,7 +129,7 @@ actions:
       path: "artifacts/final.png"
 ```
 
-Supported actions are `wait_for`, `wait`, `cue`, `click`, `drag`, `select_option`, `hover`, `fill`, `type`, `press`, `code`, and `screenshot`. Each list item must contain exactly one action.
+Supported actions are `wait_for`, `wait`, `cue`, `click`, `drag`, `select_option`, `hover`, `fill`, `type`, `press`, `code`, `wait_stream`, and `screenshot`. Each list item must contain exactly one action.
 
 Storyboard beats such as `Reveal`, `Proof`, `Code`, and `Payoff` are planning metadata only. Do not add them to `actions.yaml` or render them over the recording.
 
@@ -147,6 +147,7 @@ Storyboard beats such as `Reveal`, `Proof`, `Code`, and `Payoff` are planning me
 - `press` sends one named key to the selector.
 - `code` types a compact, syntax-highlighted Shiny-branded editor card, holds it by reading time, then fades it out. Its `text` is the highlighted focus line; `before` and `after` blocks show dimmed real source context, and `start_line` keeps the gutter honest. Make that context an authentic slice of the app: include the code that surrounds the trick — for a UI feature, the enclosing UI component plus the related server logic (or the reverse when the server line is the star) — copied verbatim from the app source, typically 6–14 dimmed lines total, and highlight only the decisive line or two. Do not paste the whole app or invent tidied pseudo-source: every non-comment line must exist in the app source exactly, and indentation must mirror the source — the validator permits only one uniform dedent across the whole card, so relative indentation is preserved for both Python and R. In YAML, use a block indentation indicator (for example `text: |2` or `after: |2`) whenever a block's lines all share leading whitespace, otherwise YAML strips it silently. Place any explanatory comment at the end of `before`, directly above the focus line — never in `after`, where a comment below the highlighted code reads as an afterthought and distracts from it. In vertical mode the card fills the bottom half of the frame, anchored near the bottom edge; in horizontal mode it uses the side-by-side layout instead of overlaying the app. The card fades and slides in and out (about 0.3 s), and the horizontal app reflow eases instead of snapping.
 - `screenshot` writes a full-page screenshot relative to the demo directory.
+- `wait_stream` spans an asynchronous reaction. It waits until the region inside its `selector` stops changing for `quiet_ms` (1500 ms by default), giving up after `timeout` (30000 ms by default). Its entry ends when the region goes quiet, so a streamed answer covers the dead air it actually filled on screen instead of one click standing in for the whole stream. Cue the click that starts the stream, never `wait_stream` itself, and do not count it toward the three meaningful actions. `expect_ms` (5000 ms by default) is only the projected span `--simulate-timing` uses before the stream exists. Accepts a bare selector or `{selector, quiet_ms, timeout, expect_ms}`.
 
 ## Stable selectors
 
@@ -184,7 +185,7 @@ actions:
   - code: { ... }
 ```
 
-Cue the phrase that names the visible change, not the start of a long sentence. Timing is a hard contract, and the validator enforces it from `recording.json`:
+Cue the phrase that names the visible change, not the start of a long sentence. While choosing one, `scripts/narration_map.py --project-dir <demo> --phrase '...'` prints every sentence's narration and video time and resolves any phrase against the measured take. Timing is a hard contract, and the validator enforces it from `recording.json`:
 
 - Every cued reaction must land within 1.0 s before to 0.5 s after its phrase is spoken.
 - A narrated video needs at least three cued meaningful actions and a cued code card.

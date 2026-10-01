@@ -52,6 +52,7 @@ SUPPORTED_ACTIONS = frozenset(
         "code",
         "cue",
         "screenshot",
+        "wait_stream",
     }
 )
 VISIBLE_ACTIONS = validate_demo.VISIBLE_ACTIONS
@@ -788,6 +789,37 @@ def human_type(page, selector: str, text: str, delay: float) -> None:
         wait_until(page, deadline)
 
 
+def wait_for_stream(page, value: object) -> None:
+    """Wait until a streaming region stops changing for `quiet_ms`.
+
+    The entry ends at that quiet moment, so an async reaction covers the dead
+    air it actually filled on screen instead of one click standing in for it.
+    """
+    options = validate_demo.wait_stream_options(value)
+    selector = options.get("selector")
+    if not isinstance(selector, str) or not selector.strip():
+        raise ValueError("wait_stream needs a non-empty selector")
+    quiet_ms = float(options.get("quiet_ms", 1500))
+    timeout_ms = float(options.get("timeout", 30000))
+    locator = page.locator(selector).first
+    snapshot = locator.inner_html()
+    quiet_since = time.monotonic()
+    deadline = quiet_since + timeout_ms / 1000
+    while True:
+        page.wait_for_timeout(200)
+        current = locator.inner_html()
+        now = time.monotonic()
+        if current != snapshot:
+            snapshot = current
+            quiet_since = now
+        if (now - quiet_since) * 1000 >= quiet_ms:
+            return
+        if now >= deadline:
+            raise RuntimeError(
+                f"wait_stream: {selector} never went quiet within {timeout_ms:.0f} ms"
+            )
+
+
 def validate_action_shape(action: object) -> str:
     if not isinstance(action, dict) or len(action) != 1:
         raise ValueError(f"Each action must contain exactly one key: {action!r}")
@@ -865,6 +897,8 @@ def run_actions(
             page.wait_for_selector(value, state="attached", timeout=15000)
         elif name == "wait":
             page.wait_for_timeout(value)
+        elif name == "wait_stream":
+            wait_for_stream(page, value)
         elif name == "click":
             reaction = human_click(page, value, anchor)
         elif name == "drag":

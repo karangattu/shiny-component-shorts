@@ -395,8 +395,87 @@ class SharedRecorderContractTest(unittest.TestCase):
                 "code",
                 "cue",
                 "screenshot",
+                "wait_stream",
             },
         )
+
+    def test_wait_stream_spans_an_async_reaction_without_counting_as_a_cue(self) -> None:
+        self.assertIn("wait_stream", validator.SUPPORTED_ACTIONS)
+        self.assertIn("wait_stream", validator.GAP_ACTIONS)
+        self.assertNotIn("wait_stream", validator.MEANINGFUL_ACTIONS)
+        self.assertNotIn("wait_stream", validator.VISIBLE_ACTIONS)
+        self.assertEqual(
+            validator.wait_stream_errors(1, ""),
+            ["Action 1 wait_stream needs a non-empty selector"],
+        )
+        self.assertEqual(
+            validator.wait_stream_errors(2, {"selector": "#msgs", "quiet_ms": -1}),
+            ["Action 2 wait_stream quiet_ms must be positive"],
+        )
+        self.assertEqual(validator.wait_stream_ms({"selector": "#msgs"}), 6500.0)
+        timeline = validator.project_simulated_timeline(
+            [
+                {"click": "#go"},
+                {"wait_stream": {"selector": "#msgs", "expect_ms": 4000, "quiet_ms": 1000}},
+            ]
+        )
+        stream = timeline[-1]
+        self.assertEqual(stream["action"], "wait_stream")
+        self.assertGreaterEqual(stream["end"] - stream["start"], 5.0)
+        self.assertNotIn("reaction", stream)
+        self.assertNotIn("cue", stream)
+        recording = (SKILL / "references/recording-contract.md").read_text(encoding="utf-8")
+        playbook = (SKILL / "references/creative-playbook.md").read_text(encoding="utf-8")
+        self.assertIn("`wait_stream` spans an asynchronous reaction", recording)
+        self.assertIn("Evidence instruments", playbook)
+        self.assertIn("wait_stream", playbook)
+
+    def test_wait_for_stream_returns_when_the_region_goes_quiet(self) -> None:
+        class StubLocator:
+            def __init__(self, frames):
+                self.frames = list(frames)
+                self.index = 0
+
+            @property
+            def first(self):
+                return self
+
+            def inner_html(self):
+                frame = self.frames[min(self.index, len(self.frames) - 1)]
+                self.index += 1
+                return frame
+
+        class StubPage:
+            def __init__(self, locator):
+                self.stub = locator
+
+            def locator(self, selector):
+                return self.stub
+
+            def wait_for_timeout(self, ms):
+                return None
+
+        recorder.wait_for_stream(
+            StubPage(StubLocator(["<p>a</p>", "<p>ab</p>", "<p>ab</p>", "<p>ab</p>"])),
+            {"selector": "#msgs", "quiet_ms": 20, "timeout": 1000},
+        )
+
+        class NeverQuiet:
+            index = 0
+
+            @property
+            def first(self):
+                return self
+
+            def inner_html(self):
+                self.index += 1
+                return f"<p>{self.index}</p>"
+
+        with self.assertRaisesRegex(RuntimeError, "never went quiet"):
+            recorder.wait_for_stream(
+                StubPage(NeverQuiet()),
+                {"selector": "#msgs", "quiet_ms": 50, "timeout": 80},
+            )
         for action in recorder.SUPPORTED_ACTIONS:
             self.assertEqual(recorder.validate_action_shape({action: None}), action)
         with self.assertRaises(ValueError):

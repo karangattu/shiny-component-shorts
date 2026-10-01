@@ -33,6 +33,7 @@ BASE_ACTIONS = {
     "code",
     "cue",
     "screenshot",
+    "wait_stream",
 }
 OVERLAY_ACTIONS = {"caption", "beat", "label"}
 
@@ -153,6 +154,14 @@ class ClaudeSkillContractTest(unittest.TestCase):
         self.assertIn("at most one `[long pause]`", tts_reference)
         self.assertIn("check_narration_voice.py", tts_reference)
         self.assertTrue((SKILL / "scripts/check_narration_voice.py").is_file())
+
+    def test_streaming_demo_guidance_is_documented(self) -> None:
+        recording = (SKILL / "references/recording-contract.md").read_text(encoding="utf-8")
+        playbook = (SKILL / "references/creative-playbook.md").read_text(encoding="utf-8")
+        self.assertIn("wait_stream", BASE_ACTIONS)
+        self.assertIn("`wait_stream` spans an asynchronous reaction", recording)
+        self.assertIn("Evidence instruments", playbook)
+        self.assertIn("wait_stream", playbook)
 
     def test_simple_english_rules_are_narrowed_and_user_audio_is_exempt(self) -> None:
         skill = SKILL_MD.read_text(encoding="utf-8")

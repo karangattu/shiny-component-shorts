@@ -128,6 +128,17 @@ Plan at least three action → reaction beats. These names are internal producti
 
 Opening a menu is setup, not proof. Pointer travel is explanation, not a meaningful action. Each counted beat must change content, selection, layout, focus behavior, validation, or server state.
 
+## Evidence instruments
+
+Some hidden behaviors never change layout: rendering, pacing, and latency live inside the browser. Make the input side visible next to the output side:
+
+- Show the component's result as usual, and add one small readout for the part the viewer cannot see — the wire, the buffer, the queue, the timer. The readout is evidence, not decoration: it reports real events from the same code path the component uses.
+- Put the contrast in one composition. Two wire patterns that render as the same readable flow prove "the pacing is client-side" better than narration can.
+- Use realistic diagnostics labels (`provider chunks`, `buffered: 0`), never beat names or counters that tick for show.
+- Wrap streamed answers with `wait_stream` so the recording credits the stream as the reaction it was.
+
+Reference pattern: a chat demo pairs a provider-wire monitor — bars arriving in bursts or as a steady trickle — with a transcript that reads at one steady pace either way.
+
 ## Hooks
 
 Lead with the precise frustration or desired outcome. Name the component after the viewer knows why to care.

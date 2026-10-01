@@ -35,6 +35,7 @@ SUPPORTED_ACTIONS = frozenset(
         "caption",
         "beat",
         "label",
+        "wait_stream",
     }
 )
 REMOVED_ACTIONS = {
@@ -46,6 +47,10 @@ MEANINGFUL_ACTIONS = frozenset(
     {"click", "drag", "select_option", "hover", "fill", "type", "press"}
 )
 VISIBLE_ACTIONS = MEANINGFUL_ACTIONS | {"code"}
+# `wait_stream` spans an async reaction, so it covers dead air but is never
+# anchored to a phrase and never counts as a meaningful action.
+STREAM_ACTIONS = frozenset({"wait_stream"})
+GAP_ACTIONS = MEANINGFUL_ACTIONS | {"code"} | STREAM_ACTIONS
 # A cued reaction may lead its phrase by a second or trail it by half a second.
 CUE_EARLY_SECONDS = 1.0
 CUE_LATE_SECONDS = 0.5
@@ -63,6 +68,34 @@ def code_hold_ms(text: str, override: int | None = None, context: str = "") -> i
     return override or max(
         7500, min(16000, 4800 + 70 * len(text) + 18 * len(context))
     )
+
+
+def wait_stream_options(value: object) -> dict:
+    """Normalize `wait_stream`: a selector, or {selector, quiet_ms, timeout, expect_ms}."""
+    if isinstance(value, str) and value.strip():
+        return {"selector": value.strip()}
+    if isinstance(value, dict):
+        return value
+    return {}
+
+
+def wait_stream_errors(index: int, value: object) -> list[str]:
+    options = wait_stream_options(value)
+    problems = []
+    selector = options.get("selector")
+    if not isinstance(selector, str) or not selector.strip():
+        problems.append(f"Action {index} wait_stream needs a non-empty selector")
+    for key in ("quiet_ms", "timeout", "expect_ms"):
+        option = options.get(key)
+        if option is not None and (not isinstance(option, (int, float)) or option <= 0):
+            problems.append(f"Action {index} wait_stream {key} must be positive")
+    return problems
+
+
+def wait_stream_ms(value: object) -> float:
+    """Projected stream span for --simulate-timing: `expect_ms` beyond the quiet window."""
+    options = wait_stream_options(value)
+    return float(options.get("expect_ms", 5000)) + float(options.get("quiet_ms", 1500))
 
 
 def estimate_action_seconds(actions: list[dict]) -> float:
@@ -338,6 +371,8 @@ def project_simulated_timeline(
             current_ms += code_hold_ms(text, value.get("duration"), context) + CODE_EXIT_MS
         elif name == "screenshot":
             current_ms += 100
+        elif name == "wait_stream":
+            current_ms += wait_stream_ms(value)
         entry: dict = {
             "action": name,
             "start": round(started / 1000.0, 2),
@@ -467,6 +502,8 @@ def validate_project(
             errors.append(f"Action {index} has an invalid wait")
         elif name == "wait" and value > 3000:
             errors.append(f"Action {index} has an idle wait over 3000 ms")
+        if name == "wait_stream":
+            errors.extend(wait_stream_errors(index, value))
         if name == "code" and isinstance(value, dict):
             source_lines = app_source_lines
             if "source_file" in value:
@@ -686,8 +723,7 @@ def validate_project(
         visible_events = [
             entry
             for entry in timeline
-            if entry.get("action") in MEANINGFUL_ACTIONS
-            or entry.get("action") == "code"
+            if entry.get("action") in GAP_ACTIONS
         ]
         def moment(entry: dict) -> float:
             """When the viewer sees the action: its reaction, else its start."""
