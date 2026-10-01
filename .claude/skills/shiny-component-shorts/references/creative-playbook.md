@@ -153,6 +153,19 @@ Keep the hook short enough to speak while the first action begins.
 - Avoid `game-changer`, `seamless`, `powerful`, `unlock`, `elevate`, `dive in`, `let’s explore`, `effortlessly`, and `supercharge`.
 - Avoid “It’s not just X, it’s Y” and tidy rule-of-three constructions.
 
+### Speech texture pass
+
+The `simple-english` rewrite makes a script clear, not human. Run a second pass after it, before you save `narration.txt`, and put the spoken texture back in:
+
+- Keep contractions and add sentence fragments: two to four per script, for the plain beats (“No scrollbar, no custom CSS.”).
+- Open one or two beats with a discourse marker: “So”, “Now”, “Okay”, “Watch this”, “Here’s the thing”. Speech moves between thoughts this way, and the `simple-english` no-filler rule does not apply to these.
+- Allow at most one first-person reaction per script (“I missed this for months”).
+- Vary the rhythm: no three consecutive sentences within four words of each other, at least one fragment and one sentence of twelve words or more, and no three consecutive sentences that start with the same word.
+- Ban the shapes, not only the words: parallel cadences (“Real units in, honest progress out”), tidy closing aphorisms, three-item lists, and “not just X, but Y”.
+- Read the transcript aloud once before you save it. Rewrite anything you stumble on; a script that is hard to say gets rewritten, not performed around.
+
+`scripts/check_narration_voice.py` enforces every rule above mechanically. Run it before generating audio and fix what it lists.
+
 For every recorded workflow, including a silent recording, write `artifacts/narration.txt` with this complete timing envelope:
 
 ```text

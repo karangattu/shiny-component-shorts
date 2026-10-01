@@ -38,11 +38,13 @@ Useful inline cues are limited to pacing and restrained emphasis:
 - Local delivery changes: `[slightly firmer]` when they match a visible beat.
 - Do not use reaction or non-speech tags. The validator rejects laugh, laughter, giggle, and chuckle variants.
 
-For a developer short, prefer a restrained arc: conversational hook, a short or medium pause before the reveal, slightly firmer delivery for the decisive code line, and a warm payoff. Do not stack tags, repeat the same cue mechanically, or use shouting, panic, crying, coughing, character voices, or any non-verbal sound.
+For a developer short, prefer a restrained arc: conversational hook, a short or medium pause before the reveal, slightly firmer delivery for the decisive code line, and a warm payoff. Spend at most one `[long pause]` per script, and spend it before the reveal; every other pause comes from punctuation and thought boundaries, not a tag per sentence. Do not stack tags, repeat the same cue mechanically, or use shouting, panic, crying, coughing, character voices, or any non-verbal sound.
 
 Treat tags as preview-model hints, not a closed vocabulary or timing guarantee. Prefer the documented named pause tags over invented exact-duration syntax such as `[pause=1.0]` unless that syntax has been tested with the current model. Emotional adjective tags such as `[curious]`, `[scared]`, or `[bored]` can occasionally be vocalized; express the overall emotion in the director's notes and verify any inline adjective tag before keeping it. Do not include timestamps or visual stage directions in the transcript.
 
 For a narrated series, vary the performance direction as deliberately as the visual direction. For example, use one curious discovery, one calm diagnostic explanation, one measured comparison, one focused accessibility demonstration, and one conversational reference-style proof rather than giving every video the same excited delivery.
+
+`scripts/check_narration_voice.py` is the spoken-voice gate: it rejects written-sounding scripts (uniform sentence rhythm, missing contractions or fragments, repeated openers, banned words and shapes, more than one `[long pause]`) before any synthesis spend. Run it on `artifacts/narration.txt` first; the batch narration phase runs it for you.
 
 ## Generate audio
 

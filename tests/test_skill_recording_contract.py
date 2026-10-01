@@ -132,6 +132,32 @@ class CodexSkillContractTest(unittest.TestCase):
         self.assertIn("visual-direction matrix", playbook)
         self.assertIn("Do not count a recolor as a distinct hidden behavior", playbook)
 
+    def test_narration_voice_rules_and_lint_are_documented(self) -> None:
+        skill = CODEX_SKILL.read_text(encoding="utf-8")
+        playbook = (SKILL / "references/creative-playbook.md").read_text(encoding="utf-8")
+        tts_reference = (SKILL / "references/tts-and-costs.md").read_text(encoding="utf-8")
+        for marker in (
+            "speech-texture pass",
+            "check_narration_voice.py",
+            "for every narrated video",
+        ):
+            self.assertIn(marker, skill)
+        for marker in (
+            "Speech texture pass",
+            "discourse marker",
+            "Read the transcript aloud",
+            "check_narration_voice.py",
+        ):
+            self.assertIn(marker, playbook)
+        self.assertIn("at most one `[long pause]`", tts_reference)
+        self.assertIn("check_narration_voice.py", tts_reference)
+        self.assertTrue((SKILL / "scripts/check_narration_voice.py").is_file())
+        self.assertTrue(
+            (
+                ROOT / ".claude/skills/shiny-component-shorts/scripts/check_narration_voice.py"
+            ).is_file()
+        )
+
     def test_multi_video_series_documents_hybrid_two_phase_production(self) -> None:
         skill = CODEX_SKILL.read_text(encoding="utf-8")
         for marker in (
