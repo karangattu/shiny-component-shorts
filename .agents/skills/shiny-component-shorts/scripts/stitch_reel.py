@@ -295,17 +295,23 @@ def video_size(path: Path) -> tuple[int, int]:
     return int(stream["width"]), int(stream["height"])
 
 
-def normalize(source: Path, output: Path, orientation: str) -> float:
-    """Re-encode one piece to the shared size, frame rate, and stereo AAC track."""
+def normalize(source: Path, output: Path, orientation: str, lead: float = 0.0) -> float:
+    """Re-encode one piece to the shared size, frame rate, and stereo AAC track.
+
+    `lead` holds the first frame and delays the audio by that many seconds, so
+    a transition into the piece covers the hold instead of its first words.
+    """
     width, height = (SIZES[orientation][0] * SCALE, SIZES[orientation][1] * SCALE)
-    duration = probe_duration(source)
+    duration = probe_duration(source) + lead
+    hold = f"tpad=start_duration={lead:.3f}:start_mode=clone," if lead else ""
+    delay = f"adelay={round(lead * 1000)}:all=1," if lead else ""
     video = (
-        f"[0:v]scale={width}:{height}:force_original_aspect_ratio=decrease,"
+        f"[0:v]{hold}scale={width}:{height}:force_original_aspect_ratio=decrease,"
         f"pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:color=#1D1F21,"
         f"fps={FPS},format=yuv420p,setsar=1[v]"
     )
     audio = (
-        "[0:a]aresample=48000,aformat=channel_layouts=stereo,apad[a]"
+        f"[0:a]{delay}aresample=48000,aformat=channel_layouts=stereo,apad[a]"
         if has_audio(source)
         else "[1:a]aformat=channel_layouts=stereo[a]"
     )
@@ -491,9 +497,12 @@ def build(reel_dir: Path) -> dict:
             if (width > height) != (orientation == "horizontal"):
                 raise SystemExit(f"{source} is {width}x{height}; the reel is {orientation}")
             normalized = work / f"piece-{number:02d}.mp4"
-            duration = normalize(source, normalized, orientation)
-            if label in {feature["title"] for feature in features} and duration > MAX_SEGMENT_SECONDS:
-                warnings.append(f"{label}: {duration:.1f}s is long for a reel segment")
+            # Feature clips start narrating NARRATION_OFFSET_SECONDS in, inside
+            # the transition window; the lead keeps the first word clear of it.
+            lead = TRANSITION_SECONDS if transition == TRANSITION_OUT else 0.0
+            duration = normalize(source, normalized, orientation, lead)
+            if label in {feature["title"] for feature in features} and duration - lead > MAX_SEGMENT_SECONDS:
+                warnings.append(f"{label}: {duration - lead:.1f}s is long for a reel segment")
             pieces.append((normalized, duration, transition or "fade"))
         reel = artifacts / "reel.mp4"
         starts = join(pieces, reel)
