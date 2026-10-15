@@ -67,6 +67,47 @@ MIN_GLIDE_MS = 260.0
 OUTPUT_FPS = 30
 SCREENCAST_QUALITY = 92
 
+SHINY_READY_TIMEOUT_MS = 20_000
+# After the first idle, late renderers (plots, widgets, fonts) still paint.
+SHINY_SETTLE_MS = 500
+
+# Shiny announces `shiny:idle` through jQuery, which native listeners miss.
+SHINY_IDLE_TRACKER_JS = r"""(() => {
+    window.__demo_shiny_idle__ = false;
+    const hook = () => {
+        if (!window.jQuery) return;
+        window.jQuery(document).on('shiny:idle', () => { window.__demo_shiny_idle__ = true; });
+    };
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', hook, {once: true});
+    } else {
+        hook();
+    }
+})()"""
+
+# Ready = connected, not busy, and through one idle. Without the jQuery hook,
+# a connected app that stays quiet for a second counts as idle.
+SHINY_READY_JS = r"""() => {
+    const app = window.Shiny && window.Shiny.shinyapp;
+    const connected = !!(app && app.isConnected && app.isConnected());
+    const busy = document.documentElement.classList.contains('shiny-busy');
+    if (!connected || busy) {
+        window.__demo_shiny_quiet_since__ = null;
+        return false;
+    }
+    if (window.__demo_shiny_idle__) return true;
+    const now = performance.now();
+    window.__demo_shiny_quiet_since__ ??= now;
+    return now - window.__demo_shiny_quiet_since__ >= 1000;
+}"""
+
+SHINY_STATE_JS = r"""() => ({
+    shiny: !!window.Shiny,
+    connected: !!(window.Shiny?.shinyapp?.isConnected?.()),
+    busy: document.documentElement.classList.contains('shiny-busy'),
+    idle_seen: !!window.__demo_shiny_idle__,
+})"""
+
 SHINY_CLIENT_ERROR_GUARD_JS = r"""(() => {
     const marker = 'Shiny Client Errors';
     const record = (text) => {
@@ -928,6 +969,23 @@ def validate_action_shape(action: object) -> str:
     return name
 
 
+def wait_for_shiny_ready(page, timeout_ms: int = SHINY_READY_TIMEOUT_MS) -> None:
+    """Wait until Shiny is connected and idle instead of sleeping a fixed time."""
+    from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+
+    try:
+        page.wait_for_function(SHINY_READY_JS, timeout=timeout_ms, polling=100)
+    except PlaywrightTimeoutError as exc:
+        state = page.evaluate(SHINY_STATE_JS)
+        raise RuntimeError(
+            f"Shiny was not connected and idle within {timeout_ms / 1000:.0f}s "
+            f"(Shiny loaded: {state['shiny']}, connected: {state['connected']}, "
+            f"busy: {state['busy']}, idle seen: {state['idle_seen']}). "
+            "Check the app log and the browser console."
+        ) from exc
+    page.wait_for_timeout(SHINY_SETTLE_MS)
+
+
 def assert_no_shiny_client_errors(page) -> None:
     panel_text = page.evaluate(SHINY_CLIENT_ERROR_SCAN_JS)
     if panel_text:
@@ -1370,14 +1428,15 @@ def preflight_project(
             )
             context.add_init_script(CURSOR_OVERLAY_JS)
             context.add_init_script(SHINY_CLIENT_ERROR_GUARD_JS)
+            context.add_init_script(SHINY_IDLE_TRACKER_JS)
             context.add_init_script(
                 f"({LOGO_OVERLAY_JS})({json.dumps(run['logo'])})"
             )
             page = context.new_page()
             page.goto(run["url"])
             page.wait_for_load_state("networkidle")
-            page.wait_for_timeout(3000)
             try:
+                wait_for_shiny_ready(page)
                 assert_no_shiny_client_errors(page)
                 assert_branding_visible(page)
             except RuntimeError as exc:
@@ -1466,6 +1525,7 @@ def record_project(
             )
             context.add_init_script(CURSOR_OVERLAY_JS)
             context.add_init_script(SHINY_CLIENT_ERROR_GUARD_JS)
+            context.add_init_script(SHINY_IDLE_TRACKER_JS)
             context.add_init_script(f"({LOGO_OVERLAY_JS})({json.dumps(logo)})")
             page = context.new_page()
             video = page.video
@@ -1483,7 +1543,7 @@ def record_project(
             page.goto(url)
             page.wait_for_load_state("networkidle")
             rest_cursor(page, width, height)
-            page.wait_for_timeout(3000)
+            wait_for_shiny_ready(page)
             assert_no_shiny_client_errors(page)
             missing = [
                 selector

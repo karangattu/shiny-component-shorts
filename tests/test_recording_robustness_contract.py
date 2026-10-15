@@ -99,5 +99,58 @@ class AppStartFailureContractTest(unittest.TestCase):
             self.assertEqual(recorder.log_tail(Path(temp) / "missing.log"), "")
 
 
+FAKE_SHINY_PAGE = """<!doctype html><html class="shiny-busy"><head><script>
+const handlers = {};
+window.jQuery = () => ({on: (event, fn) => { (handlers[event] ||= []).push(fn); }});
+window.Shiny = {shinyapp: {isConnected: () => true}};
+setTimeout(() => {
+  document.documentElement.classList.remove('shiny-busy');
+  (handlers['shiny:idle'] || []).forEach(fn => fn());
+}, 400);
+</script></head><body>app</body></html>"""
+
+
+class ShinyReadyWaitContractTest(unittest.TestCase):
+    def test_fixed_sleep_is_replaced_by_the_ready_wait(self) -> None:
+        for copy in COPIES:
+            source = (copy / "scripts/record_demo.py").read_text()
+            self.assertNotIn("wait_for_timeout(3000)", source)
+            self.assertEqual(source.count("context.add_init_script(SHINY_IDLE_TRACKER_JS)"), 2)
+            record = source[source.index("def record_project("):]
+            # The preamble is measured after the wait, so the trim drops it.
+            self.assertLess(
+                record.index("wait_for_shiny_ready(page)"),
+                record.index("preamble_seconds = time.monotonic() - recording_started"),
+            )
+
+    def test_wait_returns_after_shiny_goes_idle_and_fails_clearly_without_it(self) -> None:
+        from playwright.sync_api import sync_playwright
+
+        for copy in COPIES:
+            recorder = load("record_demo", copy)
+            with self.subTest(copy=copy.parent.name), sync_playwright() as playwright:
+                browser = playwright.chromium.launch()
+                try:
+                    context = browser.new_context()
+                    context.add_init_script(recorder.SHINY_IDLE_TRACKER_JS)
+                    page = context.new_page()
+                    page.route("http://demo.test/ready", lambda route: route.fulfill(
+                        content_type="text/html", body=FAKE_SHINY_PAGE))
+                    page.route("http://demo.test/dead", lambda route: route.fulfill(
+                        content_type="text/html", body="<html><body>no shiny</body></html>"))
+
+                    page.goto("http://demo.test/ready")
+                    recorder.wait_for_shiny_ready(page, timeout_ms=5000)
+                    state = page.evaluate(recorder.SHINY_STATE_JS)
+                    self.assertTrue(state["idle_seen"])
+                    self.assertFalse(state["busy"])
+
+                    page.goto("http://demo.test/dead")
+                    with self.assertRaisesRegex(RuntimeError, "not connected and idle within"):
+                        recorder.wait_for_shiny_ready(page, timeout_ms=500)
+                finally:
+                    browser.close()
+
+
 if __name__ == "__main__":
     unittest.main()
