@@ -1,67 +1,18 @@
 # Shiny Component Shorts
 
-Generate 30-second videos about [Shiny](https://shiny.posit.co) components. One video = one useful, surprising behavior — not a tutorial.
+Make short videos about [Shiny](https://shiny.posit.co) features. Each video shows one useful behavior in about 30 seconds.
 
-This repo is an **agent skill**: a set of instructions and helper scripts that AI coding agents — Claude Code, Google Antigravity, Codex, or OpenCode — load to plan, build, record, and validate these videos for you. You never write the pipeline yourself. You describe what you want in a prompt, and the agent plans the video, writes the mini-app, records the browser interaction, adds narration, and validates the result.
+This repo is an agent skill. You open it in an AI coding agent (Claude Code, Codex, Google Antigravity, or OpenCode), describe the video you want, and the agent does the rest: it writes a small Shiny app, records the browser, adds narration, and checks the result.
 
-## Contents
-
-- [Example shorts](#example-shorts)
-- [What you can create](#what-you-can-create)
-- [Quick start](#quick-start)
-- [Setup](#setup)
-- [Usage](#usage)
-- [Repository layout](#repository-layout)
-- [How it works](#how-it-works)
-- [Quality control](#quality-control)
-- [Video format](#video-format)
-- [Fast, cheap iteration](#fast-cheap-iteration)
-- [Narration options](#narration-options)
-- [Glossary](#glossary)
-- [Troubleshooting](#troubleshooting)
-- [Cost reporting](#cost-reporting)
-
-## Example shorts
-
-Three finished examples — two prompted from a component, one from a pull request.
+## Examples
 
 https://github.com/user-attachments/assets/af6b0ec9-b78a-4f4b-a849-ad896d4500e6
 
-*A 30-second short demonstrating one hidden Shiny behavior.*
-
 https://github.com/user-attachments/assets/79519994-e8be-4450-91f2-549f5765c4fa
 
-*A second example short.*
-
-### From a pull request as the reference
-
-[posit-dev/shinychat#269](https://github.com/posit-dev/shinychat/pull/269) — one user-facing change from the diff, demoed in 30 seconds:
+Made from a pull request, [posit-dev/shinychat#269](https://github.com/posit-dev/shinychat/pull/269):
 
 https://github.com/user-attachments/assets/a3459a49-3647-4136-b171-1801008269f1
-
-## What you can create
-
-- Short Shiny mini-apps (Python or R), including [shinychat](https://github.com/posit-dev/shinychat) chat apps and [shinyreact](https://github.com/posit-dev/shinyreact) React frontends
-- 30-second video storyboards and narration scripts
-- Automated browser recordings with a VS Code-style code card
-- Narrated, finished vertical videos
-- Videos about an **existing** Shiny app, without modifying it
-- Videos about a **pull request, commit, or SHA** — one user-facing change from the diff
-- **Changelog reels** — every new feature in the unreleased section or a named release, one after another, with an animated feature card between them
-
-New to Shiny? It's Posit's framework for data-driven web apps. This skill works with both [Shiny for Python](https://shiny.posit.co/py/) and [R Shiny](https://shiny.posit.co/r/).
-
-## Quick start
-
-1. Install the dependencies — see [Setup](#setup).
-2. Open this repo as the workspace in any supported agent: Claude Code, Google Antigravity, Codex, or OpenCode.
-3. Ask for a short, for example:
-
-   ```text
-   /shiny-component-shorts Create a vertical video about Shiny's date range picker in Python.
-   ```
-
-4. The agent creates everything under `generated/<demo-name>/` (gitignored): the mini-app, `actions.yaml`, narration, and an `artifacts/` folder with the finished videos (`demo.mp4` for silent recordings, `final_with_audio.mp4` for narrated ones), `review.png`, and `validation.json`.
 
 ## Setup
 
@@ -70,384 +21,80 @@ python -m pip install -r requirements.txt
 python -m playwright install chromium
 ```
 
-You also need `ffmpeg` and `ffprobe` on `PATH`.
+You also need `ffmpeg` and `ffprobe` on your `PATH`.
 
-`shinychat` is not listed separately because Shiny for Python already depends on it. A few shinychat features — conversation history, message editing, sibling navigation — additionally require a client object, so those demos need `pip install chatlas` in the demo's own environment. It stays out of `requirements.txt` on purpose: it pulls an LLM SDK stack that the other demos never use, and the demos that do use it drive a canned offline client, never a real model.
+Narration is optional. Gemini narration needs `pip install google-genai` and a `GEMINI_API_KEY` in your environment. Never commit the key.
 
-For narrated videos (optional — not needed for silent videos):
+## Make a video
 
-```bash
-python3 -m pip install google-genai
-export GEMINI_API_KEY="your-key"   # GOOGLE_API_KEY also works; never commit either
-```
-
-## Usage
-
-Everything is prompt-driven — the agent runs the recording, TTS, and validation scripts for you. The same skill ships in `.claude/` (Claude Code) and `.agents/` (Antigravity, Codex, OpenCode).
-
-### Claude Code
+Open the repo in your agent and ask:
 
 ```text
-/shiny-component-shorts toolbar-select in Python
-/shiny-component-shorts Create 5 did-you-know video ideas for Shiny data grid. Include runnable mini apps.
+/shiny-component-shorts Create a vertical video about Shiny's date range picker in Python.
 ```
 
-### Google Antigravity
+Everything lands in `generated/<demo-name>/`, which git ignores. The finished video is `artifacts/final_with_audio.mp4`, or `artifacts/demo.mp4` for a silent one.
 
-Open the repo root as the workspace, then:
+In OpenCode, start with `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1 opencode` so only one copy of the skill loads.
 
-```text
-Use the /shiny-component-shorts skill to create a narrated vertical video about Shiny's date range selector in Python.
-```
+### What you can ask for
 
-### Codex
+| Ask for | Example prompt |
+| --- | --- |
+| Ideas only | `Give me 5 video ideas for Shiny's data grid.` |
+| A runnable app | `Create a runnable mini-app for toolbar-select in Python.` |
+| A finished video | `Make a narrated vertical video about bslib value boxes in R.` |
+| An existing app | `Make a video about the best behavior in ~/apps/sales-dashboard.` The agent never edits your app. |
+| A pull request or commit | `Make a video about https://github.com/posit-dev/py-shiny/pull/2051` |
+| A changelog reel | `Make a changelog reel of the unreleased features in https://github.com/posit-dev/py-shiny/blob/main/CHANGELOG.md` |
+| A series | `Make 3 videos about Shiny's data grid.` The limit is 5 per component. |
 
-```text
-Use /shiny-component-shorts to create 5 mini-app video ideas for Shiny toolbar-select in Python.
-```
+The skill covers Shiny for Python, R Shiny, [shinychat](https://github.com/posit-dev/shinychat), and [shinyreact](https://github.com/posit-dev/shinyreact). Chat demos use canned replies and never call a real LLM.
 
-### OpenCode
+**Pull requests and commits** work for `rstudio/shiny`, `posit-dev/py-shiny`, `posit-dev/shinychat`, and `posit-dev/shinyreact`. The agent installs that exact build and demos one user-facing change. If the change has nothing to show on screen, it says so.
 
-Disable Claude-compatible skill discovery so only the `.agents` copy loads:
+**Changelog reels** cover every new feature in the unreleased section of a `CHANGELOG.md` or `NEWS.md`, or in a release you name. An animated "02 of 04" card comes before each feature. Features you can see get a recorded demo. API and testing changes get an animated explainer card that says why the feature helps.
 
-```bash
-OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1 opencode
-```
+## Narration
 
-```text
-Use the shiny-component-shorts skill to create a multi-video series for Shiny data grid in Python.
-```
+- **Local voice** is the default for new videos and uses the saved voice `karan`. Setup is in the [TTS reference](.agents/skills/shiny-component-shorts/references/tts-and-costs.md#use-local-voice-cloning).
+- **Gemini** narration needs an API key.
+- **Your own audio**: point the agent at a WAV or a narrated video, and it uses that audio instead of generating new audio.
+- **Silent**: the agent still writes a script to time the actions, but it generates no audio.
 
-### From a pull request, commit, or SHA
+The agent measures when each word is spoken and times every click to the words that describe it. A transcript check catches dropped or garbled words without anyone having to listen.
 
-Point the skill at a change instead of a component and it finds the one behavior in that diff worth 30 seconds:
+## What every video looks like
 
-```text
-/shiny-component-shorts Make a video about https://github.com/posit-dev/py-shiny/pull/2051
-/shiny-component-shorts Make a vertical video about posit-dev/shinychat#221 in R
-/shiny-component-shorts What's demo-worthy in rstudio/shiny commit a1b2c3d?
-```
-
-It works for `rstudio/shiny`, `posit-dev/py-shiny`, `posit-dev/shinychat`, and `posit-dev/shinyreact` (Python, R, and shared JavaScript changes). The agent resolves the ref with `gh`, reads the changelog entry before the code, ranks the public API surface above docs, tests, typing, and CI, and installs that exact build into a throwaway environment so the demo runs against the changed code rather than the released package. Unreleased changes are described as just landed, never as a version number that has not shipped. If the changeset is an internal refactor with nothing visible, the agent says so instead of manufacturing a demo.
-
-shinychat demos never call a real LLM — canned replies and canned streams keep recordings repeatable and key-free.
-
-### From a changelog
-
-Point the skill at a `CHANGELOG.md` or `NEWS.md` to get one reel covering every new feature in a release:
-
-```text
-/shiny-component-shorts Make a changelog reel of the unreleased features in https://github.com/posit-dev/py-shiny/blob/main/CHANGELOG.md
-/shiny-component-shorts Make a changelog reel for shinychat 0.7.0
-```
-
-The agent reads the unreleased section by default, or the release you name, and keeps up to six user-facing features. Each feature gets its own short segment: a recorded mini-app when the feature is visible, or an animated explainer card when it is an API or testing change. Every segment explains why the feature helps; code appears only when it is the point. `stitch_reel.py` adds an intro card, an animated "02 of 04" card before each feature, and an outro, joins them with transitions, and writes `reel.mp4` plus chapter times for the video description.
-
-### shinyreact
-
-[posit-dev/shinyreact](https://github.com/posit-dev/shinyreact) connects a React UI to a Python or R Shiny server. Ask for one visible behavior, such as two controls sharing an input or a server result updating the UI:
-
-```text
-/shiny-component-shorts Create a runnable shinyreact mini-app proving shared input state in Python.
-/shiny-component-shorts Make a vertical video about a shinyreact output status in R.
-/shiny-component-shorts Find one demo-worthy change in posit-dev/shinyreact commit <sha>.
-```
-
-The skill defaults to Python Express plus `www/ui.js` and `www/ui.css`, using the package's bundled React without a frontend build. Existing JSX/TSX projects use their own build instructions. Record with `--app-type python` or `r`, matching the server. Code cards can select frontend files with `source_file: www/ui.js`.
-
-Install shinyreact only in the demo environment, after the baseline requirements: `python -m pip install shinyreact`, or install the requested Git SHA from the repository root. Its Shiny requirement can be newer than this repo's baseline pin, so do not reinstall the baseline afterward; check the resolved versions with `python -m pip check`. For R, install `posit-dev/shinyreact/pkg-r` into a demo-local library. See the [shinyreact reference](.agents/skills/shiny-component-shorts/references/shinyreact.md) for details.
-
-### Multi-video series
-
-Ask for multiple videos about one component and the skill uses its series workflow:
-
-- At most **5 videos per component**, each proving a distinct hidden behavior
-- Fewer ideas are returned when the component lacks enough strong, visual behaviors
-- One lead agent locks the research and series direction; up to three subagents build videos in isolated directories
-- TTS, recording, audio merging, and validation run through a cached, timing-safe batch processor
+- Vertical 9:16 by default, with the app in the middle 60% of the frame.
+- The Shiny logo sits in the top-left for the first 5 seconds, then fades out.
+- At least three clicks or inputs, each with a visible change.
+- A syntax-highlighted code card in a VS Code-style window. It shows real source context from the app with the key line highlighted.
+- Only the official Shiny colors.
 
 ## Repository layout
 
 ```text
-├── .agents/skills/shiny-component-shorts/   skill source for Antigravity, Codex, and OpenCode
-│   ├── SKILL.md                             the instructions agents load
-│   ├── references/                          creative playbook, pacing, recording, and TTS rules
-│   └── scripts/                             record_demo.py, validate_demo.py, batch_process.py, ...
-├── .claude/                                 the same skill, for Claude Code
-├── presentation/                            a talk about this pipeline (Quarto)
-├── tests/                                   contract tests for the skill and the scripts
-├── generated/                               demo output — created by the pipeline, gitignored
-└── requirements.txt
+.claude/skills/shiny-component-shorts/   the skill for Claude Code
+.agents/skills/shiny-component-shorts/   the skill for Codex, Antigravity, and OpenCode
+  SKILL.md                               instructions the agent follows
+  references/                            detailed rules for pacing, recording, and narration
+  scripts/                               recorder, validator, narration, and reel tools
+tests/                                   contract tests
+presentation/                            a talk about this pipeline
+generated/                               your videos (gitignored)
 ```
 
-## How it works
-
-The pipeline runs in three phases — **concept**, **build**, and **verify**. Each video starts at the top of phase 1, follows one branch in phase 2, and exits through phase 3.
-
-```mermaid
-flowchart TD
-    subgraph CON["1 · Concept"]
-        direction TB
-        A["User request"] --> B["Scope only the requested output"]
-        B --> C["Read the required references"]
-        C --> D["Research official Shiny documentation"]
-        D --> E["List genuinely visual behaviors"]
-
-        E --> F{"Creative checks<br/>passed?"}
-        F -- "No" --> R1["Reject or refine candidate"]
-        R1 --> E
-        F -- "Yes" --> G["Choose one hidden behavior"]
-
-        G --> H{"Proof shape"}
-        H -- "Direct comparison" --> I
-        H -- "Two-way proof" --> I
-
-        I["Idea package<br/>Angle · Hook · Mini-app · Variations<br/>Storyboard · Action → reaction plan"]
-    end
-
-    subgraph BLD["2 · Build"]
-        direction TB
-        I --> J{"Multi-video series?"}
-        J -- "Yes" --> K["Lead agent<br/>scores up to five distinct behaviors"]
-        K --> L["Lead agent<br/>orders strongest first, assigns<br/>visual + performance directions"]
-        L --> M["Lead agent dispatches subagents<br/>one isolated directory per video<br/>up to three at once"]
-        M --> M2["Each subagent builds and verifies<br/>only its assigned video"]
-        M2 --> N
-
-        J -- "No" --> N{"Deliverable?"}
-
-        N -- "Idea only" --> O["Return complete idea package<br/>Create no files or media"]
-
-        N -- "Runnable app" --> P["Build minimal app.py or app.R"]
-        P --> P1["Realistic data · stable selectors"]
-        P1 --> P2["Run app and exercise the behavior"]
-
-        N -- "Existing app" --> Q["Inspect source, deps, run instructions"]
-        Q --> Q1["Run the original app unchanged"]
-        Q1 --> Q2{"Behavior visually<br/>provable?"}
-        Q2 -- "No" --> Q3["Report strongest near-misses<br/>No manufactured interactions"]
-        Q2 -- "Yes" --> Q4["Original app stays the subject<br/>Sidecar production directory"]
-
-        N -- "Silent recording" --> S["Storyboard + actions.yaml"]
-        Q4 --> S
-        P2 --> S
-        S --> S1["Narration envelope<br/>Timing target only — no paid TTS"]
-        S1 --> S2["Run record_demo.py"]
-        S2 --> S3["Run validate_demo.py"]
-
-        N -- "Narrated video" --> T["Narration envelope + transcript"]
-        Q4 --> T
-        P2 --> T
-        T --> T1{"Narration source?"}
-        T1 -- "Generate TTS" --> T2["Generate narration.wav<br/>local: rank 3 takes, pin one"]
-        T1 -- "Existing audio" --> T3["Import audio, match transcript"]
-        T2 --> T4
-        T3 --> T4
-
-        T4["Measure word timing + transcript check"]
-        T4 --> T5["Anchor actions.yaml with cue phrases"]
-        T5 --> T6{"Multiple videos?"}
-
-        T6 -- "No" --> T7["Record + validate with --require-audio"]
-        T7 --> T8["Merge using merge_audio.py"]
-
-        T6 -- "Yes" --> U["Batch narration phase"]
-        U --> U1["Read transcript checks + cue times"]
-        U1 --> U2["Adjust cues in actions.yaml"]
-        U2 --> U3["Approve exact timing inputs"]
-        U3 --> U4["Batch record · merge · validate"]
-    end
-
-    subgraph VER["3 · Verify"]
-        direction TB
-        O --> V
-        P2 --> V
-        S3 --> V
-        T8 --> V
-        U4 --> V
-        Q3 --> Z
-
-        V{"Verification gate"}
-
-        V --> V1["Requested outputs exist and are non-empty"]
-        V1 --> V2["Behavior and selectors work"]
-        V2 --> V3["Validate resolution, cursor, timing, media"]
-        V3 --> V4["Inspect first, reveal, code, final frames"]
-        V4 --> V5["For audio: cue offsets + transcript check;<br/>listen when possible"]
-
-        V5 --> W{"Every check passes?"}
-        W -- "No" --> X["Revise the weakest layer<br/>Concept · App · Actions · Timing · Audio"]
-        X --> N
-        W -- "Yes" --> Z["Report verified deliverables"]
-    end
-
-    CS["Changeset entry (PR · commit · SHA)<br/>Resolve with gh · read the changelog first<br/>Pick one user-facing change · install that build"]
-    CS -. "Alternate research path" .-> E
-
-    GC["Global production constraints<br/>One trick · 3 meaningful reactions · 9:16 default<br/>Middle 60% app band · Shiny palette · Phone-readable"]
-    GC -. "Applies throughout" .-> I
-    GC -.-> P
-    GC -.-> S
-    GC -.-> T
-
-    SER["Series orchestration<br/>Lead agent: research · scoring · ordering ·<br/>visual + performance directions · final acceptance<br/>Subagents: build and verify one isolated video each<br/>Batch processor: TTS · record · merge · validate"]
-    SER -. "Lead agent" .-> K
-    SER -. "Subagents" .-> M2
-    SER -. "Batch processor" .-> U
-
-    classDef process fill:#007BC2,color:#FFFFFF,stroke:#005F96,stroke-width:2px;
-    classDef decision fill:#F9B928,color:#1D1F21,stroke:#9A6A00,stroke-width:2px;
-    classDef reject fill:#C10000,color:#FFFFFF,stroke:#830000,stroke-width:2px;
-    classDef success fill:#00891A,color:#FFFFFF,stroke:#005D12,stroke-width:2px;
-    classDef note fill:#F8F8F8,color:#1D1F21,stroke:#CDD4DA,stroke-width:2px;
-
-    class A,B,C,D,E,G,I,K,L,M,M2,O,P,P1,P2,Q,Q1,Q4,S,S1,S2,S3,T,T2,T3,T4,T5,T7,T8,U,U1,U2,U3,U4,V1,V2,V3,V4,V5 process;
-    class F,H,J,N,Q2,T1,T6,V,W decision;
-    class R1,Q3,X reject;
-    class Z success;
-    class CS,GC,SER note;
-```
-
-## Quality control
-
-```mermaid
-flowchart TD
-    A["Component or content request"] --> B["Confirm scope<br/>Idea, app, recording, or finished video"]
-    B --> C["Research official Shiny documentation"]
-    C --> D["List genuinely visual behaviors"]
-
-    D --> E{"Creative checks<br/>passed?"}
-    E -- "No" --> F["Reject or replace the behavior"]
-    F --> D
-    E -- "Yes" --> G["Choose proof shape<br/>Direct comparison or two-way proof"]
-
-    G --> H["Create hook, storyboard,<br/>and action → reaction plan"]
-    H --> I{"Concept quality gate"}
-
-    I -- "Needs explanation to be visible" --> F
-    I -- "Fewer than 3 meaningful reactions" --> F
-    I -- "More than one trick" --> F
-    I -- "Pass" --> J["Generate only the requested content"]
-
-    J --> K{"Artifact type"}
-
-    K -- "Idea" --> L["Check complete deliverables<br/>angle, hook, variations, storyboard, actions"]
-    K -- "App" --> M["Run app and exercise behavior<br/>Check selectors, readability, and reactive output"]
-    K -- "Recording" --> N["Validate timing, resolution,<br/>cursor targets, code card, and final frame"]
-    K -- "Narrated video" --> O["Check audio quality and alignment<br/>Visible reactions match spoken sentences"]
-
-    L --> P{"Final acceptance gate"}
-    M --> P
-    N --> P
-    O --> P
-
-    P -- "Missing, empty, or unclear" --> Q["Revise and validate again"]
-    Q --> J
-    P -- "Pass" --> R["Approved content artifact"]
-
-    classDef process fill:#007BC2,color:#FFFFFF,stroke:#005F96,stroke-width:2px;
-    classDef decision fill:#F9B928,color:#1D1F21,stroke:#9A6A00,stroke-width:2px;
-    classDef reject fill:#C10000,color:#FFFFFF,stroke:#830000,stroke-width:2px;
-    classDef success fill:#00891A,color:#FFFFFF,stroke:#005D12,stroke-width:2px;
-
-    class A,B,C,D,G,H,J,L,M,N,O process;
-    class E,I,K,P decision;
-    class F,Q reject;
-    class R success;
-```
-
-### Legend
-
-- **Blue** `#007BC2` — normal production steps
-- **Yellow** `#F9B928` — decision gates
-- **Red** `#C10000` — rejection and revision loops
-- **Green** `#00891A` — approved output
-
-## Video format
-
-Every recording must:
-
-- Use at least **3 meaningful interactions** and **3 visible state changes**
-- Reveal, contrast, and replay or reset the same hidden behavior — no long idle waits or static code cards
-- Default to a true 9:16 vertical composition with the app as the hero
-- Reserve the top and bottom 20% of the frame for branding
-- Open with the Shiny wordmark, which the recorder stamps into the top-left for the first 5 seconds at phone-legible size, then fades out, flipping to white where a dark backdrop would swallow it
-- Use the official Shiny palette (`#007BC2` blue, `#1D1F21` text on light, `#FFFFFF` text on dark)
-
-The storyboard follows `Problem → Reveal → Proof → Code → Payoff`, but those labels never appear on screen — the browser recording stays clean.
-
-Recordings are captured from Chromium's compositor at full resolution and encoded at 30 fps on the same clock as the actions. The cursor rests in frame from the first second, travels in gentle arcs timed by distance, and types with a natural rhythm.
-
-During the code beat, a syntax-highlighted code card styled like a real VS Code window shows real source context: a verbatim slice of the app with dimmed `before`/`after` lines around one animated, highlighted decisive line, and honest gutter numbers. In vertical videos it renders in the lower half of the frame, below the component; in horizontal videos the app and code sit side by side. It fades and slides in and out rather than popping.
-
-Narration is speech only — laughing, giggling, and other non-speech sounds are rejected by validation. Detailed pacing rules live in each skill's `references/` directory.
-
-## Fast, cheap iteration
-
-A full take is a browser run, an encode, a validation, and a frame review, so the pipeline front-loads the cheap checks:
-
-- **Preflight** — `record_demo.py --dry-run` starts the app, resolves every selector, scans for a **Shiny Client Errors** panel, and screenshots the composition without recording. Missing selectors surface in seconds instead of after a full take.
-- **Review sheet** — `review_frames.py` tiles the first, reveal, code, and final frames into one `artifacts/review.png` at phone width, which is the size the video is actually judged at.
-- **Validation summary** — the validator prints a short summary, including which narration sentence each visible action lands in, and writes the full report to `artifacts/validation.json`.
-
-The skill also asks the agent to keep one video per session and to run the record → inspect → fix loop in a subagent, so a long production run does not keep re-reading its own history.
-
-## Narration options
-
-Just describe what you want in the prompt:
-
-- **Generated narration** (default when you ask for audio) — the agent writes the script and synthesizes it with Gemini 3.8 Flash TTS, then times every on-screen action to the measured audio.
-- **Reuse existing narration** — point the agent at a WAV or an already-narrated video and it uses that audio instead of calling TTS. No API key needed.
-
-  ```text
-  /shiny-component-shorts Create a vertical video about bslib value boxes in R.
-  Use the narration from recordings/value-box-take2.wav instead of generating new audio.
-  ```
-
-  ```text
-  Use the shiny-component-shorts skill to remake the slider demo video, reusing the
-  narration audio from old-videos/slider-final.mp4.
-  ```
-
-- **Silent videos** — a narration script is still written (it drives action timing), but no TTS is called and no API key is required.
-
-  ```text
-  /shiny-component-shorts Create a vertical video about Shiny's date range picker
-  in Python, with a narration script but no audio — I'll record the voiceover myself.
-  ```
-
-- **Local narration (default for new agent-generated videos)** — use saved voice `karan`, or ask for another saved voice, or a reference recording. The agent writes `tts-settings.json`, generates audio through the local API, and measures it before recording. See [local voice setup and settings](.agents/skills/shiny-component-shorts/references/tts-and-costs.md#use-local-voice-cloning). Existing projects retain their explicit provider settings. Local synthesis sends the whole transcript in one request — pause tags become line breaks the engine paces naturally — and uses the engine's audio byte-for-byte, with no inserted silence or joins. A rushed voice is slowed with the engine `speaking_rate` (below 1.0) rather than accepted as-is, and every take is measured against a WPM pace gate; the recording is timed to the narration. Audio review checks for background noise switching on and off around words, with recording-specific cleanup when needed. Timing is checked again after voice changes, including a final audiovisual review.
-
-- **Pin a voice or model** — add a per-video `tts-settings.json` with `{"voice": "Kore"}` and the agent uses it for that video.
-
-For narrated videos, the agent generates the audio first and measures every word's spoken time locally with faster-whisper. A transcript check catches dropped or mispronounced words and non-speech sounds without anyone having to listen. `actions.yaml` then anchors each reaction to the phrase that describes it with a `cue` action, so clicks and the code card land on their words at any machine speed, and the validator rejects any cued reaction more than a second early or half a second late. New local narration is generated as three takes that are loudness-matched and ranked objectively before one is pinned.
-
-Audio merging uses constant gain toward -14 LUFS within peak headroom, preserving dynamics. Selected takes can bypass gain and filtering with `audio_processing: "preserve"`. Either way the narration starts 0.15 s in, its silent tail fades out instead of cutting to digital silence, and an optional user-supplied music bed can sit far beneath the voice.
-
-## Glossary
-
-- **actions.yaml** — the timed action script that drives a recording: every click, hover, type, wait, and code reveal. The storyboard becomes this file; the recorder and the validator both read it.
-- **Code card** — the VS Code-style panel shown during the code beat, with the decisive line highlighted and the surrounding source dimmed.
-- **Narration envelope** — the full narration prompt (script, pacing, and timing guidance) written before any recording; for silent videos it serves as the timing target only.
-- **Proof shape** — how a video proves the behavior: a **direct comparison** (two states of the same control) or a **two-way proof** (change it forward, then change it back).
-- **Beats** — the five-part storyboard structure: `Problem → Reveal → Proof → Code → Payoff`.
-- **Sidecar directory** — for videos about an existing app: `actions.yaml`, narration, and artifacts live in `generated/demo-name/` while the original app is never modified.
-- **Changeset** — a pull request, commit, or SHA that a video is made from; the video demos exactly one user-facing change in it.
-- **Preflight** — a dry run of the recorder that starts the app, resolves every selector, and resolves every cue to a video time without recording anything.
-- **Cue** — an `actions.yaml` action that anchors the next visible action to the moment a transcript phrase is spoken.
-- **Shiny Client Errors panel** — an error overlay Shiny shows for client-side errors; any recording with one visible fails validation.
+The two skill copies are edited together but are not identical, so don't copy one over the other.
 
 ## Troubleshooting
 
-- **Narrated video fails with a missing API key** — the Gemini key is only needed for generated narration. Use a silent video, or reuse existing narration from a WAV or MP4 (see [Narration options](#narration-options)).
-- **`record_demo.py --dry-run` reports missing selectors** — the app or `actions.yaml` changed. Fix the app or the selector; never loosen a selector to something unstable.
-- **A Shiny Client Errors panel is visible** — this is a blocking failure. Fix the app, then re-record from scratch.
-- **`ffmpeg` not found** — install `ffmpeg` and `ffprobe` and make sure both are on `PATH`.
-- **Port already in use when a demo starts** — the recorder picks a free port on its own; never kill an unknown process to reclaim one.
-- **Never commit API keys** — `GEMINI_API_KEY` and `GOOGLE_API_KEY` are secrets. Set them in your environment or an agent secrets store, never in a file in the repo.
+- **Missing selectors in the preflight**: the app or `actions.yaml` changed. Fix the selector instead of making it looser.
+- **"Shiny Client Errors" panel on screen**: the recording fails. Fix the app and record again.
+- **The app won't start**: the error shows the app's own output. This is usually a missing package in the demo's environment.
+- **`ffmpeg` not found**: install it and make sure `ffmpeg` and `ffprobe` are on your `PATH`.
+- **Port already in use**: the recorder picks a free port by itself. Don't kill unknown processes to free one.
 
-## Cost reporting
+## Cost
 
-- `artifacts/narration.usage.json` records exact Gemini token usage and a paid-tier list-price estimate
-- Imported or silent narration reports `$0` TTS cost
-- Each artifact-generating workflow ends with a cost report; subscription usage, unavailable usage, and list-price estimates are labeled separately so a partial estimate is never presented as a complete bill
+Each run ends with a cost report. Gemini token usage is saved to `artifacts/narration.usage.json`. Local voice, your own audio, and silent videos cost $0 in TTS.
