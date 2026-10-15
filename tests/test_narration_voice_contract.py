@@ -35,6 +35,22 @@ class NarrationVoiceLintTest(unittest.TestCase):
         self.assertEqual(check_narration_voice.voice_problems(prompt), [])
         self.assertEqual(generate_tts.validate_narration_prompt(prompt), [])
 
+    def test_sales_pitch_script_is_flagged(self) -> None:
+        flagged = " ".join(
+            check_narration_voice.voice_problems(check_narration_voice.SALESY_PROMPT)
+        )
+        for marker in ("Sales hype", "Ad phrase", "Exclamation", "ad-style question", "call to action"):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, flagged)
+
+    def test_plain_talk_is_not_mistaken_for_a_pitch(self) -> None:
+        spoken = (
+            "So this button shows a notification every time it runs. I'll click it twice. "
+            "Now there are two of them, stacked. Give the notification an id and Shiny "
+            "replaces the old one instead of adding another. Same button, one box."
+        )
+        self.assertEqual(check_narration_voice.sales_problems(spoken), [])
+
     def test_written_sounding_script_is_flagged_for_every_shape(self) -> None:
         flagged = " ".join(
             check_narration_voice.voice_problems(

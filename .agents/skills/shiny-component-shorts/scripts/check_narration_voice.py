@@ -22,6 +22,31 @@ BANNED_PHRASE_RE = re.compile(
     r"|let['’]s explore|effortlessly|supercharge)\b",
     re.IGNORECASE,
 )
+# Sales and marketing language: a developer talking to a coworker never says these.
+HYPE_WORD_RE = re.compile(
+    r"\b(?:amazing|incredible|awesome|magic(?:al)?|instantly|effortless|beautiful(?:ly)?"
+    r"|stunning|revolutionary|ultimate|insanely|mind-blowing|must-have|blazing|super easy"
+    r"|simply|next level|level up|secret weapon|hack)\b",
+    re.IGNORECASE,
+)
+AD_PHRASE_RE = re.compile(
+    r"\b(?:here['’]s the thing|watch this|the best part|but wait|say goodbye to|no more"
+    r"|imagine|what if i told you|trust me|you['’](?:re going to|ll) love"
+    r"|that['’]s the (?:whole )?(?:trick|magic|secret)|it['’]s that (?:easy|simple)"
+    r"|the good news)\b",
+    re.IGNORECASE,
+)
+# An opener that asks the viewer about their pain is an ad's hook, not a person talking.
+AD_HOOK_RE = re.compile(
+    r"^\s*(?:still|tired|sick|ever|what if|want|wish|struggling|are you|do you|did you know"
+    r"|why is your|stop)\b[^.!]*\?",
+    re.IGNORECASE,
+)
+CALL_TO_ACTION_RE = re.compile(
+    r"\b(?:try it|give it a (?:try|shot|go)|check it out|start using|go build|grab it"
+    r"|upgrade (?:now|today)|don['’]t miss)\b",
+    re.IGNORECASE,
+)
 NOT_JUST_RE = re.compile(r"\bnot just\b", re.IGNORECASE)
 IN_THEN_OUT_RE = re.compile(r"\bin,\s*[^.!?]*\bout\b", re.IGNORECASE)
 SHORT_LIST_RE = re.compile(r"\b\w+,\s\w+,\s+and\s+\w+\b")
@@ -43,7 +68,7 @@ Director's notes:
 Speak at a natural conversational pace. Allow normal pauses between thoughts and before reveals; do not rush to fit the video. Emphasize the surprising behavior. Do not laugh, giggle, or chuckle. Do not add sighs, gasps, coughs, filler sounds, or any other non-speech vocalization. Do not sound like a corporate tutorial. Read only the transcript below.
 
 Transcript:
-Why is your Shiny text box three lines tall, with a scrollbar doing all the work? [long pause] It isn't the text box at all. The rows are what do it. Rows on the input is what sets the height, and one row is about one line of text. So change rows to four and watch the box grow right away. No scrollbar, no custom CSS. [short pause] I missed this for months and kept writing CSS to force the height. The docs say it in the rows argument. [medium pause] That's the whole trick, and you write one line to get it."""
+So this is a Shiny text area with three rows, and the scrollbar's already doing most of the work. [short pause] I always assumed the fix was CSS. It isn't. The height comes from the rows argument, and one row is roughly one line of text. I'll change rows to four. [medium pause] The box grows right away, and the scrollbar's gone. No custom CSS. I missed this for months and kept writing CSS to force the height, even though the docs mention it right there in the rows argument. [long pause] Set it back to three. It shrinks again, so that one argument really is what controls the height."""
 
 WRITTEN_SOUNDING_PROMPT = """Synthesize this as a natural, curious tech explainer for a 45-second Shiny component video.
 
@@ -95,6 +120,30 @@ def phrase_problems(spoken: str) -> list[str]:
     lists = sorted({match.group(0) for match in SHORT_LIST_RE.finditer(spoken)})
     if lists:
         problems.append("Tidy three-item list(s): " + "; ".join(lists))
+    return problems + sales_problems(spoken)
+
+
+def sales_problems(spoken: str) -> list[str]:
+    """Flag pitch language; the narrator explains, the way you'd tell a coworker."""
+    problems = []
+    hype = sorted({match.group(0).casefold() for match in HYPE_WORD_RE.finditer(spoken)})
+    if hype:
+        problems.append("Sales hype word(s): " + ", ".join(hype) + "; say what happens instead")
+    ads = sorted({match.group(0).casefold() for match in AD_PHRASE_RE.finditer(spoken)})
+    if ads:
+        problems.append("Ad phrase(s): " + ", ".join(ads) + "; talk it through plainly")
+    if "!" in spoken:
+        problems.append("Exclamation marks sound like an ad; use a full stop")
+    sentences = sentences_of(spoken)
+    if sentences and AD_HOOK_RE.search(sentences[0]):
+        problems.append(
+            "The opener is an ad-style question about the viewer's pain; start by saying "
+            "what's on screen or what you ran into, as a plain statement"
+        )
+    if sentences and CALL_TO_ACTION_RE.search(sentences[-1]):
+        problems.append(
+            "The script ends on a call to action; end on what the viewer just saw"
+        )
     return problems
 
 
@@ -159,6 +208,21 @@ def voice_problems(prompt_text: str) -> list[str]:
     return problems
 
 
+SALESY_PROMPT = """Synthesize this as a natural, curious tech explainer for a 45-second Shiny component video.
+
+Audio profile:
+A clear developer voice.
+
+Scene:
+A demo.
+
+Director's notes:
+Read only the transcript below.
+
+Transcript:
+Still writing CSS just to size a text box? Here's the thing. Shiny makes it amazing, and it works instantly! Say goodbye to scrollbars, because the best part is you set one argument and you're done with it for good. Try it on your next app."""
+
+
 def self_test() -> int:
     failures = []
     if voice_problems(GOOD_PROMPT):
@@ -181,6 +245,10 @@ def self_test() -> int:
     for marker in expected:
         if marker not in flagged:
             failures.append(f"written-sounding script was not flagged for {marker}")
+    salesy = " ".join(voice_problems(SALESY_PROMPT))
+    for marker in ("Sales hype", "Ad phrase", "Exclamation", "ad-style question", "call to action"):
+        if marker not in salesy:
+            failures.append(f"sales-pitch script was not flagged for {marker}")
     for failure in failures:
         print(f"- {failure}")
     print("self-test passed" if not failures else f"self-test failed ({len(failures)})")
