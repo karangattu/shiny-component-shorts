@@ -63,7 +63,9 @@ Each segment carries its own narration, 35–65 words (about 15–25 seconds). W
 
 1. The situation or pain the user had before (one sentence).
 2. What the feature does now, matched to what is on screen.
-3. The benefit to the user's app or workflow.
+3. What that saves you, as one concrete fact (“you don't need the CSS anymore”), not a pitch.
+
+Talk like a developer walking a teammate through the release, not a launch announcement: no hype words, no “exciting new”, no exclamation marks, and no “try it today” at the end. The outro card carries the install command.
 
 Name the function or argument once, the way the changelog does. Do not say "in this release" unless the release notes confirm the version. For the unreleased section, say "coming soon" or "in the next release", never a version number. Do not read the card's title aloud as the first words; the card already shows it, so open on the problem.
 

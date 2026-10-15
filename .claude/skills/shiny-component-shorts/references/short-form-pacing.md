@@ -6,7 +6,7 @@ Use these patterns when creating or editing a recorded short. They are derived f
 
 Layer information so the viewer always knows two things:
 
-1. **Why to care:** A short problem-led hook in narration or later editing, not baked into the app UI.
+1. **Why to care:** A short, plainly stated problem in the narration (or a later edit), not baked into the app UI and not phrased as a pitch.
 2. **What is happening now:** The app state and narration captions make the current action clear.
 
 Do not render the hook as an in-app eyebrow, series label, or oversized headline. Let the component occupy that space.
@@ -17,15 +17,19 @@ Captions belong to a later edit, never to the browser recording: `actions.yaml` 
 
 ## Hook pattern
 
-Call out a precise Shiny frustration or desired outcome before naming the component.
+State a precise Shiny problem plainly, the way you'd mention it to a coworker, before naming the component.
 
 Weak:
 
 > Did you know Shiny has update functions?
 
-Stronger:
+Also weak (sounds like an ad):
 
 > Still stacking the same notification five times?
+
+Stronger:
+
+> Every time this button runs, Shiny stacks another notification on top of the last one.
 
 Then reveal the component behavior that solves it. The first visible state change must land during the hook sentence — anchor it with a `cue` to a word about 1.5–3 s into the narration so the pointer has time to travel.
 

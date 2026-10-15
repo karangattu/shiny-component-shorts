@@ -141,17 +141,21 @@ Reference pattern: a chat demo pairs a provider-wire monitor — bars arriving i
 
 ## Hooks
 
-Lead with the precise frustration or desired outcome. Name the component after the viewer knows why to care.
+Open by saying what's on screen or what you ran into, as a plain statement, the way you'd start explaining something to a coworker. The specific problem is still the hook; it just isn't phrased as a pitch. Name the component once the viewer can see why it matters.
 
-Weak:
+Weak (trivia):
 
 > Did you know Shiny has text areas?
 
+Weak (ad):
+
+> Still fighting your Shiny text box? Here's the fix!
+
 Strong:
 
-> Why is your Shiny text box three lines tall, with a scrollbar doing all the work?
+> So this is a Shiny text area with three rows, and the scrollbar's already doing most of the work.
 
-Keep the hook short enough to speak while the first action begins.
+Keep the hook short enough to speak while the first action begins. Don't open on a question about the viewer's pain ("Still…?", "Tired of…?", "Ever wish…?").
 
 ## Narration
 
@@ -164,12 +168,25 @@ Keep the hook short enough to speak while the first action begins.
 - Avoid `game-changer`, `seamless`, `powerful`, `unlock`, `elevate`, `dive in`, `let’s explore`, `effortlessly`, and `supercharge`.
 - Avoid “It’s not just X, it’s Y” and tidy rule-of-three constructions.
 
+### Talk, don't pitch
+
+The narrator is a developer explaining what they're doing, not a presenter selling a feature. Read the script and ask: would I say this out loud to a teammate? If it sounds like a product launch, rewrite it.
+
+- Say what you do and what happens: “I'll change rows to four. The box grows.” Not “Watch the magic happen.”
+- No hype words: amazing, incredible, instantly, effortless, magic, beautiful, simply, super easy, next level.
+- No ad phrases: “Here's the thing”, “The best part”, “Say goodbye to”, “No more…”, “Imagine…”, “Trust me”, “You'll love”, “That's the trick”, “It's that easy”.
+- No exclamation marks. Excitement comes from what the viewer sees, not from punctuation.
+- Don't open with a pitch question about the viewer's pain; say what's on screen or what you hit.
+- Don't end on a call to action (“Try it today”, “Give it a try”, “Check it out”). End on what the viewer just saw, or one plain fact about it.
+- State the benefit as a concrete fact (“You don't need the CSS anymore”), once. Don't oversell it.
+- Small honest asides are fine: “I missed this for months”, “It's a small thing, but”. They're what make it sound like a person.
+
 ### Speech texture pass
 
 The `simple-english` rewrite makes a script clear, not human. Run a second pass after it, before you save `narration.txt`, and put the spoken texture back in:
 
 - Keep contractions and add sentence fragments: two to four per script, for the plain beats (“No scrollbar, no custom CSS.”).
-- Open one or two beats with a discourse marker: “So”, “Now”, “Okay”, “Watch this”, “Here’s the thing”. Speech moves between thoughts this way, and the `simple-english` no-filler rule does not apply to these.
+- Open one or two beats with a plain discourse marker: “So”, “Now”, “Okay”, “Right”. Speech moves between thoughts this way, and the `simple-english` no-filler rule does not apply to these. Skip presenter markers like “Watch this” or “Here’s the thing”; they sound like a pitch.
 - Allow at most one first-person reaction per script (“I missed this for months”).
 - Vary the rhythm: no three consecutive sentences within four words of each other, at least one fragment and one sentence of twelve words or more, and no three consecutive sentences that start with the same word.
 - Ban the shapes, not only the words: parallel cadences (“Real units in, honest progress out”), tidy closing aphorisms, three-item lists, and “not just X, but Y”.
