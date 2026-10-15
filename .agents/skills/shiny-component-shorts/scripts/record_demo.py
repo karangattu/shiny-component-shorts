@@ -236,6 +236,16 @@ LOGO_OVERLAY_JS = r"""(cfg) => {
             window.__demo_logo_hidden__ = true;
             logo.style.opacity = '0';
         };
+        // The hide time survives reloads and navigation within the tab, so a
+        // demo that reloads the page never brings the logo back.
+        let hideAt = 0;
+        try { hideAt = Number(sessionStorage.getItem('__demo_logo_hide_at__')) || 0; } catch (e) {}
+        if (hideAt && Date.now() >= hideAt) {
+            logo.style.transition = 'none';
+            window.__demo_hide_logo__();
+        } else if (hideAt) {
+            setTimeout(window.__demo_hide_logo__, hideAt - Date.now());
+        }
 
         const channel = value => {
             const scaled = value / 255;
@@ -593,7 +603,10 @@ def resolve_logo_seconds(config: dict) -> float:
 def hide_logo_after(page, seconds: float) -> None:
     """Fade the wordmark out once the video reaches its logo time."""
     page.evaluate(
-        "ms => setTimeout(() => window.__demo_hide_logo__?.(), ms)",
+        """ms => {
+            try { sessionStorage.setItem('__demo_logo_hide_at__', String(Date.now() + ms)); } catch (e) {}
+            setTimeout(() => window.__demo_hide_logo__?.(), ms);
+        }""",
         max(0.0, seconds) * 1000,
     )
 
