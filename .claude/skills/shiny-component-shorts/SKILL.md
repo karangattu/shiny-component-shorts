@@ -1,6 +1,6 @@
 ---
 name: shiny-component-shorts
-description: Create interactive Shiny Python, Shiny R, shinychat, or shinyreact mini-apps, 45-second "Did you know?" video concepts, Gemini or locally cloned narration and audio, storyboards, recording automation, and editing notes. Use when the user provides a Shiny or shinychat component name, docs URL, existing app path, pull request, commit URL, or commit SHA, or asks for a short demo or video around a Shiny UI feature or a change that just landed.
+description: Create interactive Shiny Python, Shiny R, shinychat, or shinyreact mini-apps, 45-second "Did you know?" video concepts, Gemini or locally cloned narration and audio, storyboards, recording automation, and editing notes. Use when the user provides a Shiny or shinychat component name, docs URL, existing app path, pull request, commit URL, or commit SHA, or asks for a short demo or video around a Shiny UI feature or a change that just landed. Also use it for a changelog reel: a video walking through the new features of the unreleased section or a named release of a Shiny CHANGELOG.md or NEWS.md.
 ---
 
 # Shiny Component Shorts (Claude Code)
@@ -9,7 +9,7 @@ Create one-screen Shiny demos that make one hidden component behavior obvious in
 
 ## Core contract
 
-- One video = one trick, not a component tutorial.
+- One video = one trick, not a component tutorial. A changelog reel is the one exception: it strings one segment per new feature together, and each segment still covers one feature.
 - Prove the trick on screen through a direct comparison or a two-way proof.
 - Use at least three meaningful actions and three visible state changes in recordings.
 - Prefer Python Shiny Express unless the user requests R or R is materially clearer.
@@ -26,7 +26,7 @@ Create one-screen Shiny demos that make one hidden component behavior obvious in
 - Never ship or record an app while a **Shiny Client Errors** panel is visible. Give every input a stable ID and use unique output IDs; any detected client-error panel is a blocking failure.
 - Treat runnable demo projects and their media as disposable outputs. Unless the user provides another destination, create them under `generated/demo-name/`, which is gitignored; never add generated demo directories or example-specific artifact tests to repository source.
 
-Read [references/creative-playbook.md](references/creative-playbook.md) before choosing the feature or writing the app. For recordings or editing, also read [references/short-form-pacing.md](references/short-form-pacing.md) and [references/recording-contract.md](references/recording-contract.md). For narration audio or cost reporting, read [references/tts-and-costs.md](references/tts-and-costs.md). For a pull request, commit, SHA, or any shinychat demo, read [references/changeset-sourcing.md](references/changeset-sourcing.md).
+Read [references/creative-playbook.md](references/creative-playbook.md) before choosing the feature or writing the app. For recordings or editing, also read [references/short-form-pacing.md](references/short-form-pacing.md) and [references/recording-contract.md](references/recording-contract.md). For narration audio or cost reporting, read [references/tts-and-costs.md](references/tts-and-costs.md). For a pull request, commit, SHA, or any shinychat demo, read [references/changeset-sourcing.md](references/changeset-sourcing.md). For a changelog reel, read [references/changelog-reel.md](references/changelog-reel.md).
 
 For any shinyreact request, also read [references/shinyreact.md](references/shinyreact.md) for package setup, frontend files, and code-card source selection.
 
@@ -100,6 +100,15 @@ Use this workflow when the user supplies a pull request, a commit URL, a bare SH
 4. Install the changeset build into a throwaway environment for the demo: a venv for Python, run with that venv's interpreter because it also serves the app; a demo-local `R_LIBS_USER` library for R. Install language dependencies as they are needed, and never change the user's global R library without asking. Confirm the changed function, argument, and default in the installed build — not in the diff — before writing the app.
 5. Record the resolved repo, SHA, PR URL, and installed version in `changeset.md` beside the app. Do not name a release number in narration unless the release notes confirm the behavior shipped in it.
 6. Then continue with the requested deliverable: idea only, runnable app, silent recording, or narrated video.
+
+### Changelog reel
+
+Use this workflow when the user links a Shiny changelog (`CHANGELOG.md` or `NEWS.md`) or asks for a video of the new features in the unreleased version or a named release. Read [references/changelog-reel.md](references/changelog-reel.md) first.
+
+1. List the release's features with `.claude/skills/shiny-component-shorts/scripts/changelog_features.py`. Default to the unreleased section; use `--version` when the user names a release. Keep at most six user-facing features and read each one's pull request.
+2. Give each feature its own segment directory under one reel directory. Record a short demo (15–25 s, code card optional, `logo_seconds: 0` in `actions.yaml`) when the feature has a visible effect; otherwise write an explainer segment (`explainer.yaml` plus narration) that states why the feature helps.
+3. Narrate every segment with the reel narration rules: the problem before, what changes now, the benefit. Run the batch narration phase on all segments, then the finish phase on the demo segments.
+4. Write `reel.yaml` and run `.claude/skills/shiny-component-shorts/scripts/stitch_reel.py --reel-dir <reel>`. It adds the intro, one animated feature card per segment, the outro, and the transitions. Inspect `artifacts/reel-review.png` and report the chapter times from `artifacts/reel.json`.
 
 ### Don't do this, do this instead
 

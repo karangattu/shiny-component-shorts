@@ -66,8 +66,19 @@ def has_failures(results: list[dict]) -> bool:
     )
 
 
-def discover_projects(base_dir: Path, patterns: list[str] | None = None) -> list[Path]:
-    """Find directories containing actions.yaml and an app entry point."""
+def is_project(path: Path, explainers: bool = False) -> bool:
+    """A demo has actions.yaml and an app; a changelog explainer segment has explainer.yaml."""
+    if explainers and (path / "explainer.yaml").is_file():
+        return True
+    return (path / "actions.yaml").is_file() and (
+        (path / "app.py").is_file() or (path / "app.R").is_file()
+    )
+
+
+def discover_projects(
+    base_dir: Path, patterns: list[str] | None = None, explainers: bool = False
+) -> list[Path]:
+    """Find demo directories, plus explainer segments when `explainers` is set."""
     projects: list[Path] = []
     ignored = {
         ".git",
@@ -87,21 +98,14 @@ def discover_projects(base_dir: Path, patterns: list[str] | None = None) -> list
             if direct.is_dir():
                 candidates.append(direct)
             for path in candidates:
-                if (
-                    path.is_dir()
-                    and (path / "actions.yaml").is_file()
-                    and ((path / "app.py").is_file() or (path / "app.R").is_file())
-                ):
+                if path.is_dir() and is_project(path, explainers):
                     projects.append(path)
         return sorted(set(projects))
 
     for root, dirs, _files in os.walk(base_dir):
         dirs[:] = [directory for directory in dirs if directory not in ignored]
         path = Path(root)
-        if (
-            (path / "actions.yaml").is_file()
-            and ((path / "app.py").is_file() or (path / "app.R").is_file())
-        ):
+        if is_project(path, explainers):
             projects.append(path)
             dirs.clear()
     return sorted(projects)
@@ -875,7 +879,8 @@ def main(argv: list[str] | None = None) -> int:
         print(exc, file=sys.stderr)
         return 2
 
-    projects = discover_projects(Path.cwd(), args.dirs)
+    # Explainer segments have narration but nothing to record.
+    projects = discover_projects(Path.cwd(), args.dirs, explainers=args.phase != "finish")
     if not projects:
         print("No project directories discovered.")
         return 0

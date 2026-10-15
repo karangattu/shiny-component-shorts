@@ -47,6 +47,7 @@ https://github.com/user-attachments/assets/a3459a49-3647-4136-b171-1801008269f1
 - Narrated, finished vertical videos
 - Videos about an **existing** Shiny app, without modifying it
 - Videos about a **pull request, commit, or SHA** — one user-facing change from the diff
+- **Changelog reels** — every new feature in the unreleased section or a named release, one after another, with an animated feature card between them
 
 New to Shiny? It's Posit's framework for data-driven web apps. This skill works with both [Shiny for Python](https://shiny.posit.co/py/) and [R Shiny](https://shiny.posit.co/r/).
 
@@ -130,6 +131,17 @@ Point the skill at a change instead of a component and it finds the one behavior
 It works for `rstudio/shiny`, `posit-dev/py-shiny`, `posit-dev/shinychat`, and `posit-dev/shinyreact` (Python, R, and shared JavaScript changes). The agent resolves the ref with `gh`, reads the changelog entry before the code, ranks the public API surface above docs, tests, typing, and CI, and installs that exact build into a throwaway environment so the demo runs against the changed code rather than the released package. Unreleased changes are described as just landed, never as a version number that has not shipped. If the changeset is an internal refactor with nothing visible, the agent says so instead of manufacturing a demo.
 
 shinychat demos never call a real LLM — canned replies and canned streams keep recordings repeatable and key-free.
+
+### From a changelog
+
+Point the skill at a `CHANGELOG.md` or `NEWS.md` to get one reel covering every new feature in a release:
+
+```text
+/shiny-component-shorts Make a changelog reel of the unreleased features in https://github.com/posit-dev/py-shiny/blob/main/CHANGELOG.md
+/shiny-component-shorts Make a changelog reel for shinychat 0.7.0
+```
+
+The agent reads the unreleased section by default, or the release you name, and keeps up to six user-facing features. Each feature gets its own short segment: a recorded mini-app when the feature is visible, or an animated explainer card when it is an API or testing change. Every segment explains why the feature helps; code appears only when it is the point. `stitch_reel.py` adds an intro card, an animated "02 of 04" card before each feature, and an outro, joins them with transitions, and writes `reel.mp4` plus chapter times for the video description.
 
 ### shinyreact
 
