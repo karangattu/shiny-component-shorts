@@ -607,15 +607,39 @@ def url_with_port(url: str, port: int) -> str:
 
 
 
-def wait_for_server(url: str, timeout: float = 30.0) -> None:
+# App output that no restart can fix: a missing package or broken source.
+FATAL_START_PATTERNS = (
+    "ModuleNotFoundError",
+    "ImportError",
+    "SyntaxError",
+    "there is no package called",
+)
+APP_LOG_TAIL_LINES = 20
+
+
+def wait_for_server(
+    url: str, timeout: float = 30.0, proc: subprocess.Popen | None = None
+) -> None:
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
+        if proc is not None and proc.poll() is not None:
+            raise RuntimeError(
+                f"Shiny app exited with code {proc.returncode} before {url} was reachable"
+            )
         try:
             with urllib.request.urlopen(url, timeout=1):
                 return
         except Exception:
             time.sleep(0.4)
     raise RuntimeError(f"Shiny server never became reachable at {url}")
+
+
+def log_tail(path: Path, lines: int = APP_LOG_TAIL_LINES) -> str:
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return ""
+    return "\n".join(text.rstrip().splitlines()[-lines:])
 
 
 def start_app(
@@ -652,6 +676,52 @@ def start_app(
         )
     _active_processes.add(proc)
     return proc
+
+
+def start_app_with_retry(
+    project_dir: Path,
+    app_type: str,
+    host: str,
+    port: int,
+    url: str,
+    log_path: Path,
+    attempts: int = 3,
+) -> subprocess.Popen:
+    """Start the app with its output in `log_path`; a failure quotes that output.
+
+    A crash on a missing package or a syntax error stops the retries: the
+    same code fails the same way on the next attempt.
+    """
+    last_error: Exception | None = None
+    for attempt in range(1, attempts + 1):
+        with log_path.open("w", encoding="utf-8") as log:
+            proc = start_app(project_dir, app_type, host, port, log)
+        try:
+            wait_for_server(url, timeout=20.0, proc=proc)
+            return proc
+        except RuntimeError as exc:
+            last_error = exc
+            terminate_process(proc)
+            tail = log_tail(log_path)
+            if any(pattern in tail for pattern in FATAL_START_PATTERNS):
+                break
+            if attempt < attempts:
+                time.sleep(2 * attempt)
+                if not port_is_available(host, port):
+                    raise RuntimeError(
+                        f"Port {port} became occupied between startup attempts; "
+                        "the recorder will not kill an unknown process."
+                    ) from exc
+    tail = log_tail(log_path)
+    output = (
+        f"\nLast {APP_LOG_TAIL_LINES} lines of app output ({log_path}):\n{tail}"
+        if tail
+        else f"\nThe app wrote no output ({log_path})."
+    )
+    raise RuntimeError(
+        f"Shiny app failed to start after {attempt} "
+        f"attempt{'s' if attempt != 1 else ''}: {last_error}{output}"
+    ) from last_error
 
 
 def collect_selectors(actions: list[dict]) -> list[str]:
@@ -1283,53 +1353,52 @@ def preflight_project(
     report["app_log"] = str(log_path)
 
     # The app's server log belongs in a file, not in the preflight report.
-    with log_path.open("w", encoding="utf-8") as log:
-        proc = start_app(app_dir, app_type, run["bind_host"], run["port"], log)
-        try:
-            wait_for_server(run["url"])
-        except RuntimeError as exc:
-            terminate_process(proc)
-            report["problems"].append(f"{exc}; app output in {log_path}")
-            return report
-        try:
-            with sync_playwright() as playwright:
-                browser = playwright.chromium.launch(
-                    args=["--force-device-scale-factor=2", "--high-dpi-support=1"]
+    try:
+        proc = start_app_with_retry(
+            app_dir, app_type, run["bind_host"], run["port"], run["url"], log_path
+        )
+    except RuntimeError as exc:
+        report["problems"].append(str(exc))
+        return report
+    try:
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch(
+                args=["--force-device-scale-factor=2", "--high-dpi-support=1"]
+            )
+            context = browser.new_context(
+                viewport=ViewportSize(width=width, height=height)
+            )
+            context.add_init_script(CURSOR_OVERLAY_JS)
+            context.add_init_script(SHINY_CLIENT_ERROR_GUARD_JS)
+            context.add_init_script(
+                f"({LOGO_OVERLAY_JS})({json.dumps(run['logo'])})"
+            )
+            page = context.new_page()
+            page.goto(run["url"])
+            page.wait_for_load_state("networkidle")
+            page.wait_for_timeout(3000)
+            try:
+                assert_no_shiny_client_errors(page)
+                assert_branding_visible(page)
+            except RuntimeError as exc:
+                report["problems"].append(str(exc))
+            missing = [
+                selector
+                for selector in checked
+                if page.locator(selector).count() == 0
+            ]
+            report["selectors"] = [
+                selector for selector in checked if selector not in missing
+            ]
+            if missing:
+                report["problems"].append(
+                    "Selectors not found on the initial page: " + ", ".join(missing)
                 )
-                context = browser.new_context(
-                    viewport=ViewportSize(width=width, height=height)
-                )
-                context.add_init_script(CURSOR_OVERLAY_JS)
-                context.add_init_script(SHINY_CLIENT_ERROR_GUARD_JS)
-                context.add_init_script(
-                    f"({LOGO_OVERLAY_JS})({json.dumps(run['logo'])})"
-                )
-                page = context.new_page()
-                page.goto(run["url"])
-                page.wait_for_load_state("networkidle")
-                page.wait_for_timeout(3000)
-                try:
-                    assert_no_shiny_client_errors(page)
-                    assert_branding_visible(page)
-                except RuntimeError as exc:
-                    report["problems"].append(str(exc))
-                missing = [
-                    selector
-                    for selector in checked
-                    if page.locator(selector).count() == 0
-                ]
-                report["selectors"] = [
-                    selector for selector in checked if selector not in missing
-                ]
-                if missing:
-                    report["problems"].append(
-                        "Selectors not found on the initial page: " + ", ".join(missing)
-                    )
-                page.screenshot(path=str(screenshot_path))
-                context.close()
-                browser.close()
-        finally:
-            terminate_process(proc)
+            page.screenshot(path=str(screenshot_path))
+            context.close()
+            browser.close()
+    finally:
+        terminate_process(proc)
 
     report["screenshot"] = str(screenshot_path)
     preview = phone_preview(screenshot_path)
@@ -1378,9 +1447,10 @@ def record_project(
     mp4_path = artifacts / Path(video_name).with_suffix(".mp4").name
     frames_dir = artifacts / ".screencast-frames"
     shutil.rmtree(frames_dir, ignore_errors=True)
-    proc = start_app(app_dir, app_type, bind_host, port)
+    proc = start_app_with_retry(
+        app_dir, app_type, bind_host, port, url, artifacts / "app.log"
+    )
     try:
-        wait_for_server(url)
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch(
                 args=["--force-device-scale-factor=2", "--high-dpi-support=1"]

@@ -70,5 +70,34 @@ class ReelLeadContractTest(unittest.TestCase):
             self.assertIn("adelay=", source)
 
 
+class AppStartFailureContractTest(unittest.TestCase):
+    def test_import_error_stops_retrying_and_quotes_the_app_output(self) -> None:
+        for copy in COPIES:
+            recorder = load("record_demo", copy)
+            with self.subTest(copy=copy.parent.name), tempfile.TemporaryDirectory() as temp:
+                app_dir = Path(temp)
+                (app_dir / "app.py").write_text("import pandas_missing_for_test\n")
+                port = recorder.find_available_port("127.0.0.1", 18400)
+                with self.assertRaises(RuntimeError) as raised:
+                    recorder.start_app_with_retry(
+                        app_dir, "python", "127.0.0.1", port,
+                        f"http://127.0.0.1:{port}", app_dir / "app.log",
+                    )
+                message = str(raised.exception)
+                self.assertIn("after 1 attempt:", message)
+                self.assertIn("exited with code", message)
+                self.assertIn("ModuleNotFoundError: No module named 'pandas_missing_for_test'", message)
+                self.assertIn("Last 20 lines of app output", message)
+
+    def test_log_tail_keeps_the_last_lines(self) -> None:
+        recorder = load("record_demo", COPIES[1])
+        with tempfile.TemporaryDirectory() as temp:
+            log = Path(temp) / "app.log"
+            log.write_text("".join(f"line {n}\n" for n in range(50)))
+            tail = recorder.log_tail(log)
+            self.assertEqual(tail.splitlines(), [f"line {n}" for n in range(30, 50)])
+            self.assertEqual(recorder.log_tail(Path(temp) / "missing.log"), "")
+
+
 if __name__ == "__main__":
     unittest.main()

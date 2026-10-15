@@ -646,38 +646,41 @@ class ClaudeRecorderContractTest(unittest.TestCase):
         original_start = recorder.start_app
         original_wait = recorder.wait_for_server
         original_sleep = recorder.time.sleep
+        temp = tempfile.TemporaryDirectory()
+        log_path = Path(temp.name) / "app.log"
         try:
             recorder.start_app = lambda *args: FakeProc()
             recorder.time.sleep = lambda seconds: None
 
-            def flaky_wait(url, timeout=30.0):
+            def flaky_wait(url, timeout=30.0, proc=None):
                 attempts.append(url)
                 if len(attempts) < 3:
                     raise RuntimeError("not up yet")
 
             recorder.wait_for_server = flaky_wait
             proc = recorder.start_app_with_retry(
-                Path("."), "python", "127.0.0.1", 65500, "http://127.0.0.1:65500"
+                Path("."), "python", "127.0.0.1", 65500, "http://127.0.0.1:65500", log_path
             )
             self.assertIsInstance(proc, FakeProc)
             self.assertEqual(len(attempts), 3)
 
             attempts.clear()
 
-            def dead_wait(url, timeout=30.0):
+            def dead_wait(url, timeout=30.0, proc=None):
                 attempts.append(url)
                 raise RuntimeError("never up")
 
             recorder.wait_for_server = dead_wait
             with self.assertRaisesRegex(RuntimeError, "after 3 attempts"):
                 recorder.start_app_with_retry(
-                    Path("."), "python", "127.0.0.1", 65500, "http://127.0.0.1:65500"
+                    Path("."), "python", "127.0.0.1", 65500, "http://127.0.0.1:65500", log_path
                 )
             self.assertEqual(len(attempts), 3)
         finally:
             recorder.start_app = original_start
             recorder.wait_for_server = original_wait
             recorder.time.sleep = original_sleep
+            temp.cleanup()
 
     def test_port_override_preserves_url_path_query_and_fragment(self) -> None:
         self.assertEqual(
