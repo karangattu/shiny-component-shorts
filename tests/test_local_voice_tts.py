@@ -10,6 +10,7 @@ import sys
 import tempfile
 import threading
 import unittest
+import unittest.mock
 import wave
 from pathlib import Path
 
@@ -174,6 +175,8 @@ class LocalVoiceTTSContractTest(unittest.TestCase):
                 "--ref-text", "Exact sample transcript.",
                 "--quality", "high",
                 "--language", "English",
+                # A real service on the default port must not take over the fake CLI.
+                "--transport", "cli",
                 *extra_args,
             ],
             capture_output=True,
@@ -199,7 +202,8 @@ class LocalVoiceTTSContractTest(unittest.TestCase):
             root = Path(temp_dir)
             captured, env = self._fake_uv(root)
             completed, output, usage = self._run_adapter(
-                root, prompt, env, ["--speaking-rate", "0.9", "--max-wpm", "0"]
+                root, prompt, env,
+                ["--engine", "omnivoice", "--speaking-rate", "0.9", "--max-wpm", "0"],
             )
             self.assertEqual(completed.returncode, 0, completed.stderr)
             calls = [json.loads(line) for line in captured.read_text(encoding="utf-8").splitlines()]
@@ -237,3 +241,81 @@ class LocalVoiceTTSContractTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class LocalVoiceTransportTest(unittest.TestCase):
+    """Real reference names, sidecar transcripts, API autodetect, and the speed rule."""
+
+    def serve(self, responses: dict, requests: list):
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self):
+                self._reply(self.path)
+
+            def do_POST(self):
+                requests.append((self.path, self.rfile.read(int(self.headers["Content-Length"]))))
+                self._reply(self.path)
+
+            def _reply(self, path):
+                body = responses.get(path, b"")
+                self.send_response(200 if path in responses else 404)
+                self.end_headers()
+                self.wfile.write(body)
+
+            def log_message(self, format: str, *args: object) -> None:
+                pass
+
+        server = HTTPServer(("127.0.0.1", 0), Handler)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        self.addCleanup(server.shutdown)
+        return f"http://127.0.0.1:{server.server_port}"
+
+    def test_upload_keeps_the_voice_name_and_sends_its_sidecar_transcript(self):
+        buffer = io.BytesIO()
+        with wave.open(buffer, "wb") as handle:
+            handle.setnchannels(1)
+            handle.setsampwidth(2)
+            handle.setframerate(24000)
+            handle.writeframes(b"\0\0" * 2400)
+        requests: list = []
+        url = self.serve({"/synthesize": buffer.getvalue()}, requests)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            reference = root / "karan.wav"
+            reference.write_bytes(b"voice")
+            (root / "karan.json").write_text(json.dumps({"transcript": "Corrected sample words."}))
+            args = argparse.Namespace(api_url=url, reference=reference, ref_text="", quality="high",
+                language="auto", engine="qwen", speaking_rate=1.0, output=root / "out.wav",
+                engine_dir=root)
+            generate_local_voice.synthesize_api(args, "Say this")
+            body = requests[0][1]
+            self.assertIn(b'filename="karan.wav"', body)
+            self.assertIn(b'name="ref_text"\r\n\r\nCorrected sample words.\r\n', body)
+            # An explicit transcript still wins over the sidecar.
+            args.ref_text = "Given words."
+            generate_local_voice.synthesize_api(args, "Say this")
+            self.assertIn(b"Given words.", requests[1][1])
+            command = generate_local_voice.build_cli_command("uv", args, "Say this", root / "o.wav")
+            self.assertEqual(command[command.index("--ref-text") + 1], "Given words.")
+
+    def test_auto_transport_prefers_a_running_api(self):
+        url = self.serve({"/health": b'{"status": "ok"}'}, [])
+        self.assertTrue(generate_local_voice.api_is_up(url))
+        self.assertFalse(generate_local_voice.api_is_up("http://127.0.0.1:9"))
+        with unittest.mock.patch.object(generate_local_voice, "DEFAULT_API_URL", url):
+            self.assertEqual(generate_local_voice.resolve_api_url(None), url)
+            self.assertIsNone(generate_local_voice.resolve_api_url(None, "cli"))
+        with unittest.mock.patch.object(generate_local_voice, "DEFAULT_API_URL", "http://127.0.0.1:9"):
+            self.assertIsNone(generate_local_voice.resolve_api_url(None))
+            self.assertEqual(generate_local_voice.resolve_api_url(None, "api"), "http://127.0.0.1:9")
+
+    def test_warm_up_posts_engine_and_quality(self):
+        requests: list = []
+        url = self.serve({"/warmup": b'{"status": "ok", "load_seconds": 1.5}'}, requests)
+        report = generate_local_voice.warm_up(url, "qwen", "fast")
+        self.assertEqual(report["load_seconds"], 1.5)
+        self.assertEqual(requests[0], ("/warmup", b"engine=qwen&quality=fast"))
+
+    def test_qwen_must_stay_at_speed_one(self):
+        self.assertIsNone(generate_local_voice.speed_problem("qwen", 1.0))
+        self.assertIsNone(generate_local_voice.speed_problem("omnivoice", 0.8))
+        self.assertIn("add pause tags", generate_local_voice.speed_problem("qwen", 0.9) or "")

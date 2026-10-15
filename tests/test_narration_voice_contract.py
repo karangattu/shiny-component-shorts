@@ -209,7 +209,9 @@ class LocalVoiceDoctorTest(unittest.TestCase):
         (samples / "karan.json").write_text(json.dumps({"transcript": "Hello there."}))
         return engine
 
-    def run_doctor(self, engine: Path, health: dict, durations: tuple[float, float]) -> tuple[int, str]:
+    def run_doctor(
+        self, engine: Path, health: dict, durations: tuple[float, float], voice_engine: str = "omnivoice"
+    ) -> tuple[int, str]:
         def fake_multipart(url, fields, files, timeout=600.0):
             if url.endswith("/synthesize"):
                 speed = float(fields["speed"])
@@ -221,7 +223,7 @@ class LocalVoiceDoctorTest(unittest.TestCase):
             check_local_voice, "request_multipart", side_effect=fake_multipart
         ), contextlib.redirect_stdout(printed):
             exit_code = check_local_voice.main(
-                ["--engine-dir", str(engine), "--saved-voice", "karan"]
+                ["--engine-dir", str(engine), "--saved-voice", "karan", "--engine", voice_engine]
             )
         return exit_code, printed.getvalue()
 
@@ -235,7 +237,7 @@ class LocalVoiceDoctorTest(unittest.TestCase):
 
             self.assertEqual(exit_code, 0)
             self.assertIn("may be running stale code", out)
-            self.assertIn("speed is not honored", out)
+            self.assertIn("omnivoice ignored speed 0.5", out)
             self.assertIn("doctor: OK with", out)
 
     def test_current_service_with_working_speed_reports_clean(self) -> None:
@@ -250,9 +252,19 @@ class LocalVoiceDoctorTest(unittest.TestCase):
 
             self.assertEqual(exit_code, 0)
             self.assertIn("version: 1.2.3", out)
-            self.assertNotIn("speed is not honored", out)
+            self.assertNotIn("ignored speed", out)
             self.assertIn("doctor: OK", out)
             self.assertNotIn("warning", out.split("doctor: OK")[1])
+
+    def test_qwen_is_not_speed_probed(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            engine = self.make_engine(Path(temp_dir))
+            exit_code, out = self.run_doctor(
+                engine, {"status": "ok", "version": "1"}, (2.0, 2.0), voice_engine="qwen"
+            )
+            self.assertEqual(exit_code, 0)
+            self.assertIn("qwen stays at 1.0", out)
+            self.assertNotIn("ignored speed", out)
 
     def test_unreachable_service_fails_with_startup_hint(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

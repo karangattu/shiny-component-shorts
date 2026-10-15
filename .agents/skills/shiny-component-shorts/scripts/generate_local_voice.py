@@ -36,6 +36,72 @@ DEFAULT_MAX_WPM = 160.0
 SILENCE_THRESHOLD_DB = -35.0
 MIN_SILENCE_SECONDS = 0.15
 OUTPUT_SAMPLE_RATE = 24000
+# The engine's REST service. Used whenever it answers, so takes skip the CLI's
+# per-call model load (about 10 s each).
+DEFAULT_API_URL = "http://127.0.0.1:8001"
+# Only these engines change speed natively; the others time-stretch finished
+# audio, which the skill never allows. Shorten the script instead.
+NATIVE_SPEED_ENGINES = frozenset({"omnivoice"})
+
+
+def speed_problem(engine: str, speaking_rate: float) -> str | None:
+    if engine in NATIVE_SPEED_ENGINES or speaking_rate == 1.0:
+        return None
+    return (
+        f"speaking_rate {speaking_rate:g} would time-stretch {engine} audio after "
+        "synthesis. Keep speaking_rate at 1.0 for this engine; if the voice runs "
+        "fast, add pause tags or split long sentences so the engine pauses more, "
+        "then shorten the script if it runs long, and regenerate."
+    )
+
+
+def sidecar_transcript(reference: Path) -> str:
+    """The corrected transcript saved beside a voice sample (`<name>.json`)."""
+    sidecar = reference.with_suffix(".json")
+    if not sidecar.is_file():
+        return ""
+    try:
+        return str(json.loads(sidecar.read_text(encoding="utf-8")).get("transcript", "")).strip()
+    except (OSError, ValueError, AttributeError):
+        return ""
+
+
+def _local_opener() -> urllib.request.OpenerDirector:
+    # Local samples must not follow a redirect or be sent through an HTTP proxy.
+    class NoRedirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, req, fp, code, msg, headers, newurl):
+            return None
+    return urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
+
+
+def api_is_up(url: str, timeout: float = 1.0) -> bool:
+    try:
+        with _local_opener().open(validate_api_url(url) + "/health", timeout=timeout) as response:
+            return json.loads(response.read()).get("status") == "ok"
+    except (OSError, ValueError):
+        return False
+
+
+def resolve_api_url(explicit: str | None, transport: str = "auto") -> str | None:
+    """The API origin to use, or None for the CLI."""
+    if transport == "cli":
+        return None
+    if explicit:
+        return explicit
+    if transport == "api":
+        return DEFAULT_API_URL
+    return DEFAULT_API_URL if api_is_up(DEFAULT_API_URL) else None
+
+
+def warm_up(api_url: str, engine: str, quality: str, timeout: float = 900) -> dict:
+    """Load the engine's models once, so no take pays the load time."""
+    body = urllib.parse.urlencode({"engine": engine, "quality": quality}).encode()
+    request = urllib.request.Request(
+        validate_api_url(api_url) + "/warmup", data=body,
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+    with _local_opener().open(request, timeout=timeout) as response:
+        return json.loads(response.read())
 
 
 def local_voice_script(prompt: str) -> str:
@@ -86,7 +152,8 @@ def synthesize_api(args: argparse.Namespace, script: str) -> None:
     """Send the same multipart contract as local-voice-cloning/src/api.py."""
     origin = validate_api_url(args.api_url)
     boundary = uuid.uuid4().hex
-    fields = {"text": script, "ref_text": args.ref_text, "quality": args.quality,
+    ref_text = args.ref_text or sidecar_transcript(args.reference)
+    fields = {"text": script, "ref_text": ref_text, "quality": args.quality,
               "language": args.language, "engine": args.engine,
               "speed": str(args.speaking_rate), "output_format": "wav"}
     body = bytearray()
@@ -96,18 +163,15 @@ def synthesize_api(args: argparse.Namespace, script: str) -> None:
     suffix = args.reference.suffix.lower()
     if not re.fullmatch(r"\.[a-z0-9]+", suffix):
         raise ValueError("Reference audio must have an audio file extension")
+    # The real name lets the service find the saved voice's sidecar transcript.
+    stem = re.sub(r"[^A-Za-z0-9_-]", "_", args.reference.stem) or "reference"
     body.extend((f'--{boundary}\r\nContent-Disposition: form-data; name="reference_audio"; '
-                 f'filename="reference{suffix}"\r\nContent-Type: application/octet-stream\r\n\r\n').encode())
+                 f'filename="{stem}{suffix}"\r\nContent-Type: application/octet-stream\r\n\r\n').encode())
     body.extend(args.reference.read_bytes())
     body.extend(f"\r\n--{boundary}--\r\n".encode())
     request = urllib.request.Request(origin + "/synthesize", data=bytes(body),
         headers={"Content-Type": f"multipart/form-data; boundary={boundary}"})
-    # Local samples must not follow a redirect or be sent through an HTTP proxy.
-    class NoRedirect(urllib.request.HTTPRedirectHandler):
-        def redirect_request(self, req, fp, code, msg, headers, newurl):
-            return None
-    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
-    with opener.open(request, timeout=1800) as response:
+    with _local_opener().open(request, timeout=1800) as response:
         audio = response.read()
     with tempfile.TemporaryDirectory() as directory:
         candidate = Path(directory) / "narration.wav"
@@ -142,8 +206,9 @@ def build_cli_command(uv: str, args: argparse.Namespace, script: str, output: Pa
         "--output",
         str(output),
     ]
-    if args.ref_text:
-        command.extend(["--ref-text", args.ref_text])
+    ref_text = args.ref_text or sidecar_transcript(args.reference)
+    if ref_text:
+        command.extend(["--ref-text", ref_text])
     return command
 
 
@@ -198,8 +263,9 @@ def check_pace(path: Path, words: int, max_wpm: float) -> dict:
     if max_wpm and pace["words_per_minute"] > max_wpm:
         raise PaceRejected(
             f"Narration pace {pace['words_per_minute']:.0f} WPM exceeds the "
-            f"{max_wpm:g} WPM gate. Slow the voice (--speaking-rate below 1.0), "
-            "shorten the script, or add pause tags, then regenerate. "
+            f"{max_wpm:g} WPM gate. Add pause tags or split long sentences so the "
+            "engine pauses more, shorten the script if it runs long, and regenerate "
+            "(never time-stretch the audio). "
             f"Rejected audio kept at {path} for audition."
         )
     return pace
@@ -239,12 +305,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--ref-text", default="")
     parser.add_argument("--quality", choices=("high", "fast"), default="high")
     parser.add_argument("--language", default="auto")
-    parser.add_argument("--api-url", help="Running local REST API origin; omit to use CLI")
+    parser.add_argument("--api-url", help=f"Local REST API origin; by default {DEFAULT_API_URL} "
+                        "is used when it answers, else the CLI")
+    parser.add_argument("--transport", choices=("auto", "api", "cli"), default="auto",
+                        help="auto (default) prefers a running API over the CLI")
     parser.add_argument("--engine", choices=("qwen", "omnivoice"), default="qwen")
     parser.add_argument("--speaking-rate", type=_speaking_rate_type, default=1.0,
-                        help="Engine synthesis rate 0.5-1.5 (default 1.0); values below "
-                             "1.0 slow a rushed voice. Never raise it to fit a duration "
-                             "target; retime the video to the voice instead")
+                        help="Native synthesis rate 0.5-1.5 for omnivoice (default 1.0). "
+                             "Qwen time-stretches finished audio, so it must stay at 1.0; "
+                             "shorten the script to fix a rushed voice")
     parser.add_argument("--max-wpm", type=_max_wpm_type, default=DEFAULT_MAX_WPM,
                         help="Reject narration faster than this words-per-minute "
                              f"(default {DEFAULT_MAX_WPM:g}); 0 disables the gate")
@@ -267,6 +336,11 @@ def main(argv: list[str] | None = None) -> int:
         if not path.is_file() or path.stat().st_size == 0:
             print(f"Missing or empty {label}: {path}", file=sys.stderr)
             return 2
+    problem = speed_problem(args.engine, args.speaking_rate)
+    if problem:
+        print(problem, file=sys.stderr)
+        return 2
+    args.api_url = resolve_api_url(args.api_url, args.transport)
     if not args.api_url and not args.engine_dir.is_dir():
         print(
             f"Local voice cloning directory does not exist: {args.engine_dir}",
@@ -328,6 +402,11 @@ def main(argv: list[str] | None = None) -> int:
         "model": f"{args.engine} · {args.quality}",
         "voice": str(args.reference),
         "transport": "api" if args.api_url else "cli",
+        "reference_transcript": (
+            "given" if args.ref_text
+            else "sidecar" if sidecar_transcript(args.reference)
+            else "engine transcription"
+        ),
         "speaking_rate": args.speaking_rate,
         "synthesis_requests": 1,
         "audio_modified": False,

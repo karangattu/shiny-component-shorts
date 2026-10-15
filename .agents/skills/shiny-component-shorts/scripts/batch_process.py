@@ -11,9 +11,10 @@ import os
 import re
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Mapping
 
 
 SCRIPTS_DIR = Path(__file__).resolve().parent
@@ -28,8 +29,36 @@ import validate_demo  # noqa: E402
 from generate_local_voice import (  # noqa: E402
     MAX_SPEAKING_RATE,
     MIN_SPEAKING_RATE,
+    resolve_api_url,
+    speed_problem,
     validate_api_url,
+    warm_up,
 )
+
+_warmed: set[tuple[str, str, str]] = set()
+_warm_lock = threading.Lock()
+
+
+def ensure_local_voice_warm(settings: Mapping[str, str | float]) -> None:
+    """Load the local engine's models once per run, before the first synthesis.
+
+    Without this the first take pays the model load (about 13 s) and its
+    timing differs from the takes after it. The CLI loads per call, so only a
+    running API is warmed.
+    """
+    api_url = resolve_api_url(str(settings["api_url"]) if "api_url" in settings else None)
+    if api_url is None:
+        return
+    key = (api_url, str(settings.get("engine", "qwen")), str(settings.get("quality", "high")))
+    with _warm_lock:
+        if key in _warmed:
+            return
+        try:
+            report = warm_up(*key)
+        except OSError as exc:
+            raise RuntimeError(f"Local voice warmup failed at {api_url}: {exc}") from exc
+        print(f"Warmed {key[1]} ({key[2]}) at {api_url} in {report.get('load_seconds', '?')}s")
+        _warmed.add(key)
 
 
 BASE_PORT = 8000
@@ -171,8 +200,7 @@ def load_tts_settings(project_dir: Path) -> dict[str, str | float]:
             ):
                 raise ValueError(
                     f"speaking_rate must be between {MIN_SPEAKING_RATE} and "
-                    f"{MAX_SPEAKING_RATE}; slow a rushed voice with a value below "
-                    "1.0 and retime the video instead of speeding it up"
+                    f"{MAX_SPEAKING_RATE}; never raise it to fit a duration"
                 )
             continue
         if key == "max_wpm":
@@ -201,6 +229,11 @@ def load_tts_settings(project_dir: Path) -> dict[str, str | float]:
             raise ValueError("quality must be high or fast")
         if payload.get("engine", "qwen") not in {"qwen", "omnivoice"}:
             raise ValueError("engine must be qwen or omnivoice")
+        problem = speed_problem(
+            str(payload.get("engine", "qwen")), float(payload.get("speaking_rate", 1.0))
+        )
+        if problem:
+            raise ValueError(problem)
         selected = [key for key in ("saved_voice", "reference_voice") if key in payload]
         if len(selected) != 1:
             raise ValueError(
@@ -409,6 +442,8 @@ def generate_narration(project_dir: Path, force: bool) -> dict:
             result["tts"] = "CACHED"
         else:
             require_spoken_voice(narration, source)
+            if source is None and settings.get("provider") == "local-voice-cloning":
+                ensure_local_voice_warm(settings)
             run_command(
                 synthesis_command(project_dir, settings, narration, audio, usage), "TTS"
             )
@@ -525,6 +560,7 @@ def generate_takes(project_dir: Path, count: int, force: bool) -> dict:
         stale = fingerprint_record(takes_dir) != fingerprint
 
         def synthesize(number: int) -> Path | None:
+            ensure_local_voice_warm(settings)
             raw = takes_dir / f"take-{number}.wav"
             usage = takes_dir / f"take-{number}.usage.json"
             for attempt in range(1, TAKE_ATTEMPTS + 1):

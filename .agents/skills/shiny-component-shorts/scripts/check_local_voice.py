@@ -99,7 +99,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--saved-voice", default="karan")
     parser.add_argument("--engine", default="qwen")
     parser.add_argument("--quality", default="high")
-    parser.add_argument("--skip-speed", action="store_true", help="Skip the two probe syntheses")
+    parser.add_argument("--skip-speed", action="store_true", help="Skip the probe syntheses")
     args = parser.parse_args(argv)
 
     engine_dir = args.engine_dir or (SCRIPTS_DIR.parents[4] / "local-voice-cloning")
@@ -150,13 +150,18 @@ def main(argv: list[str] | None = None) -> int:
     if not args.skip_speed:
         try:
             normal = synthesize_seconds(args.api_url, reference, args.engine, args.quality, 1.0)
-            slowed = synthesize_seconds(args.api_url, reference, args.engine, args.quality, 0.5)
-            print(f"speed probe: {PROBE_TEXT!r} -> {normal:.2f}s at 1.0, {slowed:.2f}s at 0.5")
-            if slowed <= normal * 1.25:
-                warnings.append(
-                    "speed is not honored (0.5 produced no longer audio): speaking_rate "
-                    "will not slow a rushed take; restart the service with current code"
-                )
+            print(f"synthesis probe: {PROBE_TEXT!r} -> {normal:.2f}s at speed 1.0")
+            if args.engine == "omnivoice":
+                slowed = synthesize_seconds(args.api_url, reference, args.engine, args.quality, 0.5)
+                print(f"  speed probe: {slowed:.2f}s at 0.5")
+                if slowed <= normal * 1.25:
+                    warnings.append(
+                        "omnivoice ignored speed 0.5; restart the service with current code"
+                    )
+            else:
+                # Other engines time-stretch finished audio for speed; the skill
+                # keeps them at 1.0 and shortens the script instead.
+                print(f"  speed: {args.engine} stays at 1.0 (its speed control time-stretches)")
         except (RuntimeError, ValueError, OSError) as exc:
             print(f"FAIL: synthesis probe failed: {exc}")
             return 1

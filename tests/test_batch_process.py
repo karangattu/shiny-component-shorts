@@ -282,9 +282,14 @@ class BatchProcessTest(unittest.TestCase):
                 path.write_text(json.dumps({**settings, "speaking_rate": bad}))
                 with self.assertRaises(ValueError):
                     batch_process.load_tts_settings(project)
+            # Only omnivoice changes speed natively; qwen would time-stretch.
             for good in (0.5, 0.75, 0.9, 1.0, 1.25, 1.5):
-                path.write_text(json.dumps({**settings, "speaking_rate": good}))
+                path.write_text(json.dumps({**settings, "engine": "omnivoice", "speaking_rate": good}))
                 self.assertEqual(batch_process.load_tts_settings(project)["speaking_rate"], good)
+            for engine in ({}, {"engine": "qwen"}):
+                path.write_text(json.dumps({**settings, **engine, "speaking_rate": 0.9}))
+                with self.assertRaisesRegex(ValueError, "add pause tags"):
+                    batch_process.load_tts_settings(project)
             for good in (0, 120, 160.5):
                 path.write_text(json.dumps({**settings, "max_wpm": good}))
                 self.assertEqual(batch_process.load_tts_settings(project)["max_wpm"], good)
@@ -310,6 +315,7 @@ class BatchProcessTest(unittest.TestCase):
                         "provider": "local-voice-cloning",
                         "saved_voice": "karan",
                         "engine_dir": str(engine),
+                        "engine": "omnivoice",
                         "speaking_rate": 0.9,
                         "max_wpm": 150,
                     }
@@ -537,7 +543,7 @@ class TakeResilienceTest(unittest.TestCase):
 
             settings = json.loads((project / "tts-settings.json").read_text())
             (project / "tts-settings.json").write_text(
-                json.dumps({**settings, "speaking_rate": 0.9})
+                json.dumps({**settings, "quality": "fast"})
             )
             batch_process.generate_takes(project, 2, force=False)
 
@@ -562,3 +568,21 @@ class TakeResilienceTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class LocalVoiceWarmupTest(unittest.TestCase):
+    def test_warms_each_engine_once_and_skips_the_cli(self):
+        calls = []
+        with patch.object(batch_process, "resolve_api_url", return_value="http://127.0.0.1:8001"), \
+                patch.object(batch_process, "warm_up", side_effect=lambda *key: calls.append(key) or {}), \
+                patch.object(batch_process, "_warmed", set()):
+            settings = {"provider": "local-voice-cloning", "engine": "qwen", "quality": "high"}
+            batch_process.ensure_local_voice_warm(settings)
+            batch_process.ensure_local_voice_warm(settings)
+            batch_process.ensure_local_voice_warm({**settings, "quality": "fast"})
+        self.assertEqual(calls, [("http://127.0.0.1:8001", "qwen", "high"),
+                                 ("http://127.0.0.1:8001", "qwen", "fast")])
+        with patch.object(batch_process, "resolve_api_url", return_value=None), \
+                patch.object(batch_process, "warm_up") as warm:
+            batch_process.ensure_local_voice_warm({"provider": "local-voice-cloning"})
+            warm.assert_not_called()
