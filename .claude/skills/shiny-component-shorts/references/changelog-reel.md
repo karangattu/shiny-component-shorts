@@ -37,7 +37,7 @@ Follow the normal app, recording, and narration rules, with these reel changes:
 - Two meaningful actions are often enough to show one feature; the validator still asks for three, so make the third a natural follow-up (reverse, repeat, or contrast).
 - The `code` action is optional. Use it only when the code is the point of the feature.
 - Install the release or the unreleased build into a throwaway environment, as in [changeset-sourcing.md](changeset-sourcing.md), and confirm the feature exists in the installed build.
-- Every segment keeps the reel's orientation.
+- Every demo segment needs both orientations: record the reel's orientation as the primary, then run `companion.py` for the other one.
 - Put `logo_seconds: 0` at the top of the segment's `actions.yaml`. The reel shows the Shiny logo only in its first 5 seconds, on the intro card, so segments record without it. `stitch_reel.py` warns about a segment recorded with the logo.
 
 ### Explainer segments
@@ -94,6 +94,6 @@ python .claude/skills/shiny-component-shorts/scripts/stitch_reel.py \
   --reel-dir generated/reel-py-shiny-1-8
 ```
 
-The script renders explainer segments, then an intro card listing every feature, one feature card per segment, and the outro card. It joins them with a slide into each card and a circle-open into each feature. It writes `artifacts/reel.mp4`, `artifacts/reel.json` with chapter start times (paste them into a video description as chapters), and `artifacts/reel-review.png` with one frame per chapter. Inspect that sheet before you report the reel done, and report every warning the script prints.
+The script builds the reel twice: `reel.mp4` in the reel's orientation and `reel-<orientation>.mp4` in the other one (pass `--orientation` to build one). For each, it renders explainer segments, then an intro card listing every feature, one feature card per segment, and the outro card. It joins them with a slide into each card and a circle-open into each feature. It writes `artifacts/reel.mp4`, `artifacts/reel.json` with chapter start times (paste them into a video description as chapters), and `artifacts/reel-review.png` with one frame per chapter. Inspect that sheet before you report the reel done, and report every warning the script prints.
 
 Optional `reel.yaml` keys: `intro_seconds` (5.4, at least 5 so the logo can fade out on the intro card), `card_seconds` (2.6), `outro.seconds` (3.2), `outro.why`, and a per-feature `accent` from the Shiny palette. Cards are silent; the feature title and the "why" line carry the transition.

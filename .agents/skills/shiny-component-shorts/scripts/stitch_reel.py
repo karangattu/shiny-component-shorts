@@ -21,7 +21,9 @@ script renders explainer segments, then builds an intro card, one animated
 card per feature ("2 of 4" plus title and why it helps), and an optional
 outro card. It joins everything with crossfades and writes
 `artifacts/reel.mp4`, `artifacts/reel.json` (chapter times), and
-`artifacts/reel-review.png`.
+`artifacts/reel-review.png`, then the same reel in the other orientation as
+`reel-<orientation>.mp4` (with matching `.json` and review sheet). Recorded
+segments supply that orientation through `companion.py`.
 """
 
 from __future__ import annotations
@@ -405,21 +407,29 @@ def load_reel(reel_dir: Path) -> dict:
     return config
 
 
-def segment_clip(feature: dict) -> Path | None:
+def segment_clip(feature: dict, orientation: str) -> Path | None:
+    """The segment's video in this orientation: its primary file or its companion."""
     artifacts = feature["path"] / "artifacts"
-    for name in ("final_with_audio.mp4", "demo.mp4"):
-        if (artifacts / name).is_file():
-            return artifacts / name
+    for suffix in (f"-{orientation}", ""):
+        for name in (f"final_with_audio{suffix}.mp4", f"demo{suffix}.mp4"):
+            path = artifacts / name
+            if path.is_file():
+                width, height = video_size(path)
+                if (width > height) == (orientation == "horizontal"):
+                    return path
     return None
 
 
-def build(reel_dir: Path) -> dict:
+def build(reel_dir: Path, orientation: str | None = None) -> dict:
+    """Build the reel in one orientation; the primary one is `reel.mp4`."""
     from playwright.sync_api import sync_playwright
 
     if shutil.which("ffmpeg") is None or shutil.which("ffprobe") is None:
         raise SystemExit("ffmpeg and ffprobe are required")
     config = load_reel(reel_dir)
-    orientation = config["orientation"]
+    orientation = orientation or config["orientation"]
+    # The companion orientation gets the same reel under a suffixed name.
+    suffix = "" if orientation == config["orientation"] else f"-{orientation}"
     features = config["features"]
     release = str(config.get("release") or "Unreleased")
     release_label = (
@@ -436,9 +446,9 @@ def build(reel_dir: Path) -> dict:
             for feature in features:  # explainer segments become clips first
                 if (feature["path"] / "explainer.yaml").is_file():
                     spec, audio = explainer_spec(feature["path"], feature, release_label, orientation)
-                    silent = feature["path"] / "artifacts" / "demo.mp4"
+                    silent = feature["path"] / "artifacts" / f"demo{suffix}.mp4"
                     render_card(browser, spec, silent)
-                    merge(silent, audio, feature["path"] / "artifacts" / "final_with_audio.mp4")
+                    merge(silent, audio, feature["path"] / "artifacts" / f"final_with_audio{suffix}.mp4")
                     print(f"Rendered explainer {feature['path'].name} ({spec['duration']:.1f}s)")
             plan: list[tuple[str, Path, str]] = []
             intro_seconds = float(config.get("intro_seconds", INTRO_SECONDS))
@@ -456,12 +466,13 @@ def build(reel_dir: Path) -> dict:
             }, work / "intro.mp4")
             plan.append(("Intro", intro, ""))
             for number, feature in enumerate(features, start=1):
-                clip = segment_clip(feature)
+                clip = segment_clip(feature, orientation)
                 if clip is None:
                     raise SystemExit(
-                        f"{feature['path']}: no artifacts/final_with_audio.mp4 or demo.mp4 yet"
+                        f"{feature['path']}: no {orientation} video yet; record it and run "
+                        "companion.py for the other orientation"
                     )
-                if clip.name == "demo.mp4":
+                if clip.name.startswith("demo"):
                     warnings.append(f"{feature['path'].name}: using silent demo.mp4")
                 recording = feature["path"] / "artifacts" / "recording.json"
                 if recording.is_file():
@@ -504,14 +515,14 @@ def build(reel_dir: Path) -> dict:
             if label in {feature["title"] for feature in features} and duration - lead > MAX_SEGMENT_SECONDS:
                 warnings.append(f"{label}: {duration - lead:.1f}s is long for a reel segment")
             pieces.append((normalized, duration, transition or "fade"))
-        reel = artifacts / "reel.mp4"
+        reel = artifacts / f"reel{suffix}.mp4"
         starts = join(pieces, reel)
         total = probe_duration(reel)
         chapters = []
         for number, (label, _, _) in enumerate(plan):
             end = starts[number + 1] if number + 1 < len(starts) else total
             chapters.append({"label": label, "start": round(starts[number], 2), "end": round(end, 2)})
-        review_sheet(reel, chapters, artifacts / "reel-review.png", work)
+        review_sheet(reel, chapters, artifacts / f"reel-review{suffix}.png", work)
 
     report = {
         "reel": str(reel),
@@ -521,21 +532,33 @@ def build(reel_dir: Path) -> dict:
         "chapters": chapters,
         "warnings": warnings,
     }
-    (artifacts / "reel.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+    (artifacts / f"reel{suffix}.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     return report
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--reel-dir", type=Path, required=True, help="Directory holding reel.yaml")
+    parser.add_argument(
+        "--orientation", choices=("both", "vertical", "horizontal"), default="both",
+        help="Every reel ships in both orientations unless you ask for one",
+    )
     args = parser.parse_args(argv)
-    report = build(args.reel_dir.resolve())
-    print(f"Wrote {report['reel']} ({report['duration_seconds']:.1f}s)")
-    for chapter in report["chapters"]:
-        minutes, seconds = divmod(chapter["start"], 60)
-        print(f"  {int(minutes)}:{seconds:05.2f}  {chapter['label']}")
-    for warning in report["warnings"]:
-        print(f"  warning: {warning}")
+    reel_dir = args.reel_dir.resolve()
+    primary = load_reel(reel_dir)["orientation"]
+    orientations = (
+        [primary, "horizontal" if primary == "vertical" else "vertical"]
+        if args.orientation == "both"
+        else [args.orientation]
+    )
+    for orientation in orientations:
+        report = build(reel_dir, orientation)
+        print(f"Wrote {report['reel']} ({report['duration_seconds']:.1f}s)")
+        for chapter in report["chapters"]:
+            minutes, seconds = divmod(chapter["start"], 60)
+            print(f"  {int(minutes)}:{seconds:05.2f}  {chapter['label']}")
+        for warning in report["warnings"]:
+            print(f"  warning: {warning}")
     return 0
 
 

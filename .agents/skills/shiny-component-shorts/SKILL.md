@@ -14,7 +14,8 @@ Create one-screen Shiny demos that make one hidden component behavior obvious in
 - Use at least three meaningful actions and three visible state changes for recordings.
 - Prefer Python Shiny Express unless the user requests R or R is materially clearer.
 - Support Shiny for Python, R Shiny, shinychat, and posit-dev/shinyreact (React UI with a Python or R server) as demo targets; a chat demo follows every rule below and must never call a real LLM.
-- Default to a true 9:16 vertical composition. Use landscape only when the user explicitly requests it.
+- Default to a true 9:16 vertical composition. Use landscape as the primary only when the user explicitly requests it.
+- Every recorded video ships as a pair: the primary orientation plus a companion in the other one (2560×1440 or 1440×2560), recorded from the same app, `actions.yaml`, and narration with `scripts/companion.py`. Cues anchor every reaction to the same words, so the narration stays in sync in both. Build the app to fill the middle band in a 720×1280 and a 1280×720 viewport (centered, fluid widths, no fixed heights), and preflight both. Skip the companion only when the user asks for one orientation.
 - Keep the app small, realistic, and understandable without narration.
 - Reserve the top 20% and bottom 20% of every frame for branding; make the app fill the available horizontal space in the middle 60% height band.
 - Every recording opens with the Shiny wordmark in the top-left of the reserved top band, sized to read on a phone; it shows for the first 5 seconds, then fades out; the recorder does this automatically, so never add a logo to the app itself.
@@ -107,7 +108,7 @@ Use this workflow when a user links a Shiny changelog (`CHANGELOG.md` or `NEWS.m
 1. List the release's features with `.agents/skills/shiny-component-shorts/scripts/changelog_features.py`. Default to the unreleased section; use `--version` when the user names a release. Keep at most six user-facing features and read each one's pull request.
 2. Give each feature its own segment directory under one reel directory. Record a short demo (15–25 s, code card optional, `logo_seconds: 0` in `actions.yaml`) when the feature has a visible effect; otherwise write an explainer segment (`explainer.yaml` plus narration) that states why the feature helps.
 3. Narrate every segment with the reel narration rules: the problem before, what changes now, the benefit. Run the batch narration phase on all segments, then the finish phase on the demo segments.
-4. Write `reel.yaml` and run `.agents/skills/shiny-component-shorts/scripts/stitch_reel.py --reel-dir <reel>`. It adds the intro, one animated feature card per segment, the outro, and the transitions. Inspect `artifacts/reel-review.png` and report the chapter times from `artifacts/reel.json`.
+4. Write `reel.yaml` and run `.agents/skills/shiny-component-shorts/scripts/stitch_reel.py --reel-dir <reel>`. It builds the reel in both orientations (`reel.mp4` and `reel-<orientation>.mp4`), so record every demo segment's companion first. It adds the intro, one animated feature card per segment, the outro, and the transitions. Inspect `artifacts/reel-review.png` and report the chapter times from `artifacts/reel.json`.
 
 ### Don't do this, do this instead
 
@@ -167,6 +168,15 @@ python .agents/skills/shiny-component-shorts/scripts/validate_demo.py \
 
 The validator prints a summary and writes the full report to `artifacts/validation.json`; read that file only when the summary is not enough.
 
+Then record, validate, and review the companion orientation in one step:
+
+```bash
+python .agents/skills/shiny-component-shorts/scripts/companion.py \
+  --project-dir generated/demo-name
+```
+
+Pass `--dry-run` first to preflight the companion layout, and `--app-dir` when the app lives outside the project directory. The companion lives in `artifacts/<orientation>/` and its finished video is copied to `artifacts/demo-<orientation>.mp4` (or `final_with_audio-<orientation>.mp4` when narrated). Never edit the companion's `actions.yaml`; it is regenerated from the primary one.
+
 Then build the review sheet and inspect that single image:
 
 ```bash
@@ -196,7 +206,7 @@ python .agents/skills/shiny-component-shorts/scripts/batch_process.py \
   --validate-concurrency 3
 ```
 
-The timing approval is bound to hashes of the current WAV, timing report, and actions file; changing any of them requires another review and approval. Recording defaults to two concurrent browsers to avoid resource contention. Merging always calls `merge_audio.py`, and validation always reruns even for cached recordings. Use `--force` only to rebuild the selected phase. The old combined `--tts --merge` invocation is deprecated because it skips the timing-adjustment gate.
+The timing approval is bound to hashes of the current WAV, timing report, and actions file; changing any of them requires another review and approval. Recording defaults to two concurrent browsers to avoid resource contention. Merging always calls `merge_audio.py`, and validation always reruns even for cached recordings. After a video passes validation, the finish phase records, merges, and validates its companion orientation with `companion.py` (cached like the other steps) and reports it as `Companion=`. A failed companion fails the batch. Use `--force` only to rebuild the selected phase. The old combined `--tts --merge` invocation is deprecated because it skips the timing-adjustment gate.
 
 To lock a specific voice or model for one video, add an optional `tts-settings.json` beside its app containing `{"voice": "Kore", "model": "gemini-3.8-flash-tts"}`. The batch processor passes these settings to the TTS generator and includes the file in that video's narration cache key.
 

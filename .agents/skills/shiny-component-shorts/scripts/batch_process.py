@@ -21,6 +21,7 @@ sys.path.insert(0, str(SCRIPTS_DIR))
 import align_narration  # noqa: E402
 import build_cache  # noqa: E402
 import check_narration_voice  # noqa: E402
+import companion  # noqa: E402
 import merge_audio  # noqa: E402
 import validate_demo  # noqa: E402
 from generate_local_voice import (  # noqa: E402
@@ -49,6 +50,7 @@ def new_result(project_dir: Path) -> dict:
         "tts": "SKIPPED",
         "merge": "SKIPPED",
         "validate": "SKIPPED",
+        "companion": "SKIPPED",
         "review_sheet": None,
         "errors": [],
         "duration": 0.0,
@@ -60,7 +62,7 @@ def has_failures(results: list[dict]) -> bool:
         result["errors"]
         or any(
             result[step] in FAILED_STATES
-            for step in ("record", "tts", "merge", "validate")
+            for step in ("record", "tts", "merge", "validate", "companion")
         )
         for result in results
     )
@@ -775,6 +777,18 @@ def validate_project(project_dir: Path, result: dict) -> dict:
     return result
 
 
+def companion_project(project_dir: Path, start_port: int, result: dict, force: bool) -> dict:
+    """Every video ships in both orientations from the same actions and narration."""
+    try:
+        report = companion.record_companion(project_dir, port=start_port, force=force)
+        result["companion"] = report["status"]
+        result["companion_video"] = report.get("video")
+    except Exception as exc:
+        result["companion"] = "FAILED"
+        result["errors"].append(f"Companion orientation failed: {exc}")
+    return result
+
+
 def run_parallel(
     items: list[tuple], worker: Callable[..., dict], max_workers: int
 ) -> None:
@@ -847,8 +861,11 @@ def print_summary(results: list[dict]) -> None:
     for result in sorted(results, key=lambda item: item["name"]):
         print(
             f"{result['name']}: TTS={result['tts']} Record={result['record']} "
-            f"Merge={result['merge']} Validate={result['validate']}"
+            f"Merge={result['merge']} Validate={result['validate']} "
+            f"Companion={result['companion']}"
         )
+        if result.get("companion_video"):
+            print(f"  companion video: {result['companion_video']}")
         takes = result.get("takes")
         if takes:
             for take in takes["takes"]:
@@ -941,6 +958,18 @@ def main(argv: list[str] | None = None) -> int:
         [(project, results_by_project[project]) for project in merged],
         validate_project,
         args.validate_concurrency,
+    )
+    validated = [
+        project for project in merged if results_by_project[project]["validate"] == "PASSED"
+    ]
+    run_parallel(
+        [
+            (project, port, results_by_project[project], args.force)
+            for project, port in zip(projects, ports)
+            if project in validated
+        ],
+        companion_project,
+        args.record_concurrency,
     )
     results = [results_by_project[project] for project in projects]
     for project, result in results_by_project.items():
