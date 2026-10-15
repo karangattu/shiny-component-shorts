@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import hashlib
 import json
 import shutil
 import subprocess
@@ -48,6 +49,9 @@ FPS = 30
 SIZES = {"vertical": (720, 1280), "horizontal": (1280, 720)}
 SCALE = 2  # 720x1280 CSS pixels render to the 1440x2560 recording size
 LOGO_PATH = Path(__file__).resolve().parent.parent / "assets" / "shiny-logo.png"
+# Bundled OFL fonts (see assets/fonts/OFL.txt), so cards render the same on every machine.
+FONT_DIR = Path(__file__).resolve().parent.parent / "assets" / "fonts"
+FONTS = {"Open Sans": "OpenSans-Latin.woff2", "Source Code Pro": "SourceCodePro-Latin.woff2"}
 LOGO_WIDTHS = {"vertical": 144, "horizontal": 180}
 # Shiny preset palette accents, rotated per feature so each card looks new.
 ACCENTS = ["#007BC2", "#00BF7F", "#F9B928", "#BF007F", "#03C7E8", "#F45100", "#74149C"]
@@ -196,19 +200,70 @@ SEEK_JS = """(ms) => document.getAnimations().map((a) => {
 }).join(',')"""
 
 
+def font_css() -> str:
+    faces = []
+    for family, name in FONTS.items():
+        data = base64.b64encode((FONT_DIR / name).read_bytes()).decode("ascii")
+        faces.append(
+            f"@font-face {{ font-family: '{family}'; font-weight: 300 800; font-style: normal; "
+            f"src: url(data:font/woff2;base64,{data}) format('woff2'); }}"
+        )
+    return "\n".join(faces)
+
+
 def logo_data_uri() -> str:
     return "data:image/png;base64," + base64.b64encode(LOGO_PATH.read_bytes()).decode("ascii")
 
 
-def render_card(browser, spec: dict, output: Path) -> Path:
+SCRIPT_DIGEST = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
+
+
+def file_digest(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def cache_key(*parts: object) -> str:
+    """Key a rendered piece by everything that shapes it, this script included."""
+    payload = json.dumps([SCRIPT_DIGEST, *parts], sort_keys=True, default=str)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:24]
+
+
+def from_cache(cache: Path | None, key: str, output: Path, build) -> Path:
+    """Reuse `cache/<key>.mp4` when present; otherwise build it there first."""
+    if cache is None:
+        build(output)
+        return output
+    cache.mkdir(parents=True, exist_ok=True)
+    stored = cache / f"{key}.mp4"
+    if not stored.is_file() or stored.stat().st_size == 0:
+        partial = stored.with_suffix(".partial.mp4")
+        build(partial)
+        partial.replace(stored)
+    if output != stored:
+        shutil.copy2(stored, output)
+    return output
+
+
+def render_card(browser, spec: dict, output: Path, cache: Path | None = None) -> Path:
     """Render a card frame by frame at FPS, so the animation is deterministic."""
+    key = "card-" + cache_key(
+        spec, file_digest(LOGO_PATH), *(file_digest(FONT_DIR / name) for name in FONTS.values())
+    )
+    return from_cache(cache, key, output, lambda target: _render_card(browser(), spec, target))
+
+
+def _render_card(browser, spec: dict, output: Path) -> Path:
     width, height = SIZES[spec["orientation"]]
     spec = {
         "logoSeconds": 0, **spec, "logo": logo_data_uri(),
         "logoWidth": LOGO_WIDTHS[spec["orientation"]], "logoFade": LOGO_FADE_SECONDS,
     }
     page = browser.new_page(viewport={"width": width, "height": height}, device_scale_factor=SCALE)
-    page.set_content(f"<!doctype html><html><head><style>{PAGE_CSS}</style></head><body></body></html>")
+    page.set_content(f"<!doctype html><html><head><style>{font_css()}{PAGE_CSS}</style></head><body></body></html>")
     page.evaluate(PAGE_JS, spec)
     page.evaluate("document.fonts.ready")
     encoder = subprocess.Popen(
@@ -297,7 +352,16 @@ def video_size(path: Path) -> tuple[int, int]:
     return int(stream["width"]), int(stream["height"])
 
 
-def normalize(source: Path, output: Path, orientation: str, lead: float = 0.0) -> float:
+def normalize(
+    source: Path, output: Path, orientation: str, lead: float = 0.0, cache: Path | None = None
+) -> float:
+    """Normalize one piece, reusing a cached encode of the same source."""
+    key = "piece-" + cache_key(file_digest(source), orientation, lead)
+    from_cache(cache, key, output, lambda target: _normalize(source, target, orientation, lead))
+    return probe_duration(source) + lead
+
+
+def _normalize(source: Path, output: Path, orientation: str, lead: float = 0.0) -> float:
     """Re-encode one piece to the shared size, frame rate, and stereo AAC track.
 
     `lead` holds the first frame and delays the audio by that many seconds, so
@@ -439,16 +503,35 @@ def build(reel_dir: Path, orientation: str | None = None) -> dict:
     artifacts.mkdir(parents=True, exist_ok=True)
     warnings: list[str] = []
 
+    # Rendered cards and normalized clips are reused while their inputs match.
+    cache = artifacts / ".reel-cache"
     with tempfile.TemporaryDirectory(prefix="reel-") as temp, sync_playwright() as playwright:
         work = Path(temp)
-        browser = playwright.chromium.launch()
+        launched: list = []
+
+        def browser():  # launched only when a card is not cached
+            if not launched:
+                launched.append(playwright.chromium.launch())
+            return launched[0]
+
         try:
             for feature in features:  # explainer segments become clips first
                 if (feature["path"] / "explainer.yaml").is_file():
                     spec, audio = explainer_spec(feature["path"], feature, release_label, orientation)
-                    silent = feature["path"] / "artifacts" / f"demo{suffix}.mp4"
-                    render_card(browser, spec, silent)
-                    merge(silent, audio, feature["path"] / "artifacts" / f"final_with_audio{suffix}.mp4")
+                    segment_artifacts = feature["path"] / "artifacts"
+                    silent = segment_artifacts / f"demo{suffix}.mp4"
+                    final = segment_artifacts / f"final_with_audio{suffix}.mp4"
+                    stamp = segment_artifacts / f".explainer{suffix}.key"
+                    key = cache_key(
+                        spec, file_digest(audio), file_digest(LOGO_PATH),
+                        *(file_digest(FONT_DIR / name) for name in FONTS.values()),
+                    )
+                    if final.is_file() and stamp.is_file() and stamp.read_text() == key:
+                        print(f"Reused explainer {feature['path'].name}")
+                        continue
+                    render_card(browser, spec, silent, cache)
+                    merge(silent, audio, final)
+                    stamp.write_text(key)
                     print(f"Rendered explainer {feature['path'].name} ({spec['duration']:.1f}s)")
             plan: list[tuple[str, Path, str]] = []
             intro_seconds = float(config.get("intro_seconds", INTRO_SECONDS))
@@ -463,7 +546,7 @@ def build(reel_dir: Path, orientation: str | None = None) -> dict:
                 "eyebrow": release_label,
                 "title": config.get("title") or "What's new in Shiny",
                 "items": [feature["title"] for feature in features],
-            }, work / "intro.mp4")
+            }, work / "intro.mp4", cache)
             plan.append(("Intro", intro, ""))
             for number, feature in enumerate(features, start=1):
                 clip = segment_clip(feature, orientation)
@@ -487,7 +570,7 @@ def build(reel_dir: Path, orientation: str | None = None) -> dict:
                     "duration": float(config.get("card_seconds", CARD_SECONDS)),
                     "eyebrow": release_label, "index": number, "total": len(features),
                     "title": feature["title"], "why": feature.get("why") or "",
-                }, work / f"card-{number:02d}.mp4")
+                }, work / f"card-{number:02d}.mp4", cache)
                 plan.append((f"Feature {number} card", card, TRANSITION_IN))
                 plan.append((feature["title"], clip, TRANSITION_OUT))
             outro = config.get("outro")
@@ -497,10 +580,11 @@ def build(reel_dir: Path, orientation: str | None = None) -> dict:
                     "duration": float(outro.get("seconds", OUTRO_SECONDS)),
                     "title": outro.get("title") or "Try it today",
                     "why": outro.get("why") or "", "command": outro.get("command") or "",
-                }, work / "outro.mp4")
+                }, work / "outro.mp4", cache)
                 plan.append(("Outro", card, TRANSITION_IN))
         finally:
-            browser.close()
+            for opened in launched:
+                opened.close()
 
         pieces = []
         for number, (label, source, transition) in enumerate(plan):
@@ -511,7 +595,7 @@ def build(reel_dir: Path, orientation: str | None = None) -> dict:
             # Feature clips start narrating NARRATION_OFFSET_SECONDS in, inside
             # the transition window; the lead keeps the first word clear of it.
             lead = TRANSITION_SECONDS if transition == TRANSITION_OUT else 0.0
-            duration = normalize(source, normalized, orientation, lead)
+            duration = normalize(source, normalized, orientation, lead, cache)
             if label in {feature["title"] for feature in features} and duration - lead > MAX_SEGMENT_SECONDS:
                 warnings.append(f"{label}: {duration - lead:.1f}s is long for a reel segment")
             pieces.append((normalized, duration, transition or "fade"))
@@ -523,6 +607,14 @@ def build(reel_dir: Path, orientation: str | None = None) -> dict:
             end = starts[number + 1] if number + 1 < len(starts) else total
             chapters.append({"label": label, "start": round(starts[number], 2), "end": round(end, 2)})
         review_sheet(reel, chapters, artifacts / f"reel-review{suffix}.png", work)
+        # Cover image: the intro card once its feature list has drawn in.
+        thumb_width, thumb_height = (1080, 1920) if orientation == "vertical" else (1280, 720)
+        subprocess.run(
+            ["ffmpeg", "-y", "-loglevel", "error", "-ss", f"{min(3.5, float(chapters[0]['end']) - 0.6):.2f}",
+             "-i", str(reel), "-frames:v", "1", "-vf", f"scale={thumb_width}:{thumb_height}",
+             "-q:v", "3", str(artifacts / f"reel-thumbnail{suffix}.jpg")],
+            check=True,
+        )
 
     report = {
         "reel": str(reel),
