@@ -22,6 +22,7 @@ import align_narration  # noqa: E402
 import build_cache  # noqa: E402
 import check_narration_voice  # noqa: E402
 import companion  # noqa: E402
+import thumbnail  # noqa: E402
 import merge_audio  # noqa: E402
 import validate_demo  # noqa: E402
 from generate_local_voice import (  # noqa: E402
@@ -53,6 +54,7 @@ def new_result(project_dir: Path) -> dict:
         "companion": "SKIPPED",
         "review_sheet": None,
         "errors": [],
+        "warnings": [],
         "duration": 0.0,
     }
 
@@ -418,11 +420,29 @@ def generate_narration(project_dir: Path, force: bool) -> dict:
             )
             build_cache.update_cache(project_dir, "tts", inputs)
             result["tts"] = "SUCCESS"
+        result["warnings"].extend(reel_segment_warnings(project_dir, timing))
     except Exception as exc:
         result["tts"] = "FAILED"
         result["errors"].append(f"Narration failed: {exc}")
     result["duration"] = round(time.time() - started, 2)
     return result
+
+
+# A changelog reel segment aims for 15-25 s; past this, cut the script before recording.
+REEL_SEGMENT_TARGET_SECONDS = 25.0
+
+
+def reel_segment_warnings(project_dir: Path, timing: Path) -> list[str]:
+    """Flag a long reel segment while its script is still cheap to change."""
+    if not (project_dir.parent / "reel.yaml").is_file() or not timing.is_file():
+        return []
+    seconds = float(json.loads(timing.read_text(encoding="utf-8")).get("duration_seconds") or 0)
+    if seconds <= REEL_SEGMENT_TARGET_SECONDS:
+        return []
+    return [
+        f"Reel segment narration runs {seconds:.1f}s; aim for 15-25 s. Shorten "
+        "narration.txt and rerun --phase narration before recording."
+    ]
 
 
 def matched_gains(
@@ -771,6 +791,10 @@ def validate_project(project_dir: Path, result: dict) -> dict:
             raise RuntimeError(completed.stdout or completed.stderr or "Validation failed")
         result["validate"] = "PASSED"
         result["review_sheet"] = build_review_sheet(project_dir)
+        try:
+            result["thumbnails"] = [str(path) for path in thumbnail.make_thumbnails(project_dir)]
+        except Exception as exc:  # a cover image never fails a finished video
+            result["errors"].append(f"Thumbnail failed: {exc}")
     except Exception as exc:
         result["validate"] = "FAILED"
         result["errors"].append(f"Validation failed: {exc}")
@@ -780,13 +804,24 @@ def validate_project(project_dir: Path, result: dict) -> dict:
 def companion_project(project_dir: Path, start_port: int, result: dict, force: bool) -> dict:
     """Every video ships in both orientations from the same actions and narration."""
     try:
-        report = companion.record_companion(project_dir, port=start_port, force=force)
+        # Thumbnails for both videos are made once, after the primary validates.
+        report = companion.record_companion(
+            project_dir, port=start_port, force=force, thumbnails=False
+        )
         result["companion"] = report["status"]
         result["companion_video"] = report.get("video")
     except Exception as exc:
         result["companion"] = "FAILED"
         result["errors"].append(f"Companion orientation failed: {exc}")
     return result
+
+
+def run_jobs(jobs: list[tuple[Callable[..., dict], tuple]], max_workers: int) -> None:
+    """Run mixed (worker, args) jobs on one pool, so they share a concurrency budget."""
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = [executor.submit(worker, *args) for worker, args in jobs]
+        for future in concurrent.futures.as_completed(futures):
+            future.result()
 
 
 def run_parallel(
@@ -886,6 +921,8 @@ def print_summary(results: list[dict]) -> None:
             print(f"  review sheet: {result['review_sheet']}")
         for error in result["errors"]:
             print(f"  - {error}")
+        for warning in result.get("warnings", []):
+            print(f"  warning: {warning}")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -903,6 +940,10 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     try:
         ports = [start_port_for(index) for index in range(len(projects))]
+        # Companion recordings run beside the primaries, on their own port ranges.
+        companion_ports = [
+            start_port_for(len(projects) + index) for index in range(len(projects))
+        ]
     except ValueError as exc:
         print(exc, file=sys.stderr)
         return 2
@@ -930,15 +971,15 @@ def main(argv: list[str] | None = None) -> int:
         for project in projects
         if prepare_finish(project, results_by_project[project], args.approve_timing)
     ]
-    run_parallel(
-        [
-            (project, port, results_by_project[project], args.force)
-            for project, port in zip(projects, ports)
-            if project in ready
-        ],
-        record_project,
-        args.record_concurrency,
-    )
+    # A companion needs only the approved actions and narration, not the primary's
+    # video, so both orientations record at once within --record-concurrency.
+    jobs: list[tuple[Callable[..., dict], tuple]] = []
+    for project, port, companion_port in zip(projects, ports, companion_ports):
+        if project in ready:
+            result = results_by_project[project]
+            jobs.append((record_project, (project, port, result, args.force)))
+            jobs.append((companion_project, (project, companion_port, result, args.force)))
+    run_jobs(jobs, args.record_concurrency)
     recorded = [
         project
         for project in ready
@@ -958,18 +999,6 @@ def main(argv: list[str] | None = None) -> int:
         [(project, results_by_project[project]) for project in merged],
         validate_project,
         args.validate_concurrency,
-    )
-    validated = [
-        project for project in merged if results_by_project[project]["validate"] == "PASSED"
-    ]
-    run_parallel(
-        [
-            (project, port, results_by_project[project], args.force)
-            for project, port in zip(projects, ports)
-            if project in validated
-        ],
-        companion_project,
-        args.record_concurrency,
     )
     results = [results_by_project[project] for project in projects]
     for project, result in results_by_project.items():

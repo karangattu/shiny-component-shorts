@@ -26,6 +26,7 @@ import yaml
 SCRIPTS_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPTS_DIR))
 import build_cache  # noqa: E402
+import thumbnail  # noqa: E402
 
 OTHER = {"vertical": "horizontal", "horizontal": "vertical"}
 NARRATION_FILES = ("narration.txt", "narration.wav", "narration-timing.json")
@@ -118,6 +119,7 @@ def record_companion(
     port: int | None = None,
     force: bool = False,
     dry_run: bool = False,
+    thumbnails: bool = True,
 ) -> dict:
     """Prepare, record, merge, validate, and publish the companion orientation."""
     project_dir = project_dir.resolve()
@@ -177,6 +179,8 @@ def record_companion(
         capture_output=True,
     )
     shutil.copy2(final, published)
+    if thumbnails:
+        thumbnail.make_thumbnails(project_dir)
     build_cache.update_cache(target, "companion", inputs)
     return {
         "orientation": orientation,

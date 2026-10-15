@@ -399,10 +399,11 @@ class BatchProcessTest(unittest.TestCase):
             self.assertEqual(result["record"], "CACHED")
             self.assertEqual(result["validate"], "PASSED")
             commands = [str(call.args[0]) for call in mock_run.call_args_list]
-            # The recording came from cache; validation and the review sheet did not.
-            self.assertEqual(len(commands), 2)
+            # The recording came from cache; validation and the review sheet did
+            # not. Anything after them is the thumbnail step's ffmpeg/ffprobe.
             self.assertIn("validate_demo.py", commands[0])
             self.assertIn("review_frames.py", commands[1])
+            self.assertFalse(any("record_demo.py" in command for command in commands))
 
     @patch("subprocess.run")
     def test_merge_invokes_quality_preserving_shared_script(self, mock_run: MagicMock) -> None:

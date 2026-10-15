@@ -40,7 +40,9 @@ Everything lands in `generated/<demo-name>/`, which git ignores. You get two fin
 | Vertical 9:16, for phones | `final_with_audio.mp4` | `demo.mp4` |
 | Horizontal 16:9 | `final_with_audio-horizontal.mp4` | `demo-horizontal.mp4` |
 
-Both come from one recording script and one narration track, so the voice lines up with the same clicks in each. Ask for a horizontal video and you get a vertical copy instead. If you only want one shape, say so.
+You also get a cover image for each one, `thumbnail.jpg` and `thumbnail-horizontal.jpg`, ready to upload.
+
+Both videos come from one recording script and one narration track, so the voice lines up with the same clicks in each. Ask for a horizontal video and you get a vertical copy instead. If you only want one shape, say so.
 
 In OpenCode, start with `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1 opencode` so only one copy of the skill loads.
 

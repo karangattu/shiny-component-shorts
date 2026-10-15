@@ -175,7 +175,7 @@ python .agents/skills/shiny-component-shorts/scripts/companion.py \
   --project-dir generated/demo-name
 ```
 
-Pass `--dry-run` first to preflight the companion layout, and `--app-dir` when the app lives outside the project directory. The companion lives in `artifacts/<orientation>/` and its finished video is copied to `artifacts/demo-<orientation>.mp4` (or `final_with_audio-<orientation>.mp4` when narrated). Never edit the companion's `actions.yaml`; it is regenerated from the primary one.
+Pass `--dry-run` first to preflight the companion layout, and `--app-dir` when the app lives outside the project directory. The companion lives in `artifacts/<orientation>/` and its finished video is copied to `artifacts/demo-<orientation>.mp4` (or `final_with_audio-<orientation>.mp4` when narrated). Never edit the companion's `actions.yaml`; it is regenerated from the primary one. `companion.py` also writes both cover images (`thumbnail.py`), using the `title:` in `actions.yaml` for the title plate.
 
 Then build the review sheet and inspect that single image:
 
@@ -206,7 +206,7 @@ python .agents/skills/shiny-component-shorts/scripts/batch_process.py \
   --validate-concurrency 3
 ```
 
-The timing approval is bound to hashes of the current WAV, timing report, and actions file; changing any of them requires another review and approval. Recording defaults to two concurrent browsers to avoid resource contention. Merging always calls `merge_audio.py`, and validation always reruns even for cached recordings. After a video passes validation, the finish phase records, merges, and validates its companion orientation with `companion.py` (cached like the other steps) and reports it as `Companion=`. A failed companion fails the batch. Use `--force` only to rebuild the selected phase. The old combined `--tts --merge` invocation is deprecated because it skips the timing-adjustment gate.
+The timing approval is bound to hashes of the current WAV, timing report, and actions file; changing any of them requires another review and approval. Recording defaults to two concurrent browsers to avoid resource contention. Merging always calls `merge_audio.py`, and validation always reruns even for cached recordings. The finish phase records each video's companion orientation with `companion.py` at the same time as the primary, on its own port, within the same `--record-concurrency` budget (cached like the other steps), and reports it as `Companion=`. A failed companion fails the batch. After the primary validates, it writes cover images with `thumbnail.py`: `artifacts/thumbnail.jpg` and `artifacts/thumbnail-<orientation>.jpg`. Give `actions.yaml` a short top-level `title:` (4–8 words) for the thumbnail's title plate. For a changelog reel segment, the narration phase warns when the narration runs past 25 s, so cut the script before you record. Use `--force` only to rebuild the selected phase. The old combined `--tts --merge` invocation is deprecated because it skips the timing-adjustment gate.
 
 To lock a specific voice or model for one video, add an optional `tts-settings.json` beside its app containing `{"voice": "Kore", "model": "gemini-3.8-flash-tts"}`. The batch processor passes these settings to the TTS generator and includes the file in that video's narration cache key.
 
