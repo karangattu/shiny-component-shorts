@@ -12,7 +12,7 @@ Defaults:
 - One video = one feature.
 - Keep apps tiny, visual, and recordable.
 - Reserve the top 20% and bottom 20% of the frame for branding and fill the middle band's horizontal space.
-- Every recording is stamped with the Shiny wordmark in the top-left, sized to read on a phone; the recorder adds it, so never put a logo in the app.
+- Every recording shows the Shiny wordmark in the top-left for its first 5 seconds, then fades it out, sized to read on a phone; the recorder adds it, so never put a logo in the app.
 - Use only the official Shiny preset palette with accessible light- or dark-mode text.
 - Write every voiceover script with the `simple-english` skill for meaning-level clarity (one thought per sentence, active voice, one name per thing, no hedges or filler), keeping contractions so it sounds spoken; sentence rhythm and texture come from the speech-texture pass.
 - Do not include laughing, giggling, chuckling, or other non-speech narration sounds.

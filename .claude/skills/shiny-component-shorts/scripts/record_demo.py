@@ -117,6 +117,8 @@ DEFAULT_LOGO_PATH = Path(__file__).resolve().parent.parent / "assets" / "shiny-l
 LOGO_WIDTHS = {"vertical": 144, "horizontal": 180}
 LOGO_INSET = {"top": "4%", "left": "4%"}
 LOGO_DARK_THRESHOLD = 0.5
+# The wordmark brands the opening, then fades so the app has the frame to itself.
+LOGO_VISIBLE_SECONDS = 5.0
 
 CURSOR_OVERLAY_JS = r"""(() => {
     const install = () => {
@@ -191,8 +193,13 @@ LOGO_OVERLAY_JS = r"""(cfg) => {
         logo.alt = 'Shiny';
         logo.style.cssText = `position:fixed;top:${cfg.top};left:${cfg.left};`
             + `width:${cfg.width}px;height:auto;z-index:2147483644;`
-            + 'pointer-events:none;user-select:none;transition:opacity 180ms ease;';
+            + 'pointer-events:none;user-select:none;transition:opacity 400ms ease;';
         document.documentElement.appendChild(logo);
+        if (cfg.hidden) window.__demo_logo_hidden__ = true;
+        window.__demo_hide_logo__ = () => {
+            window.__demo_logo_hidden__ = true;
+            logo.style.opacity = '0';
+        };
 
         const channel = value => {
             const scaled = value / 255;
@@ -256,6 +263,10 @@ LOGO_OVERLAY_JS = r"""(cfg) => {
             return 1;
         };
         const paint = () => {
+            if (window.__demo_logo_hidden__) {
+                logo.style.opacity = '0';
+                return;
+            }
             // Keep branding visible; let preflight/recording reject overlap.
             if (hasCollision()) window.__demo_logo_collision__ = true;
             logo.style.opacity = '1';
@@ -641,7 +652,23 @@ def resolve_logo_path(override: Path | None = None) -> Path:
     return path
 
 
-def logo_overlay_config(orientation: str, logo_path: Path) -> dict:
+def resolve_logo_seconds(config: dict) -> float:
+    """Seconds the wordmark stays on screen; 0 records without it (reel segments)."""
+    value = config.get("logo_seconds", LOGO_VISIBLE_SECONDS)
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or value < 0:
+        raise ValueError("logo_seconds must be a number of seconds, 0 or more")
+    return float(value)
+
+
+def hide_logo_after(page, seconds: float) -> None:
+    """Fade the wordmark out once the video reaches its logo time."""
+    page.evaluate(
+        "ms => setTimeout(() => window.__demo_hide_logo__?.(), ms)",
+        max(0.0, seconds) * 1000,
+    )
+
+
+def logo_overlay_config(orientation: str, logo_path: Path, seconds: float = LOGO_VISIBLE_SECONDS) -> dict:
     if orientation not in LOGO_WIDTHS:
         raise ValueError(f"Unsupported orientation: {orientation}")
     mime = mimetypes.guess_type(logo_path.name)[0] or "image/png"
@@ -650,6 +677,8 @@ def logo_overlay_config(orientation: str, logo_path: Path) -> dict:
         "src": f"data:{mime};base64,{encoded}",
         "width": LOGO_WIDTHS[orientation],
         "darkThreshold": LOGO_DARK_THRESHOLD,
+        "hidden": seconds == 0,
+        "seconds": seconds,
         **LOGO_INSET,
     }
 
@@ -980,6 +1009,7 @@ def assert_no_shiny_client_errors(page) -> None:
 
 def assert_branding_visible(page) -> None:
     problem = page.evaluate("""() => {
+        if (window.__demo_logo_hidden__) return null;
         const logo = document.getElementById('__demo_logo__');
         if (!logo || !logo.complete || !logo.naturalWidth) return 'missing logo';
         const box = logo.getBoundingClientRect();
@@ -1289,7 +1319,7 @@ def prepare_run(
         "port": port,
         "orientation": orientation,
         "overlays": normalize_overlays(config),
-        "logo": logo_overlay_config(orientation, logo_path),
+        "logo": logo_overlay_config(orientation, logo_path, resolve_logo_seconds(config)),
         "logo_path": logo_path,
     }
 
@@ -1568,6 +1598,10 @@ def record_project(
             # Trim the page-load preamble so the first action lands near the
             # start of the deliverable and narration timed from zero stays in sync.
             trim_seconds = max(0.0, preamble_seconds - LEAD_SECONDS)
+            hide_logo_after(
+                page,
+                logo["seconds"] - (time.monotonic() - recording_started - trim_seconds),
+            )
             timeline = run_actions(
                 page,
                 config["actions"],
@@ -1686,6 +1720,7 @@ def record_project(
                         "width": logo["width"],
                         "top": logo["top"],
                         "left": logo["left"],
+                        "visible_seconds": logo["seconds"],
                     },
                     "narration_offset_seconds": align_narration.NARRATION_OFFSET_SECONDS,
                     "orientation": orientation,

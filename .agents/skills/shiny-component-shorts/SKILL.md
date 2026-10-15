@@ -17,7 +17,7 @@ Create one-screen Shiny demos that make one hidden component behavior obvious in
 - Default to a true 9:16 vertical composition. Use landscape only when the user explicitly requests it.
 - Keep the app small, realistic, and understandable without narration.
 - Reserve the top 20% and bottom 20% of every frame for branding; make the app fill the available horizontal space in the middle 60% height band.
-- Every recording is stamped with the Shiny wordmark in the top-left of the reserved top band, sized to read on a phone; the recorder does this automatically, so never add a logo to the app itself.
+- Every recording opens with the Shiny wordmark in the top-left of the reserved top band, sized to read on a phone; it shows for the first 5 seconds, then fades out; the recorder does this automatically, so never add a logo to the app itself.
 - Use only the Shiny preset palette, led by `#007BC2`, with `#1D1F21` text on light surfaces and `#FFFFFF` text on dark surfaces.
 - Use official Shiny, shinychat, and shinyreact documentation as the source of truth, and the source at the requested ref when the request starts from a changeset.
 - Preserve natural speech and pauses. Fit the recording to the narration; never accelerate the voice or trim pauses to hit the target duration. If the local voice runs fast, slow its engine rate (`speaking_rate` below 1.0) instead of accepting a rushed take; if needed, shorten the script and regenerate naturally before recording.
