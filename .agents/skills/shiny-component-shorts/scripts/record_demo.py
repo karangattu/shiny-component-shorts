@@ -1214,6 +1214,10 @@ def encode_screencast(
                 "0",
                 "-i",
                 str(manifest),
+                # The repeated last file plays its duration a second time; cap
+                # the output at the recording window so the tail is not doubled.
+                "-t",
+                f"{end - start:.3f}",
                 "-vf",
                 f"fps={OUTPUT_FPS},scale={width}:{height}:flags=lanczos,format=yuv420p",
                 "-c:v",
