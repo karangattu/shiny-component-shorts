@@ -30,10 +30,17 @@ Narration is optional. Gemini narration needs `pip install google-genai` and a `
 Open the repo in your agent and ask:
 
 ```text
-/shiny-component-shorts Create a vertical video about Shiny's date range picker in Python.
+/shiny-component-shorts Create a video about Shiny's date range picker in Python.
 ```
 
-Everything lands in `generated/<demo-name>/`, which git ignores. The finished video is `artifacts/final_with_audio.mp4`, or `artifacts/demo.mp4` for a silent one.
+Everything lands in `generated/<demo-name>/`, which git ignores. You get two finished videos in `artifacts/`:
+
+| Video | Narrated | Silent |
+| --- | --- | --- |
+| Vertical 9:16, for phones | `final_with_audio.mp4` | `demo.mp4` |
+| Horizontal 16:9 | `final_with_audio-horizontal.mp4` | `demo-horizontal.mp4` |
+
+Both come from one recording script and one narration track, so the voice lines up with the same clicks in each. Ask for a horizontal video and you get a vertical copy instead. If you only want one shape, say so.
 
 In OpenCode, start with `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1 opencode` so only one copy of the skill loads.
 
@@ -43,7 +50,7 @@ In OpenCode, start with `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1 opencode` so only
 | --- | --- |
 | Ideas only | `Give me 5 video ideas for Shiny's data grid.` |
 | A runnable app | `Create a runnable mini-app for toolbar-select in Python.` |
-| A finished video | `Make a narrated vertical video about bslib value boxes in R.` |
+| A finished video | `Make a narrated video about bslib value boxes in R.` |
 | An existing app | `Make a video about the best behavior in ~/apps/sales-dashboard.` The agent never edits your app. |
 | A pull request or commit | `Make a video about https://github.com/posit-dev/py-shiny/pull/2051` |
 | A changelog reel | `Make a changelog reel of the unreleased features in https://github.com/posit-dev/py-shiny/blob/main/CHANGELOG.md` |
@@ -53,7 +60,7 @@ The skill covers Shiny for Python, R Shiny, [shinychat](https://github.com/posit
 
 **Pull requests and commits** work for `rstudio/shiny`, `posit-dev/py-shiny`, `posit-dev/shinychat`, and `posit-dev/shinyreact`. The agent installs that exact build and demos one user-facing change. If the change has nothing to show on screen, it says so.
 
-**Changelog reels** cover every new feature in the unreleased section of a `CHANGELOG.md` or `NEWS.md`, or in a release you name. An animated "02 of 04" card comes before each feature. Features you can see get a recorded demo. API and testing changes get an animated explainer card that says why the feature helps.
+**Changelog reels** cover every new feature in the unreleased section of a `CHANGELOG.md` or `NEWS.md`, or in a release you name. An animated "02 of 04" card comes before each feature, and you get the reel in both shapes: `reel.mp4` and `reel-horizontal.mp4`. Features you can see get a recorded demo. API and testing changes get an animated explainer card that says why the feature helps.
 
 ## Narration
 
@@ -66,7 +73,8 @@ The agent measures when each word is spoken and times every click to the words t
 
 ## What every video looks like
 
-- Vertical 9:16 by default, with the app in the middle 60% of the frame.
+- Vertical and horizontal versions of the same video. The app fills the middle 60% of the frame in both.
+- In the horizontal version, the code card sits beside the app instead of below it.
 - The Shiny logo sits in the top-left for the first 5 seconds, then fades out.
 - At least three clicks or inputs, each with a visible change.
 - A syntax-highlighted code card in a VS Code-style window. It shows real source context from the app with the key line highlighted.
@@ -91,6 +99,7 @@ The two skill copies are edited together but are not identical, so don't copy on
 
 - **Missing selectors in the preflight**: the app or `actions.yaml` changed. Fix the selector instead of making it looser.
 - **"Shiny Client Errors" panel on screen**: the recording fails. Fix the app and record again.
+- **The horizontal version looks cramped or empty**: the app was styled for a phone screen. Give it fluid widths and center it so it fills both shapes.
 - **The app won't start**: the error shows the app's own output. This is usually a missing package in the demo's environment.
 - **`ffmpeg` not found**: install it and make sure `ffmpeg` and `ffprobe` are on your `PATH`.
 - **Port already in use**: the recorder picks a free port by itself. Don't kill unknown processes to free one.
