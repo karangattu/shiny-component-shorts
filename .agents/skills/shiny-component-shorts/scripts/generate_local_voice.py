@@ -460,6 +460,8 @@ def main(argv: list[str] | None = None) -> int:
             if args.api_url:
                 synthesize_api(args, text, output)
                 return 0
+            if uv is None:
+                raise ValueError("uv is required for the CLI transport")
             command = build_cli_command(uv, args, text, output)
             completed = subprocess.run(command, cwd=args.engine_dir, capture_output=True, text=True)
             if completed.returncode != 0:
