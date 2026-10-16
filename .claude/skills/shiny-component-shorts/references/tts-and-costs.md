@@ -35,6 +35,7 @@ Use three aligned controls:
 Useful inline cues are limited to pacing and restrained emphasis:
 
 - Pacing: `[short pause]` (about 250 ms), `[medium pause]` (about 500 ms), or `[long pause]` (about one second or more).
+- Exact pause (local voice only): `[pause 2s]` or `[pause 0.5s]`, up to 10 seconds. Gemini does not read this tag, so use the named tags there.
 - Local delivery changes: `[slightly firmer]` when they match a visible beat.
 - Do not use reaction or non-speech tags. The validator rejects laugh, laughter, giggle, and chuckle variants.
 
@@ -142,6 +143,8 @@ It transcribes the WAV locally with faster-whisper word timestamps (no API call,
 This replaces listening as the gate for timing and content. Read the differences: a digit heard as a word ("8" for "eight") is normal and already normalized, but a heard `card` for an expected `chart`, or a dropped code name, means the take mispronounced it — regenerate. The model is `base.en` by default; set `SHORTS_ALIGN_MODEL` to use another faster-whisper model. When you can listen, still watch the final video with sound; when you cannot, say so, and rely on the transcript check and cue timings rather than guessing from silence gaps.
 
 Keep the normal prompt envelope and its 3–6 cues in `narration.txt` so concept review and validation stay consistent. Before local synthesis, the adapter extracts only `Transcript:`, strips performance tags, and turns each pause tag into a line break (closing the previous thought with sentence punctuation). The whole text is then synthesized in **one request** and the engine's audio is used byte-for-byte: the engine places its own short pause at line breaks, so planned breath points survive without any inserted, joined, or post-processed audio. Punctuation supplies phrasing inside each line.
+
+For an exact gap, write `[pause 2s]` (or `[pause 0.5s]`) in the transcript, for example `Hello! If you're hearing this, [pause 2s] it means the voice clone worked.` The adapter then synthesizes each stretch of text between exact pauses as its own request, closes the text before the pause with sentence punctuation, and joins the segments with that many seconds of digital silence. Exact pauses are the only case where the adapter assembles audio: the usage report then shows `synthesis_requests` above 1, `exact_pause_seconds`, and `audio_modified: true`. Each segment is a separate synthesis, so keep the segments long enough to carry their own intonation, and use exact pauses sparingly (they count toward the 3–6 tag limit). A `[pause Ns]` cannot come first in the transcript.
 
 The local adapter writes the same `narration.wav`, timing report, and usage report as the Gemini path. Its usage report records `$0` paid API cost plus the measured pace (`words_per_minute`, articulation rate, pause density) and the `pace_gate_max_wpm` setting; `synthesis_requests` is 1 and `audio_modified` is false because the engine's audio is never assembled or altered. Every take is measured against the pace gate (`--max-wpm`, default 160 WPM, `max_wpm` in `tts-settings.json`; `0` disables it): a take above the gate is rejected automatically, so slow the voice or add pauses instead of approving a rushed take. Check its transcript check and cue times, listen when you can, and approve its measured timing before the finish phase, exactly as with any other narration source.
 

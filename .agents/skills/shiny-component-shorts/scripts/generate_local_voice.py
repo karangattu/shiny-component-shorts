@@ -2,8 +2,10 @@
 """Generate narration with a reference voice through local-voice-cloning.
 
 The transcript is synthesized in one request and the engine's audio is used
-byte-for-byte. Pause tags become sentence breaks in the text so the model
-places its own natural pauses; no audio is ever inserted, trimmed, or joined.
+byte-for-byte. Named pause tags ([short pause], [medium pause], [long pause])
+become sentence breaks in the text so the model places its own natural pauses.
+An exact pause tag such as [pause 2s] is the one exception: the transcript is
+synthesized in segments and joined with that much digital silence.
 """
 
 from __future__ import annotations
@@ -29,6 +31,11 @@ PAUSE_TAG_RE = re.compile(r"\[((?:short|medium|long) pause)\]", re.IGNORECASE)
 
 # Pause-tag vocabulary; any tag in this set becomes a line break in the text.
 PAUSE_DURATIONS = {"short pause": 0.25, "medium pause": 0.5, "long pause": 1.0}
+
+# Exact-duration pause, e.g. [pause 2s] or [pause 0.5s]. Unlike the named tags it
+# inserts real silence between separately synthesized segments.
+EXACT_PAUSE_RE = re.compile(r"\[pause\s+(\d+(?:\.\d+)?)\s*s\]", re.IGNORECASE)
+MAX_EXACT_PAUSE_SECONDS = 10.0
 
 MIN_SPEAKING_RATE = 0.5
 MAX_SPEAKING_RATE = 1.5
@@ -105,18 +112,60 @@ def warm_up(api_url: str, engine: str, quality: str, timeout: float = 900) -> di
 
 
 def local_voice_script(prompt: str) -> str:
-    """Return one continuous transcript for a single synthesis request.
+    """Return the spoken text as one script (exact pauses count as line breaks).
 
-    Performance tags are stripped. Pause tags become line breaks — the text
-    before a pause tag ends with sentence punctuation and the next thought
-    starts on a fresh line. The engine places its own short pause at line
-    breaks and synthesizes the whole text in one request; phrasing inside
-    each line is left to punctuation. No audio is assembled afterwards — the
-    engine's output is used as-is.
+    Performance tags are stripped. Named pause tags become line breaks — the
+    text before a pause tag ends with sentence punctuation and the next
+    thought starts on a fresh line. The engine places its own short pause at
+    line breaks; phrasing inside each line is left to punctuation.
+    """
+    return "\n".join(part for part in local_voice_parts(prompt) if isinstance(part, str))
+
+
+def local_voice_parts(prompt: str) -> list[str | float]:
+    """Split the transcript at exact `[pause Ns]` tags.
+
+    Returns text segments and pause lengths in seconds, in order. Without an
+    exact pause tag the result is one text segment, synthesized in one request.
     """
     if "Transcript:" not in prompt:
         raise ValueError("Narration prompt is missing the Transcript: section")
     transcript = prompt.split("Transcript:", 1)[1]
+    parts: list[str | float] = []
+    tokens = EXACT_PAUSE_RE.split(transcript)
+    for index, token in enumerate(tokens):
+        if index % 2:
+            seconds = float(token)
+            if seconds > MAX_EXACT_PAUSE_SECONDS:
+                raise ValueError(
+                    f"[pause {token}s] is longer than {MAX_EXACT_PAUSE_SECONDS:g} seconds"
+                )
+            if parts and isinstance(parts[-1], float):
+                parts[-1] += seconds
+            else:
+                parts.append(seconds)
+            continue
+        text = _named_pause_lines(token)
+        if index:
+            # Text after an exact pause often starts with a stray "." or ",".
+            text = text.lstrip(" .,;")
+        if not re.search(r"\w", text):
+            continue
+        if parts and isinstance(parts[-1], float) and len(parts) > 1:
+            previous = parts[-2]
+            if isinstance(previous, str):
+                parts[-2] = _close_sentence(previous)
+        parts.append(text)
+    return parts
+
+
+def _close_sentence(text: str) -> str:
+    """End the text before a pause with sentence punctuation."""
+    text = text.rstrip(" ,;")
+    return text if text.endswith((".", "!", "?", ":", "…")) else text + "."
+
+
+def _named_pause_lines(transcript: str) -> str:
     lines: list[str] = []
     for token in PAUSE_TAG_RE.split(transcript):
         if token is not None and PAUSE_DURATIONS.get(token.lower()):
@@ -131,8 +180,33 @@ def local_voice_script(prompt: str) -> str:
                     lines[-1] += " " + text
                 else:
                     lines.append(text)
-    lines = [line for line in lines if line]
-    return "\n".join(lines)
+    return "\n".join(line for line in lines if line)
+
+
+def join_with_silence(segments: list[Path | float], output: Path) -> None:
+    """Concatenate WAV files and exact silences (seconds) into one WAV."""
+    params = None
+    frames = bytearray()
+    for segment in segments:
+        if isinstance(segment, float):
+            if params is None:
+                raise ValueError("Leading pause needs audio to match; place it after some text")
+            count = round(segment * params.framerate)
+            frames.extend(b"\x00" * count * params.sampwidth * params.nchannels)
+            continue
+        with wave.open(str(segment), "rb") as wav_file:
+            if params is None:
+                params = wav_file.getparams()
+            elif (wav_file.getframerate(), wav_file.getsampwidth(), wav_file.getnchannels()) != (
+                params.framerate, params.sampwidth, params.nchannels
+            ):
+                raise ValueError("Segments have different audio formats")
+            frames.extend(wav_file.readframes(wav_file.getnframes()))
+    if params is None:
+        raise ValueError("No audio to join")
+    with wave.open(str(output), "wb") as out:
+        out.setparams(params)
+        out.writeframes(bytes(frames))
 
 
 def _collapse(text: str) -> str:
@@ -148,7 +222,7 @@ def validate_api_url(url: str) -> str:
     return url.rstrip("/")
 
 
-def synthesize_api(args: argparse.Namespace, script: str) -> None:
+def synthesize_api(args: argparse.Namespace, script: str, output: Path | None = None) -> None:
     """Send the same multipart contract as local-voice-cloning/src/api.py."""
     origin = validate_api_url(args.api_url)
     boundary = uuid.uuid4().hex
@@ -178,7 +252,7 @@ def synthesize_api(args: argparse.Namespace, script: str) -> None:
         candidate.write_bytes(audio)
         if wave_duration(candidate) <= 0:
             raise ValueError("API returned empty narration")
-    args.output.write_bytes(audio)
+    (output or args.output).write_bytes(audio)
 
 
 def build_cli_command(uv: str, args: argparse.Namespace, script: str, output: Path) -> list[str]:
@@ -355,16 +429,25 @@ def main(argv: list[str] | None = None) -> int:
         for error in errors:
             print(f"  - {error}", file=sys.stderr)
         return 2
-    script = local_voice_script(prompt)
+    try:
+        parts = local_voice_parts(prompt)
+    except ValueError as exc:
+        print(f"Invalid narration prompt in {args.input}: {exc}", file=sys.stderr)
+        return 2
+    script = "\n".join(part for part in parts if isinstance(part, str))
     if not script:
         print("Narration transcript is empty after removing tags.", file=sys.stderr)
         return 2
+    if isinstance(parts[0], float):
+        print("A leading [pause Ns] has no audio to follow; start with spoken text.", file=sys.stderr)
+        return 2
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
+    texts = [part for part in parts if isinstance(part, str)]
+    exact_pauses = len(texts) != len(parts)
     try:
-        if args.api_url:
-            synthesize_api(args, script)
-        else:
+        uv = None
+        if not args.api_url:
             uv = shutil.which("uv")
             if uv is None:
                 print(
@@ -372,11 +455,35 @@ def main(argv: list[str] | None = None) -> int:
                     file=sys.stderr,
                 )
                 return 2
-            command = build_cli_command(uv, args, script, args.output)
+
+        def synthesize(text: str, output: Path) -> int:
+            if args.api_url:
+                synthesize_api(args, text, output)
+                return 0
+            command = build_cli_command(uv, args, text, output)
             completed = subprocess.run(command, cwd=args.engine_dir, capture_output=True, text=True)
             if completed.returncode != 0:
                 print(completed.stderr or completed.stdout or "Local voice cloning failed", file=sys.stderr)
                 return completed.returncode or 1
+            return 0
+
+        if not exact_pauses:
+            status = synthesize(script, args.output)
+            if status:
+                return status
+        else:
+            with tempfile.TemporaryDirectory() as directory:
+                joined: list[Path | float] = []
+                for index, part in enumerate(parts):
+                    if isinstance(part, float):
+                        joined.append(part)
+                        continue
+                    segment = Path(directory) / f"segment-{index}.wav"
+                    status = synthesize(part, segment)
+                    if status:
+                        return status
+                    joined.append(segment)
+                join_with_silence(joined, args.output)
     except (OSError, ValueError, EOFError, wave.Error, subprocess.CalledProcessError) as exc:
         print(f"Local voice cloning failed: {exc}", file=sys.stderr)
         return 1
@@ -408,14 +515,16 @@ def main(argv: list[str] | None = None) -> int:
             else "engine transcription"
         ),
         "speaking_rate": args.speaking_rate,
-        "synthesis_requests": 1,
-        "audio_modified": False,
+        "synthesis_requests": len(texts),
+        "exact_pause_seconds": round(sum(p for p in parts if isinstance(p, float)), 3),
+        "audio_modified": exact_pauses,
         "pace_gate_max_wpm": args.max_wpm,
         **pace,
         "usage_source": "Local Apple MLX generation",
         "estimated_paid_tier_cost_usd": 0,
         "actual_billed_cost_usd": 0,
-        "note": "Local compute; no paid TTS API was called. Engine audio used as-is.",
+        "note": "Local compute; no paid TTS API was called. "
+        + ("Engine audio joined with exact silences." if exact_pauses else "Engine audio used as-is."),
     }
     args.usage_output.parent.mkdir(parents=True, exist_ok=True)
     args.usage_output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")

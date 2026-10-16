@@ -109,6 +109,36 @@ class LocalVoiceTTSContractTest(unittest.TestCase):
             "Start here.\nthen continue with the proof.\nand finish cleanly right now.\ntrailing words",
         )
 
+    def test_exact_pause_tags_split_the_transcript_into_segments(self) -> None:
+        envelope = (
+            "Audio profile:\nVoice.\n\nScene:\nScene.\n\nDirector's notes:\nNotes.\n\nTranscript:\n"
+        )
+        parts = generate_local_voice.local_voice_parts(
+            envelope + "Hello! If you're hearing this, [pause 2s] it means it worked [pause 0.5s] . "
+            "Every word ran here. [pause 0.5s] Pretty wild, right?"
+        )
+        self.assertEqual(
+            parts,
+            ["Hello! If you're hearing this.", 2.0, "it means it worked.", 0.5,
+             "Every word ran here.", 0.5, "Pretty wild, right?"],
+        )
+        with self.assertRaises(ValueError):
+            generate_local_voice.local_voice_parts(envelope + "Wait [pause 30s] done")
+
+    def test_join_with_silence_inserts_exact_digital_silence(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            tone = root / "tone.wav"
+            with wave.open(str(tone), "wb") as wav:
+                wav.setnchannels(1)
+                wav.setsampwidth(2)
+                wav.setframerate(24000)
+                wav.writeframes(b"\x01\x01" * 12000)
+            out = root / "out.wav"
+            generate_local_voice.join_with_silence([tone, 2.0, tone], out)
+            with wave.open(str(out), "rb") as wav:
+                self.assertEqual(wav.getnframes(), 12000 + 48000 + 12000)
+
     def test_adjacent_and_leading_pauses_merge_or_drop(self) -> None:
         envelope = (
             "Audio profile:\nVoice.\n\nScene:\nScene.\n\nDirector's notes:\nNotes.\n\nTranscript:\n"
@@ -222,6 +252,26 @@ class LocalVoiceTTSContractTest(unittest.TestCase):
             self.assertEqual(report["words"], len(generated_text.split()))
             self.assertGreater(report["words_per_minute"], 0)
             self.assertEqual(report["estimated_paid_tier_cost_usd"], 0)
+
+    def test_exact_pauses_synthesize_segments_and_join_with_silence(self) -> None:
+        filler = " ".join(f"word{index}" for index in range(100))
+        prompt = (
+            "Audio profile:\nA clear developer voice.\n\nScene:\nA demo.\n\n"
+            "Director's notes:\nRead only the transcript.\n\nTranscript:\n"
+            f"Hello there, [pause 2s] it worked [warm] {filler} [curious] done [firm]\n"
+        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            captured, env = self._fake_uv(root)
+            completed, output, usage = self._run_adapter(root, prompt, env, ["--max-wpm", "0"])
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            calls = [json.loads(line) for line in captured.read_text(encoding="utf-8").splitlines()]
+            self.assertEqual(len(calls), 2)
+            self.assertEqual(calls[0][calls[0].index("--text") + 1], "Hello there.")
+            report = json.loads(usage.read_text(encoding="utf-8"))
+            self.assertEqual(report["synthesis_requests"], 2)
+            self.assertEqual(report["exact_pause_seconds"], 2.0)
+            self.assertTrue(report["audio_modified"])
 
     def test_pace_gate_rejects_rushed_takes_and_can_be_disabled(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
