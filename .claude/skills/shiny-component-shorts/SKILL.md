@@ -1,6 +1,6 @@
 ---
 name: shiny-component-shorts
-description: Create interactive Shiny Python, Shiny R, shinychat, or shinyreact mini-apps, 45-second "Did you know?" video concepts, Gemini or locally cloned narration and audio, storyboards, recording automation, and editing notes. Use when the user provides a Shiny or shinychat component name, docs URL, existing app path, pull request, commit URL, or commit SHA, or asks for a short demo or video around a Shiny UI feature or a change that just landed. Also use it for a changelog reel: a video walking through the new features of the unreleased section or a named release of a Shiny CHANGELOG.md or NEWS.md.
+description: Create interactive Shiny Python, Shiny R, shinychat, or shinyreact mini-apps, 45-second "Did you know?" video concepts, Gemini or locally cloned narration and audio, storyboards, recording automation, and editing notes. Use when the user provides a Shiny or shinychat component name, docs URL, existing app path, pull request, commit URL, or commit SHA, or asks for a short demo or video around a Shiny UI feature or a change that just landed. Also use it for a changelog reel: a video walking through the new features of the unreleased section or a named release of a Shiny CHANGELOG.md or NEWS.md, or through a Shiny blog post.
 ---
 
 # Shiny Component Shorts (Claude Code)
@@ -107,7 +107,7 @@ Use this workflow when the user supplies a pull request, a commit URL, a bare SH
 Use this workflow when the user links a Shiny changelog (`CHANGELOG.md` or `NEWS.md`) or asks for a video of the new features in the unreleased version or a named release. Read [references/changelog-reel.md](references/changelog-reel.md) first.
 
 1. List the release's features with `.claude/skills/shiny-component-shorts/scripts/changelog_features.py`. Default to the unreleased section; use `--version` when the user names a release. Keep at most six user-facing features and read each one's pull request.
-2. Give each feature its own segment directory under one reel directory. Record a short demo (15–25 s, code card optional, `logo_seconds: 0` in `actions.yaml`) when the feature has a visible effect; otherwise write an explainer segment (`explainer.yaml` plus narration) that states why the feature helps.
+2. Give each feature its own segment directory under one reel directory. Record a short demo (15–25 s, code card optional, `logo_seconds: 0` in `actions.yaml`) when the feature has a visible effect; otherwise write an explainer segment (`explainer.yaml` plus narration) whose animated scenes (flow, compare, code diff, bars, or a custom HTML animation) show the concept instead of listing it.
 3. Narrate every segment with the reel narration rules: the problem before, what changes now, the benefit. Run the batch narration phase on all segments, then the finish phase on the demo segments.
 4. Write `reel.yaml` and run `.claude/skills/shiny-component-shorts/scripts/stitch_reel.py --reel-dir <reel>`. It builds the reel in both orientations (`reel.mp4` and `reel-<orientation>.mp4`), so record every demo segment's companion first. It adds the intro, one animated feature card per segment, the outro, and the transitions. Inspect `artifacts/reel-review.png` and report the chapter times from `artifacts/reel.json`.
 

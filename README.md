@@ -62,7 +62,7 @@ The skill covers Shiny for Python, R Shiny, [shinychat](https://github.com/posit
 
 **Pull requests and commits** work for `rstudio/shiny`, `posit-dev/py-shiny`, `posit-dev/shinychat`, and `posit-dev/shinyreact`. The agent installs that exact build and demos one user-facing change. If the change has nothing to show on screen, it says so.
 
-**Changelog reels** cover every new feature in the unreleased section of a `CHANGELOG.md` or `NEWS.md`, or in a release you name. An animated "02 of 04" card comes before each feature, and you get the reel in both shapes: `reel.mp4` and `reel-horizontal.mp4`. Features you can see get a recorded demo. API and testing changes get an animated explainer card that says why the feature helps.
+**Changelog reels** cover every new feature in the unreleased section of a `CHANGELOG.md` or `NEWS.md`, or in a release you name. An animated "02 of 04" card comes before each feature, and you get the reel in both shapes: `reel.mp4` and `reel-horizontal.mp4`. Features you can see get a recorded demo. API, testing, and performance changes get an animated explainer instead: a flow diagram, a before-and-after, a code diff, a bar chart, or a custom animation, each timed to the narration. A blog post works the same way, with one segment per idea in the post.
 
 ## Narration
 

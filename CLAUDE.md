@@ -9,7 +9,7 @@ Defaults:
 - Prefer Python Shiny Express unless the user asks for R.
 - Demo targets are Shiny for Python, R Shiny, shinychat, and posit-dev/shinyreact (React UI with a Python or R server); a chat demo never calls a real LLM.
 - A pull request, commit URL, or commit SHA is a valid request: demo one user-facing change from it.
-- One video = one feature. A changelog reel (the new features of the unreleased or a named release) is the exception: one segment per feature, separated by animated feature cards.
+- One video = one feature. A changelog reel (the new features of the unreleased or a named release) and a blog post walkthrough are the exceptions: one segment per feature, separated by animated feature cards. Each segment is a real Shiny recording when the feature is visible, otherwise an animated explainer that shows the concept (flow, before/after, code diff, bars, or custom HTML), not a bullet list.
 - Keep apps tiny, visual, and recordable.
 - Reserve the top 20% and bottom 20% of the frame for branding and fill the middle band's horizontal space.
 - Every recording shows the Shiny wordmark in the top-left for its first 5 seconds, then fades it out, sized to read on a phone; the recorder adds it, so never put a logo in the app.
