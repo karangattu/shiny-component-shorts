@@ -1378,6 +1378,7 @@ def preflight_project(
     app_dir: Path | None = None,
     port_override: int | None = None,
     logo_override: Path | None = None,
+    capture: str | None = None,
 ) -> dict:
     """Start the app, resolve every selector, and screenshot — without recording.
 
@@ -1407,6 +1408,13 @@ def preflight_project(
         "problems": action_shape_problems(actions, run),
         "cues": [],
     }
+    try:
+        report["capture"] = resolve_capture(capture, run["config"], app_type)
+        if report["capture"] == "paparazzi":
+            import paparazzi_capture
+            paparazzi_capture.check_dependencies()
+    except (RuntimeError, ValueError) as exc:
+        report["problems"].append(str(exc))
     if not report["problems"]:
         try:
             report["cues"] = [
@@ -1482,6 +1490,15 @@ def preflight_project(
     return report
 
 
+def resolve_capture(override: str | None, config: dict, app_type: str) -> str:
+    capture = override if override is not None else config.get("capture", "screencast")
+    if not isinstance(capture, str) or capture not in {"screencast", "playwright", "paparazzi"}:
+        raise ValueError(f"Unsupported capture mode: {capture}")
+    if capture == "paparazzi" and app_type != "r":
+        raise ValueError("Paparazzi capture currently requires an R Shiny app (--app-type r)")
+    return capture
+
+
 def record_project(
     project_dir: Path,
     app_type: str,
@@ -1490,7 +1507,7 @@ def record_project(
     app_dir: Path | None = None,
     port_override: int | None = None,
     logo_override: Path | None = None,
-    capture: str = "screencast",
+    capture: str | None = None,
 ) -> Path:
     from playwright.sync_api import ViewportSize, sync_playwright
 
@@ -1498,9 +1515,6 @@ def record_project(
     app_dir = (app_dir or project_dir).resolve()
     if not app_dir.is_dir():
         raise FileNotFoundError(f"App directory does not exist: {app_dir}")
-    if capture not in {"screencast", "playwright"}:
-        raise ValueError(f"Unsupported capture mode: {capture}")
-
     run = prepare_run(actions_path, orientation_override, port_override, logo_override)
     config = run["config"]
     url = run["url"]
@@ -1512,6 +1526,10 @@ def record_project(
     problems = action_shape_problems(config["actions"], run)
     if problems:
         raise ValueError("; ".join(problems))
+    capture = resolve_capture(capture, config, app_type)
+    if capture == "paparazzi":
+        import paparazzi_capture
+        return paparazzi_capture.record(project_dir, app_type, run, app_dir, sys.modules[__name__])
     cues = resolve_cues(config["actions"], project_dir)
     width, height = viewport_size(orientation)
     viewport = ViewportSize(width=width, height=height)
@@ -1733,10 +1751,11 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--capture",
-        choices=["screencast", "playwright"],
-        default="screencast",
+        choices=["screencast", "playwright", "paparazzi"],
+        default=None,
         help="screencast: full-quality 30 fps frames on the action clock (default); "
-        "playwright: the legacy 25 fps WebM recorder",
+        "playwright: the legacy 25 fps WebM recorder; paparazzi: R capture. "
+        "Defaults to capture in actions.yaml, then screencast",
     )
     parser.add_argument(
         "--dry-run",
@@ -1798,6 +1817,7 @@ def main() -> int:
                 app_dir,
                 args.port,
                 args.logo,
+                args.capture,
             )
         except (RuntimeError, ValueError, FileNotFoundError) as exc:
             print(f"Preflight FAILED — {project_dir}\n  - {exc}")

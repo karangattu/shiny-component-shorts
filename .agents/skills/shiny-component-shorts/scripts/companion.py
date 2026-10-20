@@ -146,6 +146,8 @@ def record_companion(
             *[artifacts / name for name in NARRATION_FILES if (artifacts / name).is_file()],
             *([target / "tts-settings.json"] if (target / "tts-settings.json").is_file() else []),
             SCRIPTS_DIR / "record_demo.py",
+            SCRIPTS_DIR / "paparazzi_capture.py",
+            SCRIPTS_DIR / "paparazzi_capture.R",
             SCRIPTS_DIR / "merge_audio.py",
             SCRIPTS_DIR / "validate_demo.py",
             SCRIPTS_DIR / "companion.py",

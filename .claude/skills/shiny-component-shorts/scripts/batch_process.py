@@ -294,6 +294,8 @@ def recording_inputs(project_dir: Path) -> list[Path]:
         project_dir,
         [
             SCRIPTS_DIR / "record_demo.py",
+            SCRIPTS_DIR / "paparazzi_capture.py",
+            SCRIPTS_DIR / "paparazzi_capture.R",
             SCRIPTS_DIR / "validate_demo.py",
             SCRIPTS_DIR / "align_narration.py",
             SCRIPTS_DIR.parent / "assets" / "shiny-logo.png",

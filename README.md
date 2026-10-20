@@ -109,3 +109,17 @@ The two skill copies are edited together but are not identical, so don't copy on
 ## Cost
 
 Each run ends with a cost report. Gemini token usage is saved to `artifacts/narration.usage.json`. Local voice, your own audio, and silent videos cost $0 in TTS.
+
+### Paparazzi recordings for R Shiny
+
+Set `capture: paparazzi` in a demo's `actions.yaml` to record through
+[Paparazzi](https://posit-dev.github.io/paparazzi/). Install its optional R
+packages in a dedicated library and set `R_LIBS_USER` for recording commands.
+The [recording contract](.agents/skills/shiny-component-shorts/references/recording-contract.md#paparazzi-capture-for-r-shiny)
+includes setup and the real browser regression test.
+
+Paparazzi captures the browser while the shared scripts drive actions, narration
+cues, the Shiny wordmark, and code cards. The exported video clock is checked through
+a WebVTT marker. Existing local voice generation, transcript alignment, cue
+validation, audio merging, and both video orientations use the same workflow.
+Projects without this setting keep the existing recording backend.

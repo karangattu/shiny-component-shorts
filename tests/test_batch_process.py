@@ -59,6 +59,12 @@ class BuildCacheTest(unittest.TestCase):
 
 
 class BatchProcessTest(unittest.TestCase):
+    def setUp(self) -> None:
+        # Command-construction tests must not discover and warm a real voice server.
+        api = patch.object(batch_process, "resolve_api_url", return_value=None)
+        api.start()
+        self.addCleanup(api.stop)
+
     def test_discover_projects_and_assign_distinct_port_ranges(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)

@@ -29,6 +29,60 @@ The `code` action is orientation-aware. Vertical recordings anchor the panel nea
 
 The recorder refuses to start if its port is already occupied. Stop the known process yourself; never kill an unknown listener automatically.
 
+## Paparazzi capture for R Shiny
+
+For R Shiny videos, set `capture: paparazzi` at the top of `actions.yaml`, or pass
+`--capture paparazzi --app-type r`. Keep the same actions, narration, and cue phrases.
+The companion inherits the YAML setting automatically. An explicit `--capture`
+overrides YAML; projects without either continue to use `screencast`.
+
+Install [paparazzi](https://posit-dev.github.io/paparazzi/) and `av` in a dedicated
+R library. Set `R_LIBS_USER` to that library for preflight, recording, and batch
+commands. Paparazzi is an optional development package; pin its Git commit in
+production environments. This integration was exercised with commit `3e595ed`.
+
+```bash
+mkdir -p generated/.r-library
+export R_LIBS_USER="$PWD/generated/.r-library"
+Rscript -e 'pak::pkg_install(c("posit-dev/paparazzi@3e595ed", "av"), lib=Sys.getenv("R_LIBS_USER"), ask=FALSE)'
+```
+
+If `pak` reports missing build tools after installing the dependencies, install the
+pure-R package directly from its pinned source archive:
+
+```bash
+curl -fL https://api.github.com/repos/posit-dev/paparazzi/tarball/3e595ed -o generated/paparazzi-3e595ed.tar.gz
+R CMD INSTALL --library="$R_LIBS_USER" generated/paparazzi-3e595ed.tar.gz
+```
+
+Paparazzi owns Chromium and captures full-density frames with `pz_record_start()`
+in poll mode at a requested 30 fps. The existing Python action runner shares that
+browser over CDP, so cursor motion, narration cues, code cards, branding, and client
+error checks retain their existing behavior. This backend supports the shared
+`actions.yaml` contract, rather than translating it into a second R action language.
+
+The bridge writes a `shorts-clock` marker to Paparazzi's public WebVTT sidecar.
+The final encode removes the lead before that marker and maps the action clock to
+the exported video. It rejects a clock handshake with more than 50 ms of uncertainty.
+Do not add Paparazzi pauses or frame holds to the bridge: they splice the video clock
+and invalidate that mapping. Use the shared `wait` and `cue` actions instead.
+The shared validator still checks every cue against the measured spoken words.
+Paparazzi exports a silent recording; `merge_audio.py` adds the local narration.
+
+`artifacts/paparazzi-raw.mp4`, `paparazzi-raw.vtt`, and `paparazzi.log` retain the
+capture evidence. `demo.mp4`, `recording.json`, and the finished narrated files keep
+the same names and structure as other backends. Preflight checks the R dependencies
+and runtime, then uses the shared browser checks for selectors and layout.
+
+Run the real R/browser regression test when this backend or its dependencies change:
+
+```bash
+SHORTS_TEST_PAPARAZZI=1 .venv/bin/python -m unittest discover -s tests -p test_paparazzi_contract.py -v
+```
+
+It decodes pixels from the MP4 to check that three cued reactive changes appear at
+the expected video times. Environments without R can run the remaining contract tests.
+
 ## Preflight
 
 `--dry-run` runs everything the recorder does before the first action and nothing after it: it loads `actions.yaml`, rejects malformed actions and code cards, starts the app, waits for the Shiny session, scans for a **Shiny Client Errors** panel, resolves every selector on the loaded page, and screenshots the composition.
