@@ -2,6 +2,32 @@
 
 Read this reference when creating `actions.yaml`, recording a demo, or diagnosing recording failures.
 
+
+## Editorial source media
+
+New release/changelog/blog videos use `style: editorial` and the shot contract
+in [changelog-reel.md](changelog-reel.md). `editorial.yaml` combines clean still
+images and original-speed video clips with phrase cues and explicit framing
+for both orientations. Source labels and static highlights identify evidence;
+no fake editor chrome, simulated command results, or decorative animations.
+Keep source captures and edited exports separate. Source text must be verbatim,
+and test/performance results must come from saved actual runs.
+
+The source media uses about 5% safe margins, with the top 12% and bottom 7%
+clear for small metadata overlays. Preserve native app/document styling.
+Capture any app behavior with the same stable selectors and client-error checks
+as below. Never crop out an error panel. The component recorder's existing
+three-action, code-action, activity-gap, and middle-band checks apply to its
+component captures; editorial timeline validation replaces those quotas in the
+assembled editorial segment. Narration and its measured timing still must pass.
+
+For editorial media there is no `actions.yaml` unless a component recording is
+one of its sources, and no `companion.py` step: each shot supplies both views.
+The shared reel renderer validates all media/cues before rendering, and writes
+review sheets showing every shot. Decode and inspect both final orientations.
+
+## Standalone component capture
+
 ## Shared recorder
 
 Use the bundled recorder directly:
@@ -25,7 +51,7 @@ Options:
 
 Author the app with an empty top 20% and bottom 20% for later branding. The app belongs in the middle 60% band and should span the available horizontal space between 3–5% side gutters.
 
-The `code` action is orientation-aware. Vertical recordings anchor the panel near the bottom edge of the frame (a 4% margin), growing upward as needed, so it fills the bottom half and sits below the component instead of covering it; during the code beat the panel may occupy the reserved bottom 20%. Compose the app toward the top of the band so the two never fight. Horizontal recordings switch to a side-by-side composition: the live app reflows on the left while the code panel occupies the right, so neither is hidden. The code panel uses the Shiny preset palette: `#007BC2` accent, `#1D1F21`/`#202020` dark surfaces, `#FFFFFF` primary text, and `#CDD4DA` secondary text.
+The `code` action is orientation-aware. Vertical recordings anchor the panel near the bottom edge of the frame (a 4% margin), growing upward as needed, so it fills the bottom half and sits below the component instead of covering it; during the code beat the panel may occupy the reserved bottom 20%. Compose the app toward the top of the band so the two never fight. Horizontal recordings switch to a side-by-side composition: the live app reflows on the left while the code panel occupies the right, so neither is hidden. The panel chrome uses the Shiny preset accent `#007BC2`, dark surface `#202020`, and `#FFFFFF` labels. Code uses GitHub dark syntax colors and its `#0D1117` surface, with Source Code Pro. Added labels use Open Sans, with `#1D1F21` text on light surfaces. See [visual style](visual-style.md) for the shared offline highlighter.
 
 The recorder refuses to start if its port is already occupied. Stop the known process yourself; never kill an unknown listener automatically.
 

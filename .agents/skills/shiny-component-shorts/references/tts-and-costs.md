@@ -4,7 +4,18 @@ Read this reference only when narration audio, a finished video with audio, or c
 
 Check for `GEMINI_API_KEY`/`GOOGLE_API_KEY` only after audio has been requested and only when Gemini TTS will actually be called. Never check for, mention, or ask the user for these keys on a silent-video workflow, local voice-cloning workflow, or when importing existing narration; a missing key is an error only on the Gemini path. In a silent video's cost report, list the Gemini TTS row as `not used / $0`.
 
-## Narration prompt
+## Detailed release and blog narration
+
+Release/changelog/blog series give each point its own complete explanation,
+starting around 60–120 seconds and extending as needed. Do not apply the
+component-short 95–130-word or 3–6-tag quotas below to these videos. An
+`editorial.yaml` project makes the batch processor pass `--editorial` to both
+voice generators; direct generator commands need that flag. This relaxes only
+length and tag quotas: preserve the prompt sections, non-empty spoken text,
+normal voice/transcript checks, natural speed, and measured cue timing. Write
+new narration to add detail; never stretch an overview recording to fill time.
+
+## Component-short narration prompt
 
 Write `artifacts/narration.txt` in this form:
 

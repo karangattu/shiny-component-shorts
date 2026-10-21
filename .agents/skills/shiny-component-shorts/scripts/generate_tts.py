@@ -28,7 +28,7 @@ FORBIDDEN_VOCALIZATION_RE = re.compile(
 )
 
 
-def validate_narration_prompt(prompt_text: str) -> list[str]:
+def validate_narration_prompt(prompt_text: str, *, editorial: bool = False) -> list[str]:
     errors = []
     forbidden_cues = FORBIDDEN_VOCALIZATION_RE.findall(prompt_text)
     if forbidden_cues:
@@ -47,9 +47,11 @@ def validate_narration_prompt(prompt_text: str) -> list[str]:
         tags = len(TAG_RE.findall(transcript))
         spoken = TAG_RE.sub("", transcript)
         words = len(WORD_RE.findall(spoken))
-        if not 95 <= words <= 130:
+        if not words:
+            errors.append("Narration transcript must contain spoken words")
+        elif not editorial and not 95 <= words <= 130:
             errors.append(f"Narration must contain 95–130 spoken words; found {words}")
-        if not 3 <= tags <= 6:
+        if not editorial and not 3 <= tags <= 6:
             errors.append(f"Narration must contain 3–6 audio tags; found {tags}")
     return errors
 
@@ -165,6 +167,7 @@ def parse_args() -> argparse.Namespace:
         help="Gemini prebuilt voice (default: random voice from the curated pool)",
     )
     parser.add_argument("--model", default=DEFAULT_MODEL, help="Gemini TTS model ID")
+    parser.add_argument("--editorial", action="store_true", help="Allow detailed editorial narration without component-short word/tag quotas")
     parser.add_argument(
         "--usage-output",
         type=Path,
@@ -238,7 +241,7 @@ def main() -> int:
         print(f"Input file is empty: {args.input}", file=sys.stderr)
         return 2
 
-    validation_errors = validate_narration_prompt(prompt)
+    validation_errors = validate_narration_prompt(prompt, editorial=args.editorial)
     if validation_errors:
         print(f"Invalid narration prompt in {args.input}:", file=sys.stderr)
         for err in validation_errors:

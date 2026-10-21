@@ -68,10 +68,10 @@ Strong candidates include:
 
 ## App composition
 
+Follow [visual style](visual-style.md): Open Sans UI, Source Code Pro code, bslib Shiny colors, and GitHub syntax highlighting. Preserve an existing app's native theme.
+
 - Make the component the largest meaningful object on screen.
 - Use one card unless the comparison requires two adjacent or stacked states.
-- Rotate app typography in this fixed order, then repeat: Mona Sans → IBM Plex Sans → Source Sans 3 → Manrope. Use one font family consistently within each app and assign adjacent videos the next family in the cycle.
-- Load weights 400, 500, 600, and 700 from the selected URL: `https://fonts.googleapis.com/css2?family=Mona+Sans:wght@400;500;600;700&display=swap`, `https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap`, `https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&display=swap`, or `https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap`. Retain `system-ui, sans-serif` as the fallback stack.
 - Do not put a visible app title, page title, eyebrow, kicker, series label, or oversized marketing headline above the component. The app should begin directly with the component or a realistic field/task label; keep the problem-led hook in narration, storyboarding, or later editing.
 - Reserve the top 20% and bottom 20% of the frame for branding; the recorder stamps the Shiny wordmark into the top-left of that band. Center the app in the middle 60% band, use 3–5% side gutters, and stretch its primary card or panel across the available horizontal space; do not use a narrow desktop `max-width` that creates dead space.
 - Use realistic task content: notes, ticket tags, chart colors, filters, or status changes.
@@ -100,7 +100,7 @@ Use only colors from the official Shiny Bootstrap preset. Keep one consistent tr
 
 ## Series visual variety
 
-Build a recognizable series through the same Shiny palette, spacing, pacing, cursor treatment, code cards, and controlled typography cycle—not by repeating the same dark or light canvas in every installment.
+Build a recognizable series through the same Shiny palette, spacing, pacing, cursor treatment, code cards, and consistent bslib typography.
 
 Before implementing a series, write a compact visual-direction matrix with one row per video and these columns:
 

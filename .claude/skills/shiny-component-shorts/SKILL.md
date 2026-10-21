@@ -1,17 +1,32 @@
 ---
 name: shiny-component-shorts
-description: Create interactive Shiny Python, Shiny R, shinychat, or shinyreact mini-apps, 45-second "Did you know?" video concepts, Gemini or locally cloned narration and audio, storyboards, recording automation, and editing notes. Use when the user provides a Shiny or shinychat component name, docs URL, existing app path, pull request, commit URL, or commit SHA, or asks for a short demo or video around a Shiny UI feature or a change that just landed. Also use it for a changelog reel: a video walking through the new features of the unreleased section or a named release of a Shiny CHANGELOG.md or NEWS.md, or through a Shiny blog post.
+description: Create Shiny Python/R, shinychat, and shinyreact demos and narrated videos from components, apps, PRs, commits, changelogs, or blogs. Use for recordings, detailed feature video series, and release reels.
 ---
 
 # Shiny Component Shorts (Claude Code)
 
-Create one-screen Shiny demos that make one hidden component behavior obvious in about 45 seconds.
+Create focused Shiny component demos and editorial videos that explain releases and blog posts through real software, source excerpts, figures, and verified results.
 
 ## Core contract
 
-- One video = one trick, not a component tutorial. A changelog reel is the one exception: it strings one segment per new feature together, and each segment still covers one feature.
-- Prove the trick on screen through a direct comparison or a two-way proof.
-- Use at least three meaningful actions and three visible state changes in recordings.
+**Release, changelog, and blog requests default to one detailed editorial video per distinct feature or idea.**
+Write `style: editorial` in every new `reel.yaml`, render with `--separate`, and follow
+[references/changelog-reel.md](references/changelog-reel.md). Use real app
+footage, source excerpts, figures, and measured results. Show a useful visual
+immediately; keep titles small, use hard cuts, and let reading pauses breathe.
+No decorative objects, animated backgrounds, typewriter effects, or feature-card
+interstitials. Preserve captured UI and source text.
+
+The three-action quota, middle-60% composition, mandatory code action, and
+fixed activity cadence below apply to **standalone component recordings**.
+Editorial segments instead use narration-cued shots, about 5% margins, and
+independent portrait/landscape framing. Validate their media and cues with the
+reel renderer; keep the source capture's error checks. Existing reels without
+`style` retain their original behavior.
+
+- Give each video one clear subject. For a changelog or blog, create one independently understandable video per selected point. Combine points into one reel only when the user explicitly asks for an overview or compilation.
+- Prove the trick on screen through either a direct comparison or two-way proof.
+- Use at least three meaningful actions and three visible state changes for recordings.
 - Prefer Python Shiny Express unless the user requests R or R is materially clearer.
 - Support Shiny for Python, R Shiny, shinychat, and posit-dev/shinyreact (React UI with a Python or R server) as demo targets; a chat demo follows every rule below and must never call a real LLM.
 - Default to a true 9:16 vertical composition (1440×2560). Use landscape as the primary only on explicit request.
@@ -20,6 +35,7 @@ Create one-screen Shiny demos that make one hidden component behavior obvious in
 - Reserve the top 20% and bottom 20% of every frame for branding; make the app fill the available horizontal space in the middle 60% height band.
 - Every recording opens with the Shiny wordmark in the top-left of the reserved top band, sized to read on a phone; it shows for the first 5 seconds, then fades out; the recorder does this automatically, so never add a logo to the app itself.
 - Use only the Shiny preset palette, led by `#007BC2`, with `#1D1F21` text on light surfaces and `#FFFFFF` text on dark surfaces.
+- Follow [visual style](references/visual-style.md) for bslib Shiny colors and fonts. Always use GitHub-style syntax highlighting for displayed code, in both orientations. Preserve captured app/document styling; apply this style to added labels and code excerpts.
 - Use official Shiny, shinychat, and shinyreact documentation as the source of truth, and the source at the requested ref when the request starts from a changeset.
 - Run the bundled shared scripts; never generate a demo-specific recorder or validator.
 - Preserve natural speech and pauses. Fit the recording to the narration; never accelerate the voice or trim pauses to hit the target duration. If the local voice runs fast, add pause tags or split long sentences so the engine pauses more, then shorten the script if it runs long, and regenerate before recording; never accept a rushed take. Keep `speaking_rate` at 1.0 for Qwen, the default engine: its speed control time-stretches the finished audio, and the batch rejects any other value.
@@ -36,10 +52,10 @@ For any shinyreact request, also read [references/shinyreact.md](references/shin
 
 Every turn re-reads the whole session, so a long one keeps paying for its own history. None of the rules below change what ships; they change what it costs to ship.
 
-- One video per session. When a video is finished and reported, `/clear` and start the next one rather than continuing in the same session.
-- Before writing `actions.yaml` or dispatching a subagent, verify every selector the storyboard needs yourself with a throwaway script against the running app — and go past "is it attached": confirm the actual interaction semantics the storyboard depends on (does a control open on hover, click, or both; does a popover stay open or dismiss on the next action) and disambiguate any selector that matches more than one element (for example `:nth-match()` when several targets share a class). Rediscovering one of these live inside a recording subagent costs a full record → encode → validate cycle per miss, not a page load.
-- Run `record_demo.py --dry-run` yourself once the app and a first-draft `actions.yaml` exist, before dispatching the recording subagent. Hand the subagent a clean preflight and a verified selector list, not selector discovery.
-- Run each video's audio → timing → record → validate → merge → review loop in a subagent, even for a single video. Hand it the video directory, the recorder and validator commands, the acceptance checks, and the selectors and interaction facts already verified above; take back the verdict and the fixes it applied, not its transcript. It should still re-run `--dry-run` itself after any further change to the app or `actions.yaml`.
+- Use an isolated production directory and review loop for each video. When a release/blog series is requested, coordinate and finish every selected point; do not stop after the first video. Create separate chats only when the user requests them.
+- Before writing `actions.yaml` (and before dispatching a subagent, on a runtime that has one), verify every selector the storyboard needs yourself with a throwaway script against the running app — go past "is it attached": confirm the interaction semantics the storyboard depends on (hover vs. click vs. both to open a control, whether a popover dismisses on the next action) and disambiguate any selector matching more than one element (e.g. `:nth-match()` when several targets share a class). A miss discovered live inside the record loop costs a full record → encode → validate cycle, not a page load.
+- Run `record_demo.py --dry-run` yourself once the app and a first-draft `actions.yaml` exist, before handing the recording work off (to a subagent, if the runtime has one, or before your own recording pass otherwise). Start from a clean preflight and a verified selector list, not selector discovery.
+- Run each video's audio → timing → record → validate → merge → review loop in a subagent when the runtime supports subagents, even for a single video. Hand it the video directory, the recorder and validator commands, the acceptance checks, and the selectors and interaction facts already verified above; take back the verdict and the fixes it applied, not its transcript. Re-run `--dry-run` after any further change to the app or `actions.yaml`.
 - Inspect frames through one phone-size sheet from `review_frames.py`, never through four full-resolution PNGs.
 - Read a file once. When you need it again, re-read the range you need instead of the whole script.
 
@@ -63,7 +79,7 @@ Do not create files, recording automation, audio, or cost reports.
 
 ### Multi-video series
 
-Use this workflow when the user asks for multiple videos about one component. Create no more than five videos for that component, even if the user requests more.
+For release/changelog/blog series, use the dedicated workflow below; its points are not subject to the component-variation cap or backdrop rotation. Use this workflow when the user asks for multiple videos about one component. Create no more than five videos for that component, even if the user requests more.
 
 1. Research the component once, then identify up to five genuinely distinct visual behaviors.
 2. Score every behavior with the creative playbook's feature questions. Omit weak ideas rather than padding the series to the requested count.
@@ -86,7 +102,7 @@ Create the idea deliverables plus a minimal `app.py` or `app.R` (and the fronten
 Use this workflow when the user provides a local path to an existing R Shiny or Shiny for Python app, including a shinyreact frontend, and wants one fascinating behavior other developers should know about.
 
 1. Resolve the path. If it points to `app.R` or `app.py`, use its parent as the app directory. Inspect the entry point, modules, dependency manifests, and local run instructions before starting the app. Detect the language from the source; ask only when both runtimes are plausible.
-2. Do not modify, copy, or restyle the existing app unless the user explicitly asks for source changes. Preserve its typography, palette, layout, data, and behavior; the four-font rotation applies only to newly created demos.
+2. Do not modify, copy, or restyle the existing app unless the user explicitly asks for source changes. Preserve its typography, palette, layout, data, and behavior.
 3. Run the app locally in its declared environment and inspect the rendered UI. Do not expose secrets or trigger external writes, messages, purchases, destructive operations, or production-data mutations while exploring or recording.
 4. Inventory surprising reactive behavior, server-driven updates, validation, layout changes, accessibility, or state synchronization already present in the app. Choose one behavior that passes the creative playbook's proof rule, has a concise existing source line, and supports three meaningful action → reaction beats.
 5. Keep the original app as the recording subject. Put `actions.yaml`, narration, and `artifacts/` in a sidecar such as `generated/demo-name/`. Run the recorder with that directory as `--project-dir`, the existing source directory as `--app-dir`, and the detected `--app-type r|python`; pass the same two directories to the validator.
@@ -103,14 +119,17 @@ Use this workflow when the user supplies a pull request, a commit URL, a bare SH
 5. Record the resolved repo, SHA, PR URL, and installed version in `changeset.md` beside the app. Do not name a release number in narration unless the release notes confirm the behavior shipped in it.
 6. Then continue with the requested deliverable: idea only, runnable app, silent recording, or narrated video.
 
-### Changelog reel
+### Changelog or blog video series
 
 Use this workflow when the user links a Shiny changelog (`CHANGELOG.md` or `NEWS.md`) or asks for a video of the new features in the unreleased version or a named release. Read [references/changelog-reel.md](references/changelog-reel.md) first.
 
-1. List the release's features with `.claude/skills/shiny-component-shorts/scripts/changelog_features.py`. Default to the unreleased section; use `--version` when the user names a release. Keep at most six user-facing features and read each one's pull request.
-2. Give each feature its own segment directory under one reel directory. Record a short demo (15–25 s, code card optional, `logo_seconds: 0` in `actions.yaml`) when the feature has a visible effect; otherwise write an explainer segment (`explainer.yaml` plus narration) whose animated scenes (flow, compare, code diff, bars, or a custom HTML animation) show the concept instead of listing it.
-3. Narrate every segment with the reel narration rules: the problem before, what changes now, the benefit. Run the batch narration phase on all segments, then the finish phase on the demo segments.
-4. Write `reel.yaml` and run `.claude/skills/shiny-component-shorts/scripts/stitch_reel.py --reel-dir <reel>`. It builds the reel in both orientations (`reel.mp4` and `reel-<orientation>.mp4`), so record every demo segment's companion first. It adds the intro, one animated feature card per segment, the outro, and the transitions. Inspect `artifacts/reel-review.png` and report the chapter times from `artifacts/reel.json`.
+1. Read the release or whole blog post and its linked sources. Inventory distinct user-facing features or ideas. For a release, use `scripts/changelog_features.py` and read the linked pull requests. Cover each selected point in its own video; closely related API bullets can share a video when they explain the same workflow. The six-feature limit belongs to a combined reel, not a series.
+2. Plan a complete explanation for each point: the situation, what changes, a working example, the decisive implementation detail, an actual result, and a useful limitation or edge case when relevant. Start around 60–120 seconds per point and let the explanation set the length. Do not enforce 15–25-second segments, a 45-second ceiling, or a fixed spoken-word quota. Leave room to read code and understand the result.
+3. Give every point its own source/narration directory with `editorial.yaml`. Keep the natural editorial style: real app footage, faithful source excerpts, source figures, actual test output, and restrained highlights. Each video must make sense without watching another part. Series numbering is optional metadata; it must not replace a meaningful title or opening context.
+4. Generate new narration for the expanded explanation using the saved local voice, or import user-supplied narration. Resolve shots against measured word timing. Do not stretch or pad a short overview voice track to manufacture detail. Run the batch narration phase for all points; editorial scripts automatically bypass component-short word/tag quotas and the 25-second reel warning.
+5. Write one `style: editorial` `reel.yaml` listing the selected points and run `scripts/stitch_reel.py --reel-dir <series> --separate`. Each point gets its own portrait and landscape exports, title, opening wordmark, thumbnail, timing report, and review sheets under `artifacts/series/`. `artifacts/series.json` indexes the outputs. Inspect and validate each delivered video independently.
+
+For a blog, organize around its teachable ideas and examples rather than its headings. For an explicitly requested combined overview, omit `--separate` and use the shorter overview pacing in the reference. Keep that optional compilation separate from the detailed series.
 
 ### Don't do this, do this instead
 
@@ -208,7 +227,7 @@ python .claude/skills/shiny-component-shorts/scripts/batch_process.py \
   --validate-concurrency 3
 ```
 
-The timing approval is bound to hashes of the current WAV, timing report, and actions file; changing any of them requires another review and approval. Recording defaults to two concurrent browsers to avoid resource contention. Merging always calls `merge_audio.py`, and validation always reruns even for cached recordings. The finish phase records each video's companion orientation with `companion.py` at the same time as the primary, on its own port, within the same `--record-concurrency` budget (cached like the other steps), and reports it as `Companion=`. A failed companion fails the batch. After the primary validates, it writes cover images with `thumbnail.py`: `artifacts/thumbnail.jpg` and `artifacts/thumbnail-<orientation>.jpg`. Give `actions.yaml` a short top-level `title:` (4–8 words) for the thumbnail's title plate. For a changelog reel segment, the narration phase warns when the narration runs past 25 s, so cut the script before you record. Use `--force` only to rebuild the selected phase. The old combined `--tts --merge` invocation is deprecated because it skips the timing-adjustment gate.
+The timing approval is bound to hashes of the current WAV, timing report, and actions file; changing any of them requires another review and approval. Recording defaults to two concurrent browsers to avoid resource contention. Merging always calls `merge_audio.py`, and validation always reruns even for cached recordings. The finish phase records each video's companion orientation with `companion.py` at the same time as the primary, on its own port, within the same `--record-concurrency` budget (cached like the other steps), and reports it as `Companion=`. A failed companion fails the batch. After the primary validates, it writes cover images with `thumbnail.py`: `artifacts/thumbnail.jpg` and `artifacts/thumbnail-<orientation>.jpg`. Give `actions.yaml` a short top-level `title:` (4–8 words) for the thumbnail's title plate. Only legacy combined-reel segments receive the 25-second narration warning; detailed editorial videos have no short-segment limit. Use `--force` only to rebuild the selected phase. The old combined `--tts --merge` invocation is deprecated because it skips the timing-adjustment gate.
 
 To lock a specific voice or model for one video, add an optional `tts-settings.json` beside its app containing `{"voice": "Kore", "model": "gemini-3.8-flash-tts"}`. The batch processor passes these settings to the TTS generator and includes the file in that video's narration cache key.
 
@@ -257,8 +276,6 @@ If the proposed action plan cannot produce three meaningful reactions from the s
 ## App rules
 
 - Prefer one primary card or panel sized for a vertical frame.
-- Rotate app typography in this fixed order, then repeat: Mona Sans → IBM Plex Sans → Source Sans 3 → Manrope. Across a planned series, assign the families by video order; do not choose randomly or switch typefaces inside a video.
-- Use one font family consistently for all app UI text and controls. Load weights 400, 500, 600, and 700 from the selected Google Fonts URL: `https://fonts.googleapis.com/css2?family=Mona+Sans:wght@400;500;600;700&display=swap`, `https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap`, `https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&display=swap`, or `https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap`. Set `--bs-body-font-family` to the selected family followed by `system-ui, sans-serif`, and apply the same `font-family` stack to `body`, `button`, `input`, `select`, and `textarea`.
 - The font rule works in both languages: use `tags$head(tags$link(...), tags$style(...))` in R Shiny and `ui.tags.head(ui.tags.link(...), ui.tags.style(...))` in Shiny for Python.
 - Do not render a visible app title, page title, eyebrow, kicker, series label, or oversized marketing headline. Keep the problem-led hook in the storyboard, narration, or later edit; start the app UI directly with the component or its realistic field/task label.
 - Keep the top 20% and bottom 20% visually empty; the recorder's Shiny wordmark owns the top-left corner. In the middle band, use 3–5% side gutters, remove narrow desktop `max-width` constraints, and stretch the primary panel across the available horizontal space.
@@ -287,7 +304,7 @@ Use this sequence:
 
 These beat names are planning labels only; never render them in the video.
 
-Keep narration around 95–130 spoken words. Make every sentence describe something literally visible. Rewrite every transcript you write with the `simple-english` skill in pragmatic mode before you save `narration.txt` or generate audio; this is required for every script you write, including silent timing envelopes, and never for a transcript of user-supplied audio. Take from it only the meaning rules: one thought per sentence, active voice, simple tenses, one name per thing, and no hedges or filler. Keep contractions (spoken English uses them, so they override rule 4.2), address the viewer as "you", and never rewrite code names, labels, or values. Its short-sentence rhythm does not apply: sentence length, fragments, openers, and cadence belong to the speech-texture pass in [references/creative-playbook.md](references/creative-playbook.md) — put back fragments and one or two discourse openers, vary sentence lengths and openers, and keep parallel cadences and tidy lists out; `scripts/check_narration_voice.py` checks all of it before audio is generated. Talk like a developer showing a coworker something at their desk, never like an ad: no hype words, no pitch questions about the viewer's pain, no exclamation marks, and no call to action at the end (see "Talk, don't pitch" in the creative playbook). Avoid stock AI phrasing, parameter tours, and forced punchlines. Never use laughter, giggling, chuckling, or other non-speech vocalizations. For audio, use the prompt-and-tag hierarchy and verification rules in [references/tts-and-costs.md](references/tts-and-costs.md); tags must support the visible moment rather than decorate every sentence.
+For a standalone 45-second component short, keep narration around 95–130 spoken words. Detailed editorial series use the length their explanation needs. Make every sentence describe something literally visible. Rewrite every transcript you write with the `simple-english` skill in pragmatic mode before you save `narration.txt` or generate audio; this is required for every script you write, including silent timing envelopes, and never for a transcript of user-supplied audio. Take from it only the meaning rules: one thought per sentence, active voice, simple tenses, one name per thing, and no hedges or filler. Keep contractions (spoken English uses them, so they override rule 4.2), address the viewer as "you", and never rewrite code names, labels, or values. Its short-sentence rhythm does not apply: sentence length, fragments, openers, and cadence belong to the speech-texture pass in [references/creative-playbook.md](references/creative-playbook.md) — put back fragments and one or two discourse openers, vary sentence lengths and openers, and keep parallel cadences and tidy lists out; `scripts/check_narration_voice.py` checks all of it before audio is generated. Talk like a developer showing a coworker something at their desk, never like an ad: no hype words, no pitch questions about the viewer's pain, no exclamation marks, and no call to action at the end (see "Talk, don't pitch" in the creative playbook). Avoid stock AI phrasing, parameter tours, and forced punchlines. Never use laughter, giggling, chuckling, or other non-speech vocalizations. For audio, use the prompt-and-tag hierarchy and verification rules in [references/tts-and-costs.md](references/tts-and-costs.md); tags must support the visible moment rather than decorate every sentence.
 
 ## Recording rules
 

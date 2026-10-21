@@ -23,6 +23,7 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import align_narration  # noqa: E402
+import code_style  # noqa: E402
 import validate_demo  # noqa: E402
 
 _active_processes = set()
@@ -335,71 +336,17 @@ LOGO_OVERLAY_JS = r"""(cfg) => {
 }"""
 
 
-CODE_OVERLAY_JS = r"""async (cfg) => {
+CODE_OVERLAY_JS = "async (cfg) => {" + code_style.browser_script() + r"""
     document.getElementById('__code_overlay__')?.remove();
     document.getElementById('__code_overlay_style__')?.remove();
     document.documentElement.classList.remove('__demo_code_side__');
     const sideBySide = cfg.layout === 'side';
-    const uiFont = getComputedStyle(document.body).fontFamily;
-    const escapeHtml = value => value
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
-    const highlightCode = (source, language) => {
-        const isJS = ['javascript', 'typescript', 'js', 'jsx', 'ts', 'tsx'].includes(language);
-        const keywords = new Set(isJS
-            ? ['const', 'let', 'var', 'function', 'return', 'if', 'else', 'import', 'from',
-                'export', 'default', 'async', 'await', 'new', 'true', 'false', 'null',
-                'undefined', 'class', 'extends', 'type', 'interface', 'as']
-            : language === 'r'
-            ? ['function', 'if', 'else', 'for', 'while', 'in', 'return', 'TRUE', 'FALSE', 'NULL']
-            : ['and', 'as', 'async', 'await', 'break', 'class', 'continue', 'def', 'elif',
-                'else', 'False', 'finally', 'for', 'from', 'if', 'import', 'in', 'is',
-                'lambda', 'None', 'not', 'or', 'pass', 'raise', 'return', 'True',
-                'try', 'while', 'with', 'yield']);
-        const builtins = new Set(isJS
-            ? ['React', 'ReactDOM', 'Array', 'Object', 'String', 'Number', 'Math', 'JSON']
-            : language === 'r'
-            ? ['c', 'list', 'min', 'max', 'length', 'paste', 'paste0']
-            : ['dict', 'enumerate', 'float', 'int', 'len', 'list', 'max', 'min',
-                'range', 'set', 'str', 'tuple', 'zip']);
-        const pattern = isJS
-            ? /(\/\/[^\n]*)|("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`)|(@[A-Za-z_][A-Za-z0-9_.]*)|([A-Za-z_$][A-Za-z0-9_$]*)|([0-9]+(?:\.[0-9]+)?)/g
-            : /(#[^\n]*)|("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')|(@[A-Za-z_][A-Za-z0-9_.]*)|([A-Za-z_][A-Za-z0-9_]*)|([0-9]+(?:\.[0-9]+)?)/g;
-        let html = '';
-        let cursor = 0;
-        for (const match of source.matchAll(pattern)) {
-            html += escapeHtml(source.slice(cursor, match.index));
-            const token = match[0];
-            let kind = '';
-            if (match[1]) kind = 'comment';
-            else if (match[2]) kind = 'string';
-            else if (match[3]) kind = 'decorator';
-            else if (match[5]) kind = 'number';
-            else if (keywords.has(token)) kind = 'keyword';
-            else if (builtins.has(token)) kind = 'builtin';
-            else if (source.slice(match.index + token.length).trimStart().startsWith('(')) {
-                kind = 'function';
-            }
-            html += kind
-                ? `<span class="tok-${kind}">${escapeHtml(token)}</span>`
-                : escapeHtml(token);
-            cursor = match.index + token.length;
-        }
-        return html + escapeHtml(source.slice(cursor));
-    };
+    const uiFont = "'Open Sans',sans-serif";
     const style = document.createElement('style');
     style.id = '__code_overlay_style__';
-    style.textContent = '@keyframes __blink {0%,55%{opacity:1}56%,100%{opacity:0}}'
+    style.textContent = """ + json.dumps(code_style.font_css() + code_style.stylesheet()) + r""" + '@keyframes __blink {0%,55%{opacity:1}56%,100%{opacity:0}}'
         + '#__code_overlay__ .cursor{animation:__blink 1s step-end infinite;}'
         + '#__code_overlay__ *{box-sizing:border-box;}'
-        + '#__code_overlay__ .tok-keyword{color:#BF007F;font-weight:600;}'
-        + '#__code_overlay__ .tok-string{color:#00BF7F;}'
-        + '#__code_overlay__ .tok-comment{color:#CDD4DA;font-style:italic;opacity:.72;}'
-        + '#__code_overlay__ .tok-number{color:#F9B928;}'
-        + '#__code_overlay__ .tok-decorator{color:#03C7E8;}'
-        + '#__code_overlay__ .tok-builtin{color:#03C7E8;}'
-        + '#__code_overlay__ .tok-function{color:#F9B928;}'
         + '#__code_overlay__ .__code_context_line__{opacity:.58;}'
         + '#__code_overlay__ .__code_focus_line__{background:rgba(0,123,194,.16);'
         + 'box-shadow:inset 2px 0 #007BC2;}'
@@ -419,11 +366,11 @@ CODE_OVERLAY_JS = r"""async (cfg) => {
     el.className = '__code_hidden__';
     el.style.cssText = sideBySide
         ? 'position:fixed;top:20%;bottom:20%;right:3%;width:41%;z-index:99999;'
-            + 'display:flex;flex-direction:column;background:#1D1F21;'
+            + 'display:flex;flex-direction:column;background:#0d1117;'
             + 'border:1px solid #48505F;border-radius:10px;'
             + 'box-shadow:0 18px 60px rgba(29,31,33,.55);overflow:hidden;'
         : 'position:fixed;left:4%;right:4%;bottom:4%;max-height:46%;z-index:99999;'
-            + 'display:flex;flex-direction:column;background:#1D1F21;'
+            + 'display:flex;flex-direction:column;background:#0d1117;'
             + 'border:1px solid #48505F;border-radius:10px;'
             + 'box-shadow:0 18px 60px rgba(29,31,33,.55);overflow:hidden;';
     if (sideBySide) {
@@ -457,7 +404,7 @@ CODE_OVERLAY_JS = r"""async (cfg) => {
         + 'border-right:1px solid rgba(205,212,218,.18);text-align:center;'
         + 'font:20px/38px sans-serif;opacity:.82;box-shadow:inset 2px 0 #FFFFFF;';
     const editor = document.createElement('div');
-    editor.style.cssText = 'min-width:0;display:flex;flex-direction:column;flex:1;background:#1D1F21;';
+    editor.style.cssText = 'min-width:0;display:flex;flex-direction:column;flex:1;background:#0d1117;';
     const tabs = document.createElement('div');
     tabs.style.cssText = 'height:34px;display:flex;background:#202020;'
         + 'border-bottom:1px solid rgba(205,212,218,.18);';
@@ -469,7 +416,7 @@ CODE_OVERLAY_JS = r"""async (cfg) => {
     tab.children[0].textContent = {R: 'R', Python: 'PY', JavaScript: 'JS', TypeScript: 'TS'}[languageLabel] || languageLabel;
     tab.children[0].style.cssText = 'color:#03C7E8;font-weight:800;';
     tab.children[1].textContent = cfg.title;
-    tab.style.cssText = 'display:flex;align-items:center;gap:8px;padding:0 12px;background:#1D1F21;'
+    tab.style.cssText = 'display:flex;align-items:center;gap:8px;padding:0 12px;background:#0d1117;'
         + 'border-top:2px solid #007BC2;color:#CDD4DA;'
         + 'font-size:12px;font-family:' + uiFont + ';';
     tabs.appendChild(tab);
@@ -481,7 +428,9 @@ CODE_OVERLAY_JS = r"""async (cfg) => {
     codeViewport.id = '__code_gutter__';
     codeViewport.style.cssText = 'flex:1;overflow:hidden;padding:8px 0 12px;'
         + "font-family:'Source Code Pro','SF Mono',ui-monospace,Menlo,monospace;"
-        + 'font-size:' + (sideBySide ? '18px' : '20px') + ';line-height:1.65;color:#FFFFFF;';
+        + 'font-size:' + (sideBySide ? '18px' : '20px') + ';line-height:1.65;color:#c9d1d9;';
+    el.classList.add('github-dark');
+    el.style.fontFamily = uiFont;
     const beforeBlock = document.createElement('div');
     const focusBlock = document.createElement('div');
     focusBlock.id = '__code_focus_block__';
@@ -490,6 +439,7 @@ CODE_OVERLAY_JS = r"""async (cfg) => {
         target.replaceChildren();
         if (!source && !focus) return 0;
         const lines = (source || '').split('\n');
+        const painted = shinyHighlightLines(source || '', cfg.language);
         lines.forEach((line, index) => {
             const row = document.createElement('div');
             row.className = focus ? '__code_focus_line__' : '__code_context_line__';
@@ -500,7 +450,7 @@ CODE_OVERLAY_JS = r"""async (cfg) => {
                 + 'opacity:.62;user-select:none;';
             const code = document.createElement('span');
             code.style.cssText = 'min-width:0;padding-right:12px;white-space:pre-wrap;overflow-wrap:anywhere;';
-            code.innerHTML = highlightCode(line, cfg.language);
+            code.innerHTML = painted[index];
             if (focus && index === lines.length - 1) {
                 const typingCursor = document.createElement('span');
                 typingCursor.className = 'cursor';
@@ -535,6 +485,7 @@ CODE_OVERLAY_JS = r"""async (cfg) => {
     document.body.appendChild(el);
     el.getBoundingClientRect();
     el.classList.remove('__code_hidden__');
+    await document.fonts.ready;
     for (let i = 1; i <= cfg.text.length; i++) {
         const typed = cfg.text.slice(0, i);
         renderLines(focusBlock, typed, focusStart, true);

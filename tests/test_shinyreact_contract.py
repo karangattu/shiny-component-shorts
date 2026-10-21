@@ -101,8 +101,8 @@ class ShinyReactContractTest(unittest.TestCase):
                             page = browser.new_page()
                             try:
                                 page.evaluate(recorder.CODE_OVERLAY_JS, config)
-                                self.assertGreater(page.locator(".tok-keyword").count(), 0)
-                                self.assertEqual(page.locator(".tok-comment").first.inner_text(), "// Real frontend code")
+                                self.assertGreater(page.locator(".hljs-keyword").count(), 0)
+                                self.assertEqual(page.locator(".hljs-comment").first.inner_text(), "// Real frontend code")
                                 self.assertIn(label, page.locator("body").inner_text())
                             finally:
                                 page.close()

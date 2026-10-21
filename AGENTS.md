@@ -12,7 +12,7 @@ This repo generates short Shiny component demo apps and 30-second video concepts
 - A pull request, commit URL, or commit SHA is a valid request: demo one user-facing change from it.
 - Keep demo apps small enough to understand in one screen.
 - Every video idea must focus on one hidden behavior, not a full component tutorial.
-- Reserve the top 20% and bottom 20% of each video frame for branding; fill the middle band's horizontal space with the app.
+- For standalone component recordings, reserve the top 20% and bottom 20% of each video frame for branding; fill the middle band's horizontal space with the app.
 - Every recording shows the Shiny wordmark in the top-left for its first 5 seconds, then fades it out, sized to read on a phone; the recorder adds it, so never put a logo in the app.
 - Use only the official Shiny preset palette, with accessible light- or dark-mode text colors.
 - Write every voiceover script with the `simple-english` skill for meaning-level clarity (one thought per sentence, active voice, one name per thing, no hedges or filler), keeping contractions so it sounds spoken; sentence rhythm and texture come from the speech-texture pass.
@@ -21,3 +21,7 @@ This repo generates short Shiny component demo apps and 30-second video concepts
 - Every generated video ships in both orientations (vertical and horizontal) from the same actions and narration; build apps that fill the frame in both.
 - In horizontal videos, show code beside the live app rather than over it.
 - Use the `shiny-component-shorts` skill when creating component video ideas or mini-apps.
+
+Release, changelog, and blog requests default to one detailed editorial video per point, with real evidence, hard cuts, about 5% margins, and no feature-card interstitials. Combine points only when explicitly requested. Use `style: editorial` and `stitch_reel.py --separate`.
+
+Use bslib Shiny typography (Open Sans and Source Code Pro) and palette for added graphics and new demos. All displayed code uses GitHub light/dark syntax highlighting. Preserve native captured app styles.

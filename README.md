@@ -1,6 +1,6 @@
 # Shiny Component Shorts
 
-Make short videos about [Shiny](https://shiny.posit.co) features. Each video shows one useful behavior in about 30 seconds.
+Make short videos about [Shiny](https://shiny.posit.co) features. Component shorts show one useful behavior. Release and blog videos explain one point in detail, usually in 60–120 seconds.
 
 This repo is an agent skill. You open it in an AI coding agent (Claude Code, Codex, Google Antigravity, or OpenCode), describe the video you want, and the agent does the rest: it writes a small Shiny app, records the browser, adds narration, and checks the result.
 
@@ -62,7 +62,7 @@ The skill covers Shiny for Python, R Shiny, [shinychat](https://github.com/posit
 
 **Pull requests and commits** work for `rstudio/shiny`, `posit-dev/py-shiny`, `posit-dev/shinychat`, and `posit-dev/shinyreact`. The agent installs that exact build and demos one user-facing change. If the change has nothing to show on screen, it says so.
 
-**Changelog reels** cover every new feature in the unreleased section of a `CHANGELOG.md` or `NEWS.md`, or in a release you name. An animated "02 of 04" card comes before each feature, and you get the reel in both shapes: `reel.mp4` and `reel-horizontal.mp4`. Features you can see get a recorded demo. API, testing, and performance changes get an animated explainer instead: a flow diagram, a before-and-after, a code diff, a bar chart, or a custom animation, each timed to the narration. A blog post works the same way, with one segment per idea in the post.
+**Changelogs and blog posts** default to one independently understandable editorial video per feature or idea. Real app recordings, faithful code excerpts, source figures, and verified output support the narration, with hard cuts and reading time. Write `style: editorial` in `reel.yaml`, then run `stitch_reel.py --reel-dir <directory> --separate`. Each video gets both orientations, a thumbnail, chapter times, and a review sheet under `artifacts/series/`. The explanation sets the length. Combined reels remain available when explicitly requested; configurations without `style` retain their existing rendering behavior.
 
 ## Narration
 
@@ -73,13 +73,17 @@ The skill covers Shiny for Python, R Shiny, [shinychat](https://github.com/posit
 
 The agent measures when each word is spoken and times every click to the words that describe it. A transcript check catches dropped or garbled words without anyone having to listen.
 
-## What every video looks like
+## Visual style
+
+New demos and added labels use the [bslib Shiny preset](https://rstudio.github.io/bslib/): Open Sans, Source Code Pro, and Shiny blue. All displayed code uses bundled GitHub light/dark syntax highlighting. Native captures keep their appearance.
+
+Standalone component recordings use these composition rules:
 
 - Vertical and horizontal versions of the same video. The app fills the middle 60% of the frame in both.
 - In the horizontal version, the code card sits beside the app instead of below it.
 - The Shiny logo sits in the top-left for the first 5 seconds, then fades out.
 - At least three clicks or inputs, each with a visible change.
-- A syntax-highlighted code card in a VS Code-style window. It shows real source context from the app with the key line highlighted.
+- A syntax-highlighted code card using GitHub colors. It shows real source context from the app with the key line highlighted.
 - Only the official Shiny colors.
 
 ## Repository layout

@@ -372,6 +372,7 @@ def _max_wpm_type(raw: str) -> float:
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input", required=True, type=Path)
+    parser.add_argument("--editorial", action="store_true", help="Allow detailed editorial narration without component-short word/tag quotas")
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--usage-output", required=True, type=Path)
     parser.add_argument("--engine-dir", required=True, type=Path)
@@ -423,7 +424,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     prompt = args.input.read_text(encoding="utf-8").strip()
-    errors = validate_narration_prompt(prompt)
+    errors = validate_narration_prompt(prompt, editorial=args.editorial)
     if errors:
         print(f"Invalid narration prompt in {args.input}:", file=sys.stderr)
         for error in errors:

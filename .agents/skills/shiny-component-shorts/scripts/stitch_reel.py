@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
-"""Stitch per-feature clips into one changelog reel with animated feature cards.
+"""Assemble release/blog videos in editorial or legacy style.
+
+New reels set `style: editorial` and give each feature an `editorial.yaml`
+with narration-cued still/video shots and explicit vertical/horizontal views.
+Editorial reels use hard cuts, small source labels, and no interstitial cards.
+See references/changelog-reel.md for the shot and framing contract.
+
+Existing reels without `style` keep the legacy animated-card workflow below.
 
 Reads `reel.yaml` in the reel directory:
 
@@ -35,6 +42,8 @@ import argparse
 import base64
 import hashlib
 import json
+import math
+import re
 import shutil
 import subprocess
 import sys
@@ -45,6 +54,8 @@ from typing import Any, Callable, NoReturn
 import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import code_style
+import align_narration  # noqa: E402
 from align_narration import NARRATION_OFFSET_SECONDS  # noqa: E402
 from merge_audio import merge, probe_duration  # noqa: E402
 
@@ -202,8 +213,7 @@ body { background: #1D1F21; color: #FFFFFF;
 
 # Builds the card from JSON with textContent, so changelog text never becomes HTML.
 # The one exception is an explainer's `html` scene, which the segment author wrote.
-PAGE_JS = r"""
-async (spec) => {
+PAGE_JS = "async (spec) => {" + code_style.browser_script() + r"""
   await Promise.all([...document.fonts].map((face) => face.load()));
   const el = (tag, cls, text) => {
     const node = document.createElement(tag);
@@ -218,34 +228,27 @@ async (spec) => {
   // `backticks` in any explainer text render as inline code.
   const rich = (tag, cls, text) => {
     const node = el(tag, cls);
-    String(text).split('`').forEach((part, i) =>
-      node.append(i % 2 ? el('span', 'mono', part) : document.createTextNode(part)));
+    String(text).split('`').forEach((part, i) => {
+      if (i % 2) {
+        const code = el('span', 'mono github-dark');
+        code.innerHTML = shinyHighlightLines(part, spec.language || 'python').join('\n');
+        node.append(code);
+      } else node.append(document.createTextNode(part));
+    });
     return node;
-  };
-  const TOKENS = /(#.*$)|("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')|(\b\d+(?:\.\d+)?\b)|(\b(?:def|return|import|from|with|as|if|else|elif|for|in|and|or|not|None|True|False|TRUE|FALSE|NULL|function|class|lambda|async|await|library)\b)|([A-Za-z_][\w.$]*)(?=\()|(@[\w.]+)/g;
-  const paint = (line) => {
-    const frag = document.createDocumentFragment();
-    let last = 0;
-    for (const m of line.matchAll(TOKENS)) {
-      frag.append(line.slice(last, m.index));
-      const cls = ['tc', 'ts', 'tn', 'tk', 'tf', 'td'][m.slice(1).findIndex((g) => g !== undefined)];
-      frag.append(el('span', cls, m[0]));
-      last = m.index + m[0].length;
-    }
-    frag.append(line.slice(last) || (last ? '' : ' '));
-    return frag;
   };
   // Lines wipe in one by one; `-` lines collapse and `+` lines open at changeAt.
   const codeBox = (lines, revealAt, changeAt, markAt) => {
-    const box = el('div', 'codebox' + (lines.some((l) => l.kind) ? ' diff' : ''));
+    const box = el('div', 'github-dark codebox' + (lines.some((l) => l.kind) ? ' diff' : ''));
     const step = Math.min(0.12, 1.2 / lines.length);
     let shown = 0;
-    for (const line of lines) {
+    const painted = shinyHighlightLines(lines.map(l=>l.text).join('\n'), spec.language || 'python');
+    for (const [index, line] of lines.entries()) {
       const row = el('div', 'ln ' + line.kind);
       const indent = line.text.match(/^\s*/)[0];  // kept out of the strike-through
       const text = el('span', 'txt');
-      text.append(paint(line.text.slice(indent.length)));
-      row.append(el('b', 'gut', line.kind === 'add' ? '+' : line.kind === 'del' ? '−' : ''), el('span', '', indent), text);
+      text.innerHTML = painted[index];
+      row.append(el('b', 'gut', line.kind === 'add' ? '+' : line.kind === 'del' ? '−' : ''), text);
       const parts = line.kind === 'add'
         ? [`expand .5s ${EASE} ${changeAt + 0.25}s both`]
         : [`wipe .45s cubic-bezier(.6,0,.2,1) ${revealAt + step * shown++}s both`];
@@ -417,7 +420,11 @@ async (spec) => {
     band.append(at(el('div', 'title wipe', spec.title), 0.15));
     band.append(at(el('div', 'bar'), 0.6));
     if (spec.why) band.append(at(el('div', 'why rise', spec.why), 0.8));
-    if (spec.command) band.append(at(el('div', 'cmd rise', spec.command), 1.1));
+    if (spec.command) {
+      const command = el('div', 'cmd rise github-light');
+      command.innerHTML = shinyHighlightLines(spec.command, 'bash').join('\n');
+      band.append(at(command, 1.1));
+    }
   }
   for (const animation of document.getAnimations()) animation.pause();
 }
@@ -459,6 +466,7 @@ def file_digest(path: Path) -> str:
 
 def cache_key(*parts: object) -> str:
     """Key a rendered piece by everything that shapes it, this script included."""
+    parts = (*parts, code_style.browser_script(), code_style.stylesheet())
     payload = json.dumps([SCRIPT_DIGEST, *parts], sort_keys=True, default=str)
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:24]
 
@@ -494,7 +502,7 @@ def _render_card(browser, spec: dict, output: Path) -> Path:
         "logoWidth": LOGO_WIDTHS[spec["orientation"]], "logoFade": LOGO_FADE_SECONDS,
     }
     page = browser.new_page(viewport={"width": width, "height": height}, device_scale_factor=SCALE)
-    page.set_content(f"<!doctype html><html><head><style>{font_css()}{PAGE_CSS}</style></head><body></body></html>")
+    page.set_content(f"<!doctype html><html><head><style>{font_css()}{PAGE_CSS}{code_style.stylesheet()}</style></head><body></body></html>")
     page.evaluate(PAGE_JS, spec)
     page.evaluate("document.fonts.ready")
     encoder = subprocess.Popen(
@@ -688,6 +696,7 @@ def explainer_spec(segment: Path, feature: dict, release: str, orientation: str)
         scenes.append(built)
     spec = {
         "kind": "explainer",
+        "language": config.get("language") or ("r" if (segment / "app.R").is_file() else "python"),
         "orientation": orientation,
         "accent": feature["accent"],
         "onAccent": on_accent(feature["accent"]),
@@ -766,6 +775,20 @@ def join(pieces: list[tuple[Path, float, str]], output: Path) -> list[float]:
     inputs: list[str] = []
     for path, _, _ in pieces:
         inputs += ["-i", str(path)]
+    if pieces and all(transition == "cut" for _, _, transition in pieces):
+        starts, total = [], 0.0
+        for _, duration, _ in pieces:
+            starts.append(total)
+            total += duration
+        streams = "".join(f"[{i}:v][{i}:a]" for i in range(len(pieces)))
+        subprocess.run([
+            "ffmpeg", "-y", "-loglevel", "error", *inputs,
+            "-filter_complex", f"{streams}concat=n={len(pieces)}:v=1:a=1[v][a]",
+            "-map", "[v]", "-map", "[a]", "-c:v", "libx264", "-crf", "18",
+            "-preset", "medium", "-pix_fmt", "yuv420p", "-c:a", "aac",
+            "-b:a", "192k", "-movflags", "+faststart", str(output),
+        ], check=True)
+        return starts
     filters, starts = [], [0.0]
     video, audio, length = "[0:v]", "[0:a]", pieces[0][1]
     for index, (_, duration, transition) in enumerate(pieces[1:], start=1):
@@ -811,15 +834,17 @@ def review_sheet(reel: Path, chapters: list[dict], output: Path, workdir: Path) 
     )
 
 
-def load_reel(reel_dir: Path) -> dict:
+def load_reel(reel_dir: Path, *, separate: bool = False) -> dict:
     path = reel_dir / "reel.yaml"
     if not path.is_file():
         raise SystemExit(f"Missing {path}")
     config = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    if config.get("style", "legacy") not in ("legacy", "editorial"):
+        raise ValueError("reel.yaml style must be editorial or legacy")
     features = config.get("features") or []
     if not features:
         raise SystemExit("reel.yaml lists no features")
-    if len(features) > MAX_FEATURES:
+    if not separate and len(features) > MAX_FEATURES:
         raise SystemExit(
             f"reel.yaml lists {len(features)} features; keep a reel to {MAX_FEATURES} "
             "and split the rest into a second reel"
@@ -851,6 +876,443 @@ def segment_clip(feature: dict, orientation: str) -> Path | None:
     return None
 
 
+def editorial_rect(value: object, label: str) -> list[float] | None:
+    """Rectangles use fractions of source pixels (crop) or output pixels (highlight)."""
+    if value is None:
+        return None
+    if (
+        not isinstance(value, list)
+        or len(value) != 4
+        or any(
+            isinstance(v, bool)
+            or not isinstance(v, (float, int))
+            or not math.isfinite(v)
+            for v in value
+        )
+    ):
+        raise ValueError(f"{label} needs [x, y, width, height] fractions")
+    x, y, width, height = value
+    if min(x, y) < 0 or min(width, height) <= 0 or x + width > 1 or y + height > 1:
+        raise ValueError(f"{label} must fit inside the image")
+    return value
+
+
+def editorial_plan(segment: Path, orientation: str) -> dict:
+    """Validate source media and resolve spoken phrases to whole-frame shot boundaries."""
+    if orientation not in SIZES:
+        raise ValueError(f"Unsupported orientation: {orientation}")
+    config = yaml.safe_load((segment / "editorial.yaml").read_text())
+    if (
+        not isinstance(config, dict)
+        or not isinstance(config.get("shots"), list)
+        or not config["shots"]
+    ):
+        raise ValueError("editorial.yaml needs a non-empty shots list")
+    timing = align_narration.load_timing(segment)
+    if timing is None:
+        raise ValueError(f"{segment}: missing or stale narration timing")
+    problems = align_narration.check_problems(timing)
+    if problems:
+        raise ValueError("; ".join(problems))
+    audio = segment / "artifacts/narration.wav"
+    audio_duration = probe_duration(audio)
+    if abs(audio_duration - timing.get("duration_seconds", -1)) > 0.05:
+        raise ValueError("Narration timing duration does not match its audio")
+    duration = math.ceil((audio_duration + NARRATION_OFFSET_SECONDS + 1.0) * FPS) / FPS
+    shots, previous_cue = [], -1.0
+    for number, shot in enumerate(config["shots"], start=1):
+        if not isinstance(shot, dict):
+            raise ValueError(f"Shot {number} must be a mapping")
+        cue = shot.get("cue")
+        if isinstance(cue, str):
+            cue = {"phrase": cue}
+        if not isinstance(cue, dict) or not isinstance(cue.get("phrase"), str):
+            raise ValueError(f"Shot {number} needs a spoken phrase cue")
+        occurrence = cue.get("occurrence", 1)
+        if type(occurrence) is not int or occurrence < 1:
+            raise ValueError("Cue occurrence must be a positive integer")
+        found = align_narration.find_phrase(timing["words"], cue["phrase"], occurrence)
+        moment = found["start"]
+        if not math.isfinite(moment) or not 0 <= moment < audio_duration:
+            raise ValueError(f"Shot {number} cue is outside the narration")
+        if moment <= previous_cue:
+            raise ValueError("Shot cues must be in strictly increasing order")
+        if number == 1 and moment > 0.5:
+            raise ValueError("The opening shot must match the opening narration")
+        start = (
+            0.0
+            if number == 1
+            else math.ceil((moment + NARRATION_OFFSET_SECONDS) * FPS) / FPS
+        )
+        if shots and start <= shots[-1]["start"]:
+            raise ValueError(
+                "Shot cues overlap after rounding to video frames; change their order or timing"
+            )
+        previous_cue = moment
+        views = shot.get("views")
+        if not isinstance(views, dict):
+            raise ValueError(f"Shot {number} needs vertical and horizontal views")
+        resolved = {}
+        for view_name in SIZES:
+            view = views.get(view_name)
+            if not isinstance(view, dict) or not isinstance(view.get("file"), str):
+                raise ValueError(
+                    f"Shot {number} needs an explicit {view_name} file and fit"
+                )
+            if view.get("fit") not in ("contain", "cover"):
+                raise ValueError(
+                    f"Shot {number} {view_name}: fit must be contain or cover"
+                )
+            path = (segment / view["file"]).resolve()
+            if not path.is_file() or path.stat().st_size == 0:
+                raise ValueError(f"Missing or empty source media: {path}")
+            still = path.suffix.lower() in (".png", ".jpg", ".jpeg", ".webp")
+            if not still and path.suffix.lower() not in (
+                ".mp4",
+                ".mov",
+                ".webm",
+                ".mkv",
+            ):
+                raise ValueError(f"Unsupported media format: {path.suffix}")
+            source_width, source_height = video_size(path)
+            if min(source_width, source_height) <= 0:
+                raise ValueError(f"Invalid source media dimensions: {path}")
+            media_in = view.get("in", 0.0)
+            if (
+                isinstance(media_in, bool)
+                or not isinstance(media_in, (int, float))
+                or not math.isfinite(media_in)
+                or media_in < 0
+            ):
+                raise ValueError("Video in point must be finite and non-negative")
+            if still and media_in:
+                raise ValueError("Still images cannot have a video in point")
+            resolved[view_name] = {
+                "file": str(path),
+                "sha256": file_digest(path),
+                "still": still,
+                "fit": view["fit"],
+                "in": media_in,
+                "crop": editorial_rect(view.get("crop"), "crop"),
+                "highlight": editorial_rect(view.get("highlight"), "highlight"),
+                "available": None if still else probe_duration(path) - media_in,
+            }
+        source = shot.get("source", "")
+        if not isinstance(source, str):
+            raise ValueError("Source labels must be text")
+        shots.append(
+            {
+                "start": start,
+                "cue": cue,
+                "cue_time": moment + NARRATION_OFFSET_SECONDS,
+                "source": source,
+                "views": resolved,
+            }
+        )
+    for index, shot in enumerate(shots):
+        shot["end"] = shots[index + 1]["start"] if index + 1 < len(shots) else duration
+        for view in shot["views"].values():
+            if (
+                not view["still"]
+                and view["available"] + 1 / FPS < shot["end"] - shot["start"]
+            ):
+                raise ValueError(
+                    f"Insufficient footage at original speed: {view['file']}"
+                )
+    return {
+        "style": "editorial",
+        "orientation": orientation,
+        "duration": duration,
+        "audio": str(audio),
+        "audio_sha256": file_digest(audio),
+        "shots": shots,
+    }
+
+
+def editorial_overlay(
+    browser, path: Path, orientation: str, source: str, title: str, logo: bool
+) -> None:
+    """Render only typography and branding; source imagery is composited unchanged."""
+    width, height = SIZES[orientation]
+    page = browser.new_page(
+        viewport={"width": width, "height": height}, device_scale_factor=SCALE
+    )
+    try:
+        page.set_content(
+            "<style>"
+            + font_css()
+            + """
+          * {box-sizing:border-box} body {margin:0;background:transparent;color:#1D1F21;
+            font-family:'Open Sans',sans-serif} .label {position:absolute;background:#F8F8F8;
+            padding:.3em .5em;line-height:1.35} #title {right:5%;top:5%;max-width:68%;
+            font-size:3.3vmin;font-weight:600} #source {left:5%;bottom:3%;max-width:90%;
+            font-size:2.5vmin;color:#48505F} img {position:absolute;left:5%;top:5%;width:13%}
+          </style><div id='title' class='label'></div><div id='source' class='label'></div>"""
+        )
+        page.evaluate(
+            """({source,title,logo}) => {
+          for (const [id,text] of Object.entries({source,title})) {
+            const node=document.getElementById(id); node.textContent=text;
+            if (!text) node.remove();
+          }
+          if (logo) { const img=document.createElement('img');img.src=logo;document.body.append(img); }
+        }""",
+            {"source": source, "title": title, "logo": logo_data_uri() if logo else ""},
+        )
+        page.evaluate("document.fonts.ready")
+        page.evaluate("Promise.all([...document.images].map(i => i.decode()))")
+        if page.evaluate(
+            "[...document.querySelectorAll('.label')].some(n=>n.getBoundingClientRect().height>innerHeight*.1 || n.scrollWidth>n.clientWidth)"
+        ):
+            raise ValueError(
+                "Shorten the editorial title or source label to fit the safe margin"
+            )
+        page.screenshot(path=str(path), omit_background=True)
+    finally:
+        page.close()
+
+
+def render_editorial(
+    browser, feature: dict, orientation: str, cache: Path, logo_seconds: float
+) -> tuple[Path, dict]:
+    plan = editorial_plan(feature["path"], orientation)
+    width, height = (size * SCALE for size in SIZES[orientation])
+    key = "editorial-" + cache_key(
+        plan,
+        feature["title"],
+        logo_seconds,
+        (width, height),
+        file_digest(LOGO_PATH),
+        *(file_digest(FONT_DIR / name) for name in FONTS.values()),
+    )
+    output = feature["path"] / "artifacts" / f"editorial-{orientation}.mp4"
+
+    def render(target):
+        with tempfile.TemporaryDirectory(prefix="editorial-") as temporary:
+            work = Path(temporary)
+            clips = []
+            for index, shot in enumerate(plan["shots"]):
+                view = shot["views"][orientation]
+                duration = shot["end"] - shot["start"]
+                layer, logo_layer = (
+                    work / f"labels-{index}.png",
+                    work / f"logo-{index}.png",
+                )
+                editorial_overlay(
+                    browser(),
+                    layer,
+                    orientation,
+                    shot["source"],
+                    feature["title"] if index == 0 else "",
+                    False,
+                )
+                inputs = (
+                    ["-loop", "1", "-framerate", str(FPS)]
+                    if view["still"]
+                    else ["-ss", str(view["in"])]
+                ) + [
+                    "-i",
+                    view["file"],
+                    "-loop",
+                    "1",
+                    "-framerate",
+                    str(FPS),
+                    "-i",
+                    str(layer),
+                ]
+                crop = ""
+                if view["crop"]:
+                    x, y, w, h = view["crop"]
+                    crop = f"crop=trunc(iw*{w}/2)*2:trunc(ih*{h}/2)*2:trunc(iw*{x}/2)*2:trunc(ih*{y}/2)*2,"
+                if view["fit"] == "contain":
+                    sizing = f"scale={width}:{height}:force_original_aspect_ratio=decrease,pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:color=0xF8F8F8"
+                else:
+                    sizing = f"scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height}"
+                filters = [
+                    f"[0:v]setpts=PTS-STARTPTS,{crop}{sizing},setsar=1,fps={FPS}[media]",
+                    "[1:v]format=rgba,fade=t=in:st=0:d=0.12:alpha=1[labels]",
+                    "[media][labels]overlay=0:0:shortest=1[composed]",
+                ]
+                last = "composed"
+                if view["highlight"]:
+                    x, y, w, h = view["highlight"]
+                    filters.append(
+                        f"[{last}]drawbox=x=iw*{x}:y=ih*{y}:w=iw*{w}:h=ih*{h}:color=0x007BC2:t={max(2, round(width / 360))}[marked]"
+                    )
+                    last = "marked"
+                remaining = logo_seconds - shot["start"]
+                if remaining > 0:
+                    editorial_overlay(browser(), logo_layer, orientation, "", "", True)
+                    inputs += [
+                        "-loop",
+                        "1",
+                        "-framerate",
+                        str(FPS),
+                        "-i",
+                        str(logo_layer),
+                    ]
+                    filters += [
+                        f"[2:v]format=rgba,fade=t=out:st={max(0, remaining - LOGO_FADE_SECONDS)}:d={min(remaining, LOGO_FADE_SECONDS)}:alpha=1[logo]",
+                        f"[{last}][logo]overlay=0:0:shortest=1[branded]",
+                    ]
+                    last = "branded"
+                clip = work / f"shot-{index}.mp4"
+                subprocess.run(
+                    [
+                        "ffmpeg",
+                        "-y",
+                        "-loglevel",
+                        "error",
+                        *inputs,
+                        "-filter_complex",
+                        ";".join(filters),
+                        "-map",
+                        f"[{last}]",
+                        "-an",
+                        "-frames:v",
+                        str(round(duration * FPS)),
+                        "-r",
+                        str(FPS),
+                        "-c:v",
+                        "libx264",
+                        "-crf",
+                        "16",
+                        "-preset",
+                        "medium",
+                        "-pix_fmt",
+                        "yuv420p",
+                        str(clip),
+                    ],
+                    check=True,
+                )
+                clips.append(clip)
+            # Generated basenames avoid quoting user paths in concat manifests.
+            manifest = work / "clips.txt"
+            manifest.write_text("".join(f"file '{clip.name}'\n" for clip in clips))
+            silent = work / "silent.mp4"
+            subprocess.run(
+                [
+                    "ffmpeg",
+                    "-y",
+                    "-loglevel",
+                    "error",
+                    "-f",
+                    "concat",
+                    "-safe",
+                    "1",
+                    "-i",
+                    str(manifest),
+                    "-c",
+                    "copy",
+                    str(silent),
+                ],
+                check=True,
+            )
+            merge(silent, Path(plan["audio"]), target, preserve_audio=True)
+
+    from_cache(cache, key, output, render)
+    return output, plan
+
+
+def build_editorial(reel_dir: Path, config: dict, orientation: str, *, output_dir: Path | None = None) -> dict:
+    """Assemble source-led segments with no interstitial cards or audio crossfades."""
+    from playwright.sync_api import sync_playwright
+
+    if orientation not in SIZES:
+        raise ValueError(f"Unsupported orientation: {orientation}")
+    artifacts = output_dir if output_dir is not None else reel_dir / "artifacts"
+    artifacts.mkdir(parents=True, exist_ok=True)
+    cache = artifacts / ".reel-cache"
+    suffix = "" if orientation == config["orientation"] else f"-{orientation}"
+    chapters, shots, pieces, elapsed = [], [], [], 0.0
+    with tempfile.TemporaryDirectory(
+        prefix="editorial-reel-"
+    ) as temporary, sync_playwright() as playwright:
+        work = Path(temporary)
+        browser = playwright.chromium.launch()
+        try:
+            for number, feature in enumerate(config["features"]):
+                if (feature["path"] / "explainer.yaml").exists() or not (
+                    feature["path"] / "editorial.yaml"
+                ).is_file():
+                    raise ValueError(
+                        f"{feature['path']}: editorial style requires editorial.yaml; keep explainer.yaml in a separate legacy segment"
+                    )
+                source, plan = render_editorial(
+                    lambda: browser,
+                    feature,
+                    orientation,
+                    cache,
+                    max(0, LOGO_SECONDS - elapsed),
+                )
+                normalized = work / f"segment-{number}.mp4"
+                duration = normalize(source, normalized, orientation, 0, cache)
+                pieces.append((normalized, duration, "cut"))
+                chapters.append(
+                    {
+                        "label": feature["title"],
+                        "start": elapsed,
+                        "end": elapsed + duration,
+                    }
+                )
+                shots.extend(
+                    {
+                        "label": shot["source"] or shot["cue"]["phrase"],
+                        "start": elapsed + shot["start"],
+                        "end": elapsed + shot["end"],
+                        "cue": shot["cue"],
+                        "cue_time": elapsed + shot["cue_time"],
+                        "source": shot["views"][orientation]["file"],
+                    }
+                    for shot in plan["shots"]
+                )
+                elapsed += duration
+        finally:
+            browser.close()
+        output = artifacts / f"reel{suffix}.mp4"
+        starts = join(pieces, output)
+        total = probe_duration(output)
+        for index, chapter in enumerate(chapters):
+            chapter["start"] = starts[index]
+            chapter["end"] = starts[index + 1] if index + 1 < len(starts) else total
+        review_sheet(output, shots, artifacts / f"reel-review{suffix}.png", work)
+        thumb_width, thumb_height = (
+            (1080, 1920) if orientation == "vertical" else (1280, 720)
+        )
+        subprocess.run(
+            [
+                "ffmpeg",
+                "-y",
+                "-loglevel",
+                "error",
+                "-ss",
+                str(min(1, total / 2)),
+                "-i",
+                str(output),
+                "-frames:v",
+                "1",
+                "-vf",
+                f"scale={thumb_width}:{thumb_height}",
+                "-q:v",
+                "3",
+                str(artifacts / f"reel-thumbnail{suffix}.jpg"),
+            ],
+            check=True,
+        )
+    report = {
+        "reel": str(output),
+        "style": "editorial",
+        "duration_seconds": round(total, 3),
+        "orientation": orientation,
+        "release": config.get("release"),
+        "chapters": chapters,
+        "shots": shots,
+        "warnings": [],
+    }
+    (artifacts / f"reel{suffix}.json").write_text(json.dumps(report, indent=2) + "\n")
+    return report
+
+
 def build(reel_dir: Path, orientation: str | None = None) -> dict:
     """Build the reel in one orientation; the primary one is `reel.mp4`."""
     from playwright.sync_api import sync_playwright
@@ -859,6 +1321,8 @@ def build(reel_dir: Path, orientation: str | None = None) -> dict:
         raise SystemExit("ffmpeg and ffprobe are required")
     config = load_reel(reel_dir)
     orientation = orientation or config["orientation"]
+    if config.get("style") == "editorial":
+        return build_editorial(reel_dir, config, orientation)
     # The companion orientation gets the same reel under a suffixed name.
     suffix = "" if orientation == config["orientation"] else f"-{orientation}"
     features = config["features"]
@@ -996,15 +1460,41 @@ def build(reel_dir: Path, orientation: str | None = None) -> dict:
     return report
 
 
+def build_series(reel_dir: Path, orientation: str = "both") -> list[dict]:
+    """Give every editorial point independent exports, titles, branding, and review files."""
+    config = load_reel(reel_dir, separate=True)
+    if config.get("style") != "editorial":
+        raise ValueError("Separate videos require style: editorial")
+    if orientation not in ("both", *SIZES):
+        raise ValueError(f"Unsupported orientation: {orientation}")
+    primary = config["orientation"]
+    orientations = [primary, "horizontal" if primary == "vertical" else "vertical"] if orientation == "both" else [orientation]
+    reports = []
+    for number, feature in enumerate(config["features"], start=1):
+        slug = re.sub(r"[^a-z0-9]+", "-", feature["title"].lower()).strip("-")[:64] or "point"
+        output = reel_dir / "artifacts" / "series" / f"{number:02d}-{slug}"
+        standalone = {**config, "title": feature["title"], "features": [feature]}
+        for view in orientations:
+            reports.append(build_editorial(reel_dir, standalone, view, output_dir=output))
+    manifest = reel_dir / "artifacts" / "series.json"
+    manifest.write_text(json.dumps({"title": config.get("title"), "style": "editorial", "videos": reports}, indent=2) + "\n")
+    return reports
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--reel-dir", type=Path, required=True, help="Directory holding reel.yaml")
+    parser.add_argument("--separate", action="store_true", help="Export one independent editorial video per feature (release/blog default workflow)")
     parser.add_argument(
         "--orientation", choices=("both", "vertical", "horizontal"), default="both",
         help="Every reel ships in both orientations unless you ask for one",
     )
     args = parser.parse_args(argv)
     reel_dir = args.reel_dir.resolve()
+    if args.separate:
+        for report in build_series(reel_dir, args.orientation):
+            print(f"Wrote {report['reel']} ({report['duration_seconds']:.1f}s)")
+        return 0
     primary = load_reel(reel_dir)["orientation"]
     orientations = (
         [primary, "horizontal" if primary == "vertical" else "vertical"]

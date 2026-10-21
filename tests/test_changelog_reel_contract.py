@@ -111,7 +111,7 @@ class ReelContractTest(unittest.TestCase):
             self.assertEqual((COPIES[0] / name).read_text(), (COPIES[1] / name).read_text(), name)
         for copy in COPIES:
             skill = (copy / "SKILL.md").read_text()
-            self.assertIn("### Changelog reel", skill)
+            self.assertIn("### Changelog or blog video series", skill)
             self.assertIn("references/changelog-reel.md", skill)
             reference = (copy / "references/changelog-reel.md").read_text()
             self.assertIn(f"python {copy.relative_to(ROOT)}/scripts/stitch_reel.py", reference)
@@ -207,6 +207,10 @@ class ExplainerSceneTest(unittest.TestCase):
         self.assertAlmostEqual(scene["points"][1]["at"], 6.15)
         self.assertEqual(scene["code"], [{"text": "x()", "kind": "", "hl": False}])
         self.assertIsNone(scene["out"])
+
+    def test_code_language_reaches_the_browser_renderer(self):
+        spec = self.spec("language: r\npoints: [Example]\ncode: 'function(x) x + 1'\n")
+        self.assertEqual(spec.get("language"), "r")
 
     def test_scenes_start_on_their_sentences(self):
         spec = self.spec(SCENES_YAML)

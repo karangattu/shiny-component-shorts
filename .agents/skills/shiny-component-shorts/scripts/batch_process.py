@@ -100,8 +100,8 @@ def has_failures(results: list[dict]) -> bool:
 
 
 def is_project(path: Path, explainers: bool = False) -> bool:
-    """A demo has actions.yaml and an app; a changelog explainer segment has explainer.yaml."""
-    if explainers and (path / "explainer.yaml").is_file():
+    """Discover component captures, plus editorial/legacy narration-only segments."""
+    if explainers and any((path / name).is_file() for name in ("explainer.yaml", "editorial.yaml")):
         return True
     return (path / "actions.yaml").is_file() and (
         (path / "app.py").is_file() or (path / "app.R").is_file()
@@ -294,6 +294,9 @@ def recording_inputs(project_dir: Path) -> list[Path]:
         project_dir,
         [
             SCRIPTS_DIR / "record_demo.py",
+            SCRIPTS_DIR / "code_style.py",
+            *sorted((SCRIPTS_DIR.parent / "assets" / "highlightjs").glob("*")),
+            *sorted((SCRIPTS_DIR.parent / "assets" / "fonts").glob("*")),
             SCRIPTS_DIR / "paparazzi_capture.py",
             SCRIPTS_DIR / "paparazzi_capture.R",
             SCRIPTS_DIR / "validate_demo.py",
@@ -401,6 +404,8 @@ def synthesis_command(
                 command.extend(["--" + option.replace("_", "-"), str(settings[option])])
         if "reference_text" in settings:
             command.extend(["--ref-text", str(settings["reference_text"])])
+        if (project_dir / "editorial.yaml").is_file():
+            command.append("--editorial")
         return command
     command = [
         sys.executable,
@@ -415,6 +420,8 @@ def synthesis_command(
     for option in ("voice", "model"):
         if option in settings:
             command.extend([f"--{option}", str(settings[option])])
+    if (project_dir / "editorial.yaml").is_file():
+        command.append("--editorial")
     return command
 
 
@@ -470,7 +477,9 @@ REEL_SEGMENT_TARGET_SECONDS = 25.0
 
 
 def reel_segment_warnings(project_dir: Path, timing: Path) -> list[str]:
-    """Flag a long reel segment while its script is still cheap to change."""
+    """Keep the short-length warning for legacy reels; editorial videos follow their subject."""
+    if (project_dir / "editorial.yaml").is_file():
+        return []
     if not (project_dir.parent / "reel.yaml").is_file() or not timing.is_file():
         return []
     seconds = float(json.loads(timing.read_text(encoding="utf-8")).get("duration_seconds") or 0)

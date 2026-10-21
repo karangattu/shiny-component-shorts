@@ -2,6 +2,24 @@
 
 Use these patterns when creating or editing a recorded short. They are derived from the user's reel references, but must be adapted to the Shiny demo. Do not download, reuse, or imitate another creator's footage, branding, or exact copy.
 
+
+## Editorial release and blog pacing
+
+For new release/changelog/blog videos, follow the editorial workflow in
+[changelog-reel.md](changelog-reel.md). Give each point its own complete video, starting around 60–120 seconds and extending as needed. Show context, a working example, decisive details, a real result, and a useful caveat. Do not squeeze points into 15–25-second segments or reuse the 45-second component template. Start with meaningful source content,
+use a small title over the opening shot, and cut directly between evidence.
+Keep a source figure, code excerpt, or result still for as long as the spoken
+thought needs. A quiet reading hold is useful; it does not need a state change
+every few seconds. Highlight only the detail being discussed. No decorative
+motion, typewriter effects, numbered feature cards, or novelty transitions.
+Use about 5% margins and frame each orientation for legibility rather than
+reserving 40% of the frame. Preserve the captured UI's appearance.
+
+The action cadence, code-card requirements, and middle-band layout below apply
+to standalone component shorts, not editorial segments.
+
+## Standalone component shorts
+
 ## Retention stack
 
 Layer information so the viewer always knows two things:

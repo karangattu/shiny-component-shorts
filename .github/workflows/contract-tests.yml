@@ -28,7 +28,7 @@ jobs:
         with:
           python-version: "3.13"
           cache: pip
-      - run: python -m pip install -r requirements.txt
+      - run: python -m pip install -r requirements.txt pytest==8.4.2 Pillow==11.3.0
       - name: Cache Playwright Browsers
         uses: actions/cache@v4
         with:
@@ -42,6 +42,7 @@ jobs:
       - name: Ensure ffmpeg is available
         run: ffmpeg -version >/dev/null 2>&1 || sudo apt-get install -y --no-install-recommends ffmpeg
       - run: python -m unittest discover -s tests -p "test_*_contract.py" -v
+      - run: python -m pytest tests/test_editorial.py -q
 
   type-check:
     runs-on: ubuntu-latest
@@ -53,7 +54,7 @@ jobs:
         with:
           python-version: "3.13"
           cache: pip
-      - run: python -m pip install -r requirements.txt pyrefly types-PyYAML
+      - run: python -m pip install -r requirements.txt pyrefly types-PyYAML pytest==8.4.2 Pillow==11.3.0
       - run: >-
           pyrefly check
           tests

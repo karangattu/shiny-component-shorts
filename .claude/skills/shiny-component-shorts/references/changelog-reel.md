@@ -1,6 +1,116 @@
-# Changelog reel
+# Release and blog videos
 
-A changelog reel walks through the new features of one release, one after another. An animated feature card ("02 of 04", the feature title, and one line on why it helps) comes before each feature, so the viewer always knows a new feature is starting. The reel informs. It does not chase one hidden trick.
+Follow [visual style](visual-style.md) for all added labels and code excerpts: bslib Shiny fonts and palette, with GitHub light/dark syntax highlighting.
+
+## Default: one detailed editorial video per point
+
+New release, changelog, and blog requests produce a series: one independent
+video per selected feature or teachable idea. Each has its own title, opening
+context, complete explanation, proof, narration, and both orientations. Closely
+related bullets may share a video when they describe one workflow. Do not
+squeeze unrelated points into a shared running time.
+
+Start around 60–120 seconds per point and allow more time when the example
+needs it. This is a starting range, not a cap or a padding target. Show the
+situation, what changes, how to use it, the decisive code or action, and its
+actual result. Include a meaningful caveat or edge case when relevant. Let
+viewers read code and follow the demonstration before moving on. No 15–25 s
+segment limit or fixed 95–130-word quota applies. The voice generators use
+`--editorial` automatically through batch processing; direct generator calls
+need that flag. Spoken text must still be non-empty and pass the normal
+transcript/voice checks. Pauses are purposeful rather than a tag quota.
+
+Write a fresh script for each expanded explanation. Cutting an existing
+22-second overview into smaller files or lengthening its holds does not add
+detail. Keep each point understandable on its own and link its sources.
+
+Use `style: editorial` in the series configuration. Ground each
+claim in real app footage, a source excerpt or figure, captured output, or a
+measured result. Use a simple static diagram only when those sources cannot
+explain the concept. No generated decorative artwork, fake editor/browser
+windows, simulated typing, invented results, or illustrative objects added for
+motion. Preserve the native appearance of captured apps and documents.
+
+Open on useful content. The renderer adds a small title over the first shot
+and the Shiny wordmark for the first five seconds of each video. It uses hard
+cuts and brief annotation fades; no feature-card interstitials or mandatory
+intro/outro. Use one consistent overlay typeface and Shiny blue for emphasis.
+Compose media with about 5% safe margins and leave the top 12% and bottom 7%
+clear for metadata. Let the main content fill the remaining frame. Framing is
+specific to each orientation; never shrink a complete landscape desktop into
+an unreadable portrait frame.
+
+Each feature directory has `editorial.yaml`, clean media in `sources/`, and
+`artifacts/narration.wav` plus its current `narration-timing.json`. Create or
+import narration with the normal batch narration phase; it discovers editorial
+segments. Do not use the component `finish` phase for editorial segments.
+
+```yaml
+# reel.yaml
+style: editorial
+orientation: vertical
+title: Shiny for Python feature walkthroughs
+release: "1.8.0"  # omit for a blog; labels in source shots identify the post
+features:
+  - title: Test without a browser
+    dir: 01-server-tests
+  - title: Bring your own HTML
+    dir: 02-own-html
+```
+
+```yaml
+# 01-server-tests/editorial.yaml
+shots:
+  - cue: Testing reactive server logic
+    source: Shiny 1.8.0 release notes
+    views:
+      vertical: {file: sources/release-vertical.png, fit: contain}
+      horizontal: {file: sources/release-horizontal.png, fit: contain}
+  - cue: Now your test runs in memory
+    source: test_app.py, exact source excerpt
+    views:
+      vertical:
+        file: sources/test-vertical.png
+        fit: contain
+        highlight: [0.08, 0.42, 0.84, 0.05]
+      horizontal: {file: sources/test-horizontal.png, fit: contain}
+```
+
+Every shot needs an explicit `vertical` and `horizontal` view with `file` and
+`fit: contain|cover`. Reusing the same file is allowed only with deliberate
+framing. Optional `crop: [x, y, width, height]` uses normalized source
+coordinates before fitting; `highlight` uses normalized final-frame coordinates
+and draws one static outline. A video view can set `in` in seconds; playback
+stays at original speed and its embedded audio is replaced by the narration.
+Provide enough footage for the whole shot, including the final hold.
+
+Cues quote actual spoken words; a repeated phrase uses
+`cue: {phrase: "the result", occurrence: 2}`. The first shot matches the
+opening words and begins at frame zero. Later cuts land on the first video
+frame at or after their phrase plus the shared 0.15-second narration offset.
+They must be strictly ordered, without overlapping frames. Each shot lasts
+until the next; the final shot lasts until one second after narration ends,
+rounded up to a frame. The renderer rejects absent media, stale timing,
+invalid framing, bad cues, and insufficient footage before encoding. Still
+shots need no artificial action quota or activity timer.
+
+Render the series with
+`scripts/stitch_reel.py --reel-dir <series> --separate` using the project's
+explicit Python environment. Each point writes its own `reel.mp4`, companion
+orientation, timing JSON, source-labelled review sheets, and thumbnails into
+`artifacts/series/<number>-<point-title>/`. The `artifacts/series.json` manifest
+indexes all delivered videos. Each video starts at time zero with its own
+wordmark and title; other points' narration is not included. An optional
+`--orientation vertical|horizontal` renders only that view. Series can contain
+more than six selected points; the combined-reel feature cap does not apply. Style, media bytes, narration, framing, fonts, and
+renderer code participate in caching. Keep originals separate from edits.
+
+Review both phone-size sheets and transition frames. Fully decode both MP4s;
+verify their dimensions, 30 fps, audio presence, chapter boundaries, and phrase
+timing. Listen at normal speed when possible; state separately when listening
+was unavailable. Keep the script conversational and show only what its sources
+support. New narration uses the existing local voice workflow; no paid service,
+background music, or presenter footage is required.
 
 ## Pick the release and the features
 
@@ -16,9 +126,23 @@ python .claude/skills/shiny-component-shorts/scripts/changelog_features.py \
 - An R development section often has no subsections. The script then lists every bullet that does not start with "Fixed". Keep only new, user-facing features from that list.
 - If the release has no features, say so and offer the latest release that has them. Never pad the reel with bug fixes.
 
-Keep a reel to six features at most. With more, rank them by how much they help a typical app author and offer a second reel for the rest. For each feature, read its pull request (from `references` in the JSON) before writing anything; the changelog line alone is not enough to describe a behavior.
+For a series, inventory every selected distinct capability and order the videos by usefulness; there is no six-point series cap. Read each point's pull request (from `references` in the JSON) before writing anything; the changelog line alone is not enough to explain behavior. For a combined overview explicitly requested by the user, choose at most six features and keep the pacing concise.
 
-## Choose a segment type per feature
+## Optional combined overview
+
+Only assemble multiple points into one video when the user asks for an
+overview or compilation. Omit `--separate` to retain the combined editorial
+renderer. Overview segments can be brief, but do not shorten the standalone
+series to fit that optional overview. Existing combined exports are preserved
+when rendering the separate series.
+
+## Legacy reels
+
+The remaining scene/card options describe existing reels without `style`, or
+an explicit `style: legacy`. Keep them reproducible. Do not use these animated
+explainer defaults for new release or blog videos.
+
+## Choose a legacy segment type per feature
 
 Each feature gets one segment directory beside the reel: `generated/<reel>/<NN-feature-slug>/`.
 
@@ -94,11 +218,11 @@ Write a custom scene when the concept has its own shape, for example a dropped c
 
 Run the batch narration phase on explainer directories exactly as on demo directories; it generates `narration.wav` and `narration-timing.json`. Write `explainer.yaml` after the timing exists, so each cue points at the sentence that says it. The finish phase skips explainers, because `stitch_reel.py` renders and merges them.
 
-## Blog post walkthroughs
+## Legacy blog post walkthroughs
 
 A video about a blog post uses the same reel: one segment per idea or feature in the post (six at most), each a demo or an explainer as above. Set `eyebrow` in `reel.yaml` (for example `From the Shiny blog`) to replace the release label, and leave `release` out. Read the whole post and its linked pull requests before writing; narrate what the post shows, not its headings. Put the post's URL in the outro's `why` line if the user wants it, never in the narration.
 
-## Narration
+## Legacy combined-reel narration
 
 Each segment carries its own narration, 35–65 words (about 15–25 seconds). Write it with the `simple-english` rules and the speech-texture pass from the main skill. Focus on why the feature helps:
 
