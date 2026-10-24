@@ -10,6 +10,7 @@ Create focused Shiny component demos and editorial videos that explain releases 
 ## Core contract
 
 **Release, changelog, and blog requests default to one detailed editorial video per distinct feature or idea.**
+Start with [the reproducible editorial production workflow](references/editorial-production.md) and the bundled `assets/editorial-starter/`. Use the shared shot builder and validator instead of writing per-video image/padding/validation scripts.
 Write `style: editorial` in every new `reel.yaml`, render with `--separate`, and follow
 [references/changelog-reel.md](references/changelog-reel.md). Use real app
 footage, source excerpts, figures, and measured results. Show a useful visual

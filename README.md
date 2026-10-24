@@ -127,3 +127,15 @@ cues, the Shiny wordmark, and code cards. The exported video clock is checked th
 a WebVTT marker. Existing local voice generation, transcript alignment, cue
 validation, audio merging, and both video orientations use the same workflow.
 Projects without this setting keep the existing recording backend.
+
+### Reproducible editorial production
+
+For the evidence-led release and blog style, start from the bundled
+[editorial starter](.agents/skills/shiny-component-shorts/assets/editorial-starter/)
+and follow the [production workflow](.agents/skills/shiny-component-shorts/references/editorial-production.md).
+`prepare_editorial.py` turns real captures and exact source excerpts into readable
+GitHub-highlighted shots in both orientations. `stitch_reel.py` supports optional
+exact-duration overviews and embedded phrase-aligned chapters.
+`validate_editorial.py` checks the encoded files and rejects stale evidence.
+Models still choose the story and verify the app; they no longer need custom
+screenshot layout, padding, chapter, or export-validation scripts for each video.

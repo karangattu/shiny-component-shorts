@@ -1,5 +1,7 @@
 # Release and blog videos
 
+For the complete source capture → stills → narration → render → validation sequence, follow [editorial-production.md](editorial-production.md).
+
 Follow [visual style](visual-style.md) for all added labels and code excerpts: bslib Shiny fonts and palette, with GitHub light/dark syntax highlighting.
 
 ## Default: one detailed editorial video per point

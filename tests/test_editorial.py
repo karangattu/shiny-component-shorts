@@ -432,3 +432,49 @@ def test_separate_series_is_not_limited_by_combined_reel_feature_count(segment):
     assert len(reel.load_reel(segment, separate=True)["features"]) == 7
     with pytest.raises(SystemExit):
         reel.load_reel(segment)
+
+
+def test_fixed_overview_duration_holds_last_still_and_rejects_short_target(segment):
+    change(segment, lambda c: c.update(target_seconds=5))
+    plan = reel.editorial_plan(segment, 'vertical')
+    assert plan['duration'] == 5 and plan['shots'][-1]['end'] == 5
+    change(segment, lambda c: c.update(target_seconds=2))
+    with pytest.raises(ValueError, match='narration'):
+        reel.editorial_plan(segment, 'vertical')
+    for value in [True, float('nan'), 5.01]:
+        change(segment, lambda c: c.update(target_seconds=value))
+        with pytest.raises(ValueError, match='target_seconds'):
+            reel.editorial_plan(segment, 'vertical')
+
+
+def test_embedded_chapters_and_validator_reject_changed_evidence(segment, monkeypatch):
+    import validate_editorial
+    monkeypatch.setattr(reel, 'SIZES', {'vertical': (144,256), 'horizontal': (256,144)})
+    change(segment, lambda c: c.update(target_seconds=4))
+    change(segment, lambda c: c['shots'][0].update(chapter='First claim'))
+    change(segment, lambda c: c['shots'][1].update(chapter='Second claim'))
+    (segment/'reel.yaml').write_text(yaml.safe_dump({'style':'editorial','title':'Evidence','features':[{'title':'A feature','dir':'.'}]}))
+    monkeypatch.chdir(segment)
+    report = reel.build(Path('.'), 'vertical')
+    data = json.loads(subprocess.run(['ffprobe','-v','error','-show_chapters','-show_streams','-of','json',report['reel']],capture_output=True,text=True,check=True).stdout)
+    assert [c['tags']['title'] for c in data['chapters']] == ['First claim','Second claim']
+    assert float(data['chapters'][1]['start_time']) == pytest.approx(35/30, abs=.001)
+    video=next(s for s in data['streams'] if s['codec_type']=='video')
+    assert int(video['nb_frames']) == 120
+    monkeypatch.chdir(segment.parent)
+    checked = validate_editorial.validate_report(report)
+    assert checked['decode'] == 'passed' and checked['frames'] == 120
+    Image.new('RGB',(128,128),'lime').save(segment/'first.png')
+    with pytest.raises(ValueError, match='stale'):
+        validate_editorial.validate_report(report)
+
+
+def test_source_manifest_rejects_unrendered_code_edits(segment):
+    source=segment/'app.py';source.write_text('print(42)\n')
+    manifest=segment/'source-manifest.json'
+    manifest.write_text(json.dumps({'sources':[{'file':str(source),'sha256':hashlib.sha256(source.read_bytes()).hexdigest()}]}))
+    change(segment,lambda c:c.update(source_manifest='source-manifest.json'))
+    reel.editorial_plan(segment,'vertical')
+    source.write_text('print(43)\n')
+    with pytest.raises(ValueError,match='source.*changed|stale'):
+        reel.editorial_plan(segment,'vertical')

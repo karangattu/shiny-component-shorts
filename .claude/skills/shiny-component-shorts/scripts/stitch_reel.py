@@ -908,6 +908,17 @@ def editorial_plan(segment: Path, orientation: str) -> dict:
         or not config["shots"]
     ):
         raise ValueError("editorial.yaml needs a non-empty shots list")
+    manifest_key = None
+    if config.get("source_manifest"):
+        manifest = segment / str(config["source_manifest"])
+        evidence = json.loads(manifest.read_text())
+        if not isinstance(evidence.get("sources"), list) or not evidence["sources"]:
+            raise ValueError("Source manifest must list the original evidence files")
+        for item in evidence["sources"]:
+            path = Path(item["file"])
+            if not path.is_file() or file_digest(path) != item["sha256"]:
+                raise ValueError(f"Original source has changed; regenerate stale editorial stills: {path}")
+        manifest_key = file_digest(manifest)
     timing = align_narration.load_timing(segment)
     if timing is None:
         raise ValueError(f"{segment}: missing or stale narration timing")
@@ -918,7 +929,13 @@ def editorial_plan(segment: Path, orientation: str) -> dict:
     audio_duration = probe_duration(audio)
     if abs(audio_duration - timing.get("duration_seconds", -1)) > 0.05:
         raise ValueError("Narration timing duration does not match its audio")
-    duration = math.ceil((audio_duration + NARRATION_OFFSET_SECONDS + 1.0) * FPS) / FPS
+    natural_duration = math.ceil((audio_duration + NARRATION_OFFSET_SECONDS + 1.0) * FPS) / FPS
+    duration = config.get("target_seconds", natural_duration)
+    if (isinstance(duration, bool) or not isinstance(duration, (int, float))
+            or not math.isfinite(duration) or abs(duration * FPS - round(duration * FPS)) > 1e-6):
+        raise ValueError("target_seconds must be finite and align to a 30 fps frame")
+    if duration < natural_duration:
+        raise ValueError("target_seconds must fit the full narration and its one-second final hold; shorten and regenerate speech instead")
     shots, previous_cue = [], -1.0
     for number, shot in enumerate(config["shots"], start=1):
         if not isinstance(shot, dict):
@@ -997,6 +1014,9 @@ def editorial_plan(segment: Path, orientation: str) -> dict:
                 "highlight": editorial_rect(view.get("highlight"), "highlight"),
                 "available": None if still else probe_duration(path) - media_in,
             }
+        chapter = shot.get("chapter")
+        if chapter is not None and (not isinstance(chapter, str) or not chapter.strip()):
+            raise ValueError("chapter must be a non-empty title")
         source = shot.get("source", "")
         if not isinstance(source, str):
             raise ValueError("Source labels must be text")
@@ -1006,9 +1026,12 @@ def editorial_plan(segment: Path, orientation: str) -> dict:
                 "cue": cue,
                 "cue_time": moment + NARRATION_OFFSET_SECONDS,
                 "source": source,
+                "chapter": chapter,
                 "views": resolved,
             }
         )
+    if duration > natural_duration and not all(v["still"] for v in shots[-1]["views"].values()):
+        raise ValueError("A fixed-duration extension must hold a final still; never freeze or speed up footage")
     for index, shot in enumerate(shots):
         shot["end"] = shots[index + 1]["start"] if index + 1 < len(shots) else duration
         for view in shot["views"].values():
@@ -1021,6 +1044,7 @@ def editorial_plan(segment: Path, orientation: str) -> dict:
                 )
     return {
         "style": "editorial",
+        "source_manifest_sha256": manifest_key,
         "orientation": orientation,
         "duration": duration,
         "audio": str(audio),
@@ -1214,17 +1238,37 @@ def render_editorial(
     return output, plan
 
 
+def embed_chapters(video: Path, chapters: list[dict], work: Path) -> None:
+    """Mux accurate chapter metadata without changing encoded video or narration."""
+    lines = [";FFMETADATA1"]
+    for chapter in chapters:
+        title = str(chapter["label"])
+        for char in ("\\", "=", ";", "#"):
+            title = title.replace(char, "\\" + char)
+        title = title.replace("\n", " ").replace("\r", " ")
+        lines.extend(["[CHAPTER]", "TIMEBASE=1/30000", f"START={round(chapter['start']*30000)}",
+                      f"END={round(chapter['end']*30000)}", f"title={title}"])
+    metadata = work / "chapters.ffmeta"
+    metadata.write_text("\n".join(lines) + "\n")
+    output = work / "chaptered.mp4"
+    subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", str(video), "-i", str(metadata),
+                    "-map", "0:v:0", "-map", "0:a:0", "-map_metadata", "1", "-map_chapters", "1",
+                    "-c", "copy", "-movflags", "+faststart", str(output)], check=True)
+    shutil.copy2(output, video)
+
+
 def build_editorial(reel_dir: Path, config: dict, orientation: str, *, output_dir: Path | None = None) -> dict:
     """Assemble source-led segments with no interstitial cards or audio crossfades."""
     from playwright.sync_api import sync_playwright
 
     if orientation not in SIZES:
         raise ValueError(f"Unsupported orientation: {orientation}")
-    artifacts = output_dir if output_dir is not None else reel_dir / "artifacts"
+    reel_dir = reel_dir.resolve()
+    artifacts = output_dir.resolve() if output_dir is not None else reel_dir / "artifacts"
     artifacts.mkdir(parents=True, exist_ok=True)
     cache = artifacts / ".reel-cache"
     suffix = "" if orientation == config["orientation"] else f"-{orientation}"
-    chapters, shots, pieces, elapsed = [], [], [], 0.0
+    chapters, shots, pieces, segments, elapsed = [], [], [], [], 0.0
     with tempfile.TemporaryDirectory(
         prefix="editorial-reel-"
     ) as temporary, sync_playwright() as playwright:
@@ -1248,13 +1292,13 @@ def build_editorial(reel_dir: Path, config: dict, orientation: str, *, output_di
                 normalized = work / f"segment-{number}.mp4"
                 duration = normalize(source, normalized, orientation, 0, cache)
                 pieces.append((normalized, duration, "cut"))
-                chapters.append(
-                    {
-                        "label": feature["title"],
-                        "start": elapsed,
-                        "end": elapsed + duration,
-                    }
-                )
+                segments.append({"path": str(feature["path"]), "plan_key": cache_key(plan)})
+                marked = [(shot["start"], shot["chapter"]) for shot in plan["shots"] if shot["chapter"]]
+                if not marked or marked[0][0] != 0:
+                    marked.insert(0, (0.0, feature["title"]))
+                for index, (start, title) in enumerate(marked):
+                    end = marked[index + 1][0] if index + 1 < len(marked) else duration
+                    chapters.append({"label": title, "start": elapsed + start, "end": elapsed + end})
                 shots.extend(
                     {
                         "label": shot["source"] or shot["cue"]["phrase"],
@@ -1270,11 +1314,10 @@ def build_editorial(reel_dir: Path, config: dict, orientation: str, *, output_di
         finally:
             browser.close()
         output = artifacts / f"reel{suffix}.mp4"
-        starts = join(pieces, output)
+        join(pieces, output)
         total = probe_duration(output)
-        for index, chapter in enumerate(chapters):
-            chapter["start"] = starts[index]
-            chapter["end"] = starts[index + 1] if index + 1 < len(starts) else total
+        chapters[-1]["end"] = total
+        embed_chapters(output, chapters, work)
         review_sheet(output, shots, artifacts / f"reel-review{suffix}.png", work)
         thumb_width, thumb_height = (
             (1080, 1920) if orientation == "vertical" else (1280, 720)
@@ -1307,6 +1350,7 @@ def build_editorial(reel_dir: Path, config: dict, orientation: str, *, output_di
         "release": config.get("release"),
         "chapters": chapters,
         "shots": shots,
+        "segments": segments,
         "warnings": [],
     }
     (artifacts / f"reel{suffix}.json").write_text(json.dumps(report, indent=2) + "\n")

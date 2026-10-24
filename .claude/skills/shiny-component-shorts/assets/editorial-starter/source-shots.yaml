@@ -1,0 +1,26 @@
+# Replace every cue with words from your finished narration.
+# Capture real media and save actual output before running prepare_editorial.py.
+# For an explicitly requested exact-length overview, add target_seconds: 50.
+shots:
+  - cue: This app shows the result
+    source: Actual running app
+    chapter: The working example
+    views:
+      vertical:
+        panels:
+          - {kind: image, file: sources/app-portrait.png, label: Actual app}
+      horizontal:
+        panels:
+          - {kind: image, file: sources/app-landscape.png, label: Actual app}
+  - cue: Here is the code that does it
+    source: app.py · exact source
+    panels:
+      - kind: code
+        file: app.py
+        lines: [1, 6] # Select a short real excerpt. These are inclusive line numbers.
+        highlight: 4 # Highlight just one visible line, or omit.
+  - cue: The run confirms the result
+    source: Captured output · actual run
+    chapter: The verified result
+    panels:
+      - {kind: output, file: sources/verified-output.txt, label: Captured output}
