@@ -37,6 +37,9 @@ class StaticCodeTest(unittest.TestCase):
                         page.evaluate(recorder.CURSOR_OVERLAY_JS)
                         page.mouse.move(100, 100)
                         self.assertTrue(page.locator("#__demo_cursor__").is_visible())
+                        arrow = page.locator("#__demo_cursor__ path")
+                        self.assertEqual(arrow.get_attribute("fill"), "#1D1F21")
+                        self.assertEqual(arrow.get_attribute("stroke"), "#FFFFFF")
                         config = recorder.code_overlay_config(
                             orientation,
                             {

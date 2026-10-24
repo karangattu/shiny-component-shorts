@@ -188,8 +188,8 @@ CURSOR_OVERLAY_JS = r"""(() => {
             + 'filter:drop-shadow(0 1px 1px rgba(29,31,33,.55));transform-origin:2px 2px;';
         const arrow = document.createElementNS(ns, 'path');
         arrow.setAttribute('d', 'M2 2 L2 23 L7.5 17.5 L12.5 28 L16.5 26 L11.5 16 L21 16 Z');
-        arrow.setAttribute('fill', '#FFFFFF');
-        arrow.setAttribute('stroke', '#1D1F21');
+        arrow.setAttribute('fill', '#1D1F21');
+        arrow.setAttribute('stroke', '#FFFFFF');
         arrow.setAttribute('stroke-width', '1.4');
         arrow.setAttribute('stroke-linejoin', 'round');
         cursor.appendChild(arrow);
