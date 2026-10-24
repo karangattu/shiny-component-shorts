@@ -208,12 +208,12 @@ class RecorderMotionAndCaptureTest(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 recorder.screencast_manifest([], 0.0, 1.0)
 
-    def test_code_card_fades_in_and_out_instead_of_popping(self) -> None:
+    def test_static_code_has_no_typewriter_or_slide_transition(self) -> None:
         for copy, recorder in self.recorders.items():
-            self.assertIn("__code_hidden__", recorder.CODE_OVERLAY_JS, copy)
-            self.assertIn("transition:opacity", recorder.CODE_OVERLAY_JS, copy)
-            self.assertIn("__code_hidden__", recorder.CODE_OVERLAY_REMOVE_JS, copy)
-            self.assertIn("__demo_code_anim__", recorder.CODE_OVERLAY_JS, copy)
+            self.assertNotIn("cfg.typeMs", recorder.CODE_OVERLAY_JS, copy)
+            self.assertNotIn("translateX", recorder.CODE_OVERLAY_JS, copy)
+            self.assertNotIn("translateY", recorder.CODE_OVERLAY_JS, copy)
+            self.assertIn("__code_overlay__", recorder.CODE_OVERLAY_REMOVE_JS, copy)
 
 
 class TakeMatchingTest(unittest.TestCase):

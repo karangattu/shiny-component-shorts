@@ -108,13 +108,13 @@ class ClaudeSkillContractTest(unittest.TestCase):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
 
         self.assertIn(
-            "Focus the decisive code line; keep any real source context dimmed",
+            "Show a complete source excerpt, explain its highlighted line, then leave a reading pause",
             skill,
         )
         for marker in ("syntax-highlighted", "before", "after", "start_line"):
             self.assertIn(marker, recording)
         self.assertIn("syntax-highlighted code card", readme)
-        self.assertIn("real source context", readme)
+        self.assertIn("exact source", readme)
 
     def test_recording_contract_forbids_shiny_client_error_panels(self) -> None:
         skill = SKILL_MD.read_text(encoding="utf-8")
@@ -458,8 +458,6 @@ class ClaudeRecorderContractTest(unittest.TestCase):
         for marker in (
             "CURSOR_OVERLAY_JS",
             "RETENTION_OVERLAY_JS",
-            "__code_activity_bar__",
-            "__code_tab__",
             "__code_gutter__",
             "__demo_hook__",
             "__demo_state_label__",
@@ -475,7 +473,7 @@ class ClaudeRecorderContractTest(unittest.TestCase):
             '"-crf"',
         ):
             self.assertIn(marker, source)
-        self.assertIn("cfg.title + ' — Visual Studio Code'", source)
+        self.assertNotIn("Visual Studio Code", source)
         self.assertNotIn("Shiny component short", source)
         self.assertNotIn("kill -9", source)
 
@@ -538,10 +536,8 @@ class ClaudeRecorderContractTest(unittest.TestCase):
         )
 
         self.assertEqual(horizontal["layout"], "side")
-        self.assertEqual(vertical["layout"], "overlay")
+        self.assertEqual(vertical["layout"], "full")
         self.assertIn("__demo_code_side__", recorder.CODE_OVERLAY_JS)
-        self.assertIn("top:20%", recorder.CODE_OVERLAY_JS)
-        self.assertIn("bottom:20%", recorder.CODE_OVERLAY_JS)
         self.assertNotIn("#4285f4", recorder.CURSOR_OVERLAY_JS + recorder.CODE_OVERLAY_JS)
         self.assertIn("#007bc2", (recorder.CURSOR_OVERLAY_JS + recorder.CODE_OVERLAY_JS).lower())
         self.assertIn(
@@ -570,17 +566,16 @@ class ClaudeRecorderContractTest(unittest.TestCase):
         self.assertEqual(config["startLine"], 117)
         self.assertEqual(config["language"], "python")
 
-    def test_code_overlay_marks_a_syntax_highlighted_vscode_focus_line(self) -> None:
+    def test_code_overlay_marks_a_syntax_highlighted_source_line(self) -> None:
         source = recorder.CODE_OVERLAY_JS
 
         for marker in (
             "shinyHighlightLines",
-            "__code_focus_block__",
-            "__code_status_bar__",
+            "__code_focus_line__",
+            "__code_source_label__",
             "hljs-keyword",
             "hljs-string",
             "hljs-comment",
-            "Visual Studio Code",
             "cfg.before",
             "cfg.after",
             "cfg.startLine",

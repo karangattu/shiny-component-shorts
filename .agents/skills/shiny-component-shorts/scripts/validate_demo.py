@@ -51,7 +51,7 @@ GAP_ACTIONS = MEANINGFUL_ACTIONS | {"code"} | STREAM_ACTIONS
 CUE_EARLY_SECONDS = 1.0
 CUE_LATE_SECONDS = 0.5
 MIN_CUED_ACTIONS = 3
-CODE_EXIT_MS = 320  # the code card fades out before the next action runs
+CODE_EXIT_MS = 0  # static excerpts cut directly back to the live app
 TAG_RE = re.compile(r"\[[^\]]+\]")
 WORD_RE = re.compile(r"\b[\w’'-]+\b")
 FORBIDDEN_VOCALIZATION_RE = re.compile(
@@ -111,7 +111,6 @@ def estimate_action_seconds(actions: list[dict]) -> float:
         elif name == "code" and isinstance(value, dict):
             text = str(value.get("text", "")).rstrip("\n")
             context = str(value.get("before", "")) + str(value.get("after", ""))
-            total_ms += len(text) * int(value.get("type_ms", 22))
             total_ms += code_hold_ms(text, value.get("duration"), context) + CODE_EXIT_MS
     return total_ms / 1000
 
@@ -359,7 +358,6 @@ def project_simulated_timeline(
         elif name == "code" and isinstance(value, dict):
             text = str(value.get("text", "")).rstrip("\n")
             context = str(value.get("before", "")) + str(value.get("after", ""))
-            current_ms += len(text) * int(value.get("type_ms", 22))
             current_ms += code_hold_ms(text, value.get("duration"), context) + CODE_EXIT_MS
         elif name == "screenshot":
             current_ms += 100

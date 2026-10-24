@@ -491,10 +491,8 @@ class SharedRecorderContractTest(unittest.TestCase):
         )
 
         self.assertEqual(horizontal["layout"], "side")
-        self.assertEqual(vertical["layout"], "overlay")
+        self.assertEqual(vertical["layout"], "full")
         self.assertIn("__demo_code_side__", recorder.CODE_OVERLAY_JS)
-        self.assertIn("top:20%", recorder.CODE_OVERLAY_JS)
-        self.assertIn("bottom:20%", recorder.CODE_OVERLAY_JS)
         self.assertNotIn("#4285f4", recorder.CURSOR_OVERLAY_JS + recorder.CODE_OVERLAY_JS)
         self.assertIn("#007bc2", (recorder.CURSOR_OVERLAY_JS + recorder.CODE_OVERLAY_JS).lower())
         self.assertIn(
@@ -523,23 +521,22 @@ class SharedRecorderContractTest(unittest.TestCase):
         self.assertEqual(config["startLine"], 117)
         self.assertEqual(config["language"], "python")
 
-    def test_code_overlay_marks_a_syntax_highlighted_vscode_focus_line(self) -> None:
+    def test_code_overlay_marks_a_syntax_highlighted_source_line(self) -> None:
         source = recorder.CODE_OVERLAY_JS
 
         for marker in (
             "shinyHighlightLines",
-            "__code_focus_block__",
-            "__code_status_bar__",
+            "__code_focus_line__",
+            "__code_source_label__",
             "hljs-keyword",
             "hljs-string",
             "hljs-comment",
-            "Visual Studio Code",
             "cfg.before",
             "cfg.after",
             "cfg.startLine",
         ):
             self.assertIn(marker, source)
-        self.assertIn("cfg.title + ' — Visual Studio Code'", source)
+        self.assertNotIn("Visual Studio Code", source)
         self.assertNotIn("Shiny component short", source)
 
     def test_occupied_port_is_refused_without_killing_listener(self) -> None:
@@ -770,8 +767,6 @@ class SharedRecorderContractTest(unittest.TestCase):
         for marker in (
             "CURSOR_OVERLAY_JS",
             "CODE_OVERLAY_JS",
-            "__code_activity_bar__",
-            "__code_tab__",
             "__code_gutter__",
             "context.add_init_script(CURSOR_OVERLAY_JS)",
             "press_sequentially",
@@ -822,8 +817,8 @@ class DemoValidatorContractTest(unittest.TestCase):
             {"type": {"selector": "#notes", "value": "abcd", "delay": 50}},
             {"code": {"text": "x", "duration": 4000, "type_ms": 20}},
         ]
-        # 0.32 s of the total is the code card fading out.
-        self.assertAlmostEqual(validator.estimate_action_seconds(actions), 7.54)
+        # Static source has no typing or exit-animation time.
+        self.assertAlmostEqual(validator.estimate_action_seconds(actions), 7.2)
 
     def test_narration_estimate_counts_spoken_words_and_tags(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

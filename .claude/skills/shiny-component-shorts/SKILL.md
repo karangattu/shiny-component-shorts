@@ -300,7 +300,7 @@ Use this sequence:
 | 0–4 s | Problem | Begin the first meaningful action by second 2 |
 | 4–12 s | Reveal | Show the hidden behavior clearly |
 | 12–27 s | Proof | Repeat, reverse, or contrast it |
-| 27–40 s | Code | Focus the decisive code line; keep any real source context dimmed |
+| 27–40 s | Code | Show a complete source excerpt, explain its highlighted line, then leave a reading pause |
 | 40–45 s | Payoff | End on the strongest result |
 
 These beat names are planning labels only; never render them in the video.
@@ -316,7 +316,7 @@ For a standalone 45-second component short, keep narration around 95–130 spoke
 - Keep ordinary waits between 500 and 3000 ms; vary them and let the biggest reveal breathe.
 - Keep the total wait before the first meaningful action at or under 1500 ms; the first action must be underway while the narration's opening words are spoken. The validator rejects opening waits over 2000 ms.
 - In narrated videos, put a `cue` directly before at least three meaningful actions and before the `code` action; the validator rejects a cued reaction more than 1.0 s early or 0.5 s late for its phrase.
-- Include one animated `code` action timed to the narration's code sentence. Give it authentic context: dimmed `before`/`after` blocks copied verbatim from the app — for a UI trick, the enclosing UI component plus the related server logic — typically 6–14 context lines, with only the decisive line or two highlighted. In vertical mode the card renders in the lower half of the frame below the component.
+- Use static `code` excerpts timed to their explanations. Show complete code immediately, with a real filename, line numbers, GitHub highlighting, and no simulated editor chrome or typing. Prefer 4–7 relevant source lines and one highlighted detail. Portrait code occupies the full frame; landscape places it beside the app. Explain one block, leave a reading pause, then demonstrate its result. Use a second excerpt when the explanation needs another function; let the video grow beyond 45 seconds instead of squeezing it in.
 - Do not use `zoom` or any camera punch-in; the recorder rejects it. Make readouts phone-legible through the app's own type sizes instead.
 - In horizontal mode, the `code` action must use the recorder's side-by-side layout so the app remains visible beside the code; do not cover the app with the code panel.
 - Keep the action sequence at least as long as the estimated narration. When it comes up short, lengthen the holds after reveals or add another proof beat; never pad the opening wait — that delays the first action past the narration's hook.

@@ -58,7 +58,7 @@ Use a stable composition with frequent information changes:
 - Keep the Shiny app as the hero in the center height band and stretch it across the available horizontal space between 3–5% side gutters.
 - Make each app state change visually self-explanatory.
 - Keep the full app in frame; state changes must be legible without camera moves.
-- Use a compact Shiny-branded code card sized by reading time (typewriter animation + a hold computed from character count); keep the live app visible.
+- Show a static source excerpt while explaining it, with complete text visible immediately and a quiet reading pause. Return to the app to prove the result. No fake editor chrome, cursor, or typing.
 - Return to the full app for the payoff.
 - Aim for a visible app change every 1.5–3 seconds, from interactions and their reactions. The validator rejects any gap over 8 seconds while narration plays.
 
@@ -75,7 +75,7 @@ Design for the final orientation from the start.
 - Make controls large enough for a phone screen and keep labels short.
 - Verify the first, middle, code, and final frames at actual phone size.
 
-In horizontal mode, show the code and live app side-by-side during the code beat: keep the app on the left and the Shiny-branded code panel on the right. Never place the code panel over the app in horizontal mode. In vertical mode, the code card fills the bottom half of the frame, anchored near the bottom edge (a 4% margin), so the component stays visible above it; during the code beat the card may cover the bottom branding band. Compose the app toward the top of the middle band.
+In horizontal mode, place the app and a readable static source excerpt side by side. In portrait, give code the full frame. Keep the filename, exact line numbers, and GitHub highlighting; no simulated editor controls. Prefer 4–7 relevant lines, and use separate excerpts for separate functions.
 
 All framing and editing elements must stay in the Shiny preset palette. Use Shiny blue `#007BC2` for primary emphasis, `#FFFFFF`/`#F8F8F8` with `#1D1F21` text for light treatments, and `#1D1F21`/`#202020` with `#FFFFFF` and `#CDD4DA` text for dark treatments.
 
@@ -88,7 +88,7 @@ These are the same beats and times as the story table in `SKILL.md`; the times a
 | 0–4 | Problem | Spoken hook begins; the first action is underway |
 | 4–12 | Reveal | The app reacts; the changing readout carries the beat |
 | 12–27 | Proof | Repeat, reverse, or contrast the behavior |
-| 27–40 | Code | Vertical: card in the bottom half, below the component. Horizontal: app and code side-by-side |
+| 27–40 | Code | Portrait: full-frame static source. Landscape: app and code side-by-side |
 | 40–45 | Payoff | Strongest result, full app, short takeaway |
 
 ## Editing restraint

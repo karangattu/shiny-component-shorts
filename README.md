@@ -80,10 +80,10 @@ New demos and added labels use the [bslib Shiny preset](https://rstudio.github.i
 Standalone component recordings use these composition rules:
 
 - Vertical and horizontal versions of the same video. The app fills the middle 60% of the frame in both.
-- In the horizontal version, the code card sits beside the app instead of below it.
+- Portrait cuts to full-frame source code. Landscape places source beside the app.
 - The Shiny logo sits in the top-left for the first 5 seconds, then fades out.
 - At least three clicks or inputs, each with a visible change.
-- A syntax-highlighted code card using GitHub colors. It shows real source context from the app with the key line highlighted.
+- A static syntax-highlighted code card using GitHub colors. It shows complete, exact source from the app, with the key line highlighted, its real filename and line numbers. No simulated editor controls, cursor, or typing. Each excerpt gets its full explanation and a quiet reading pause before the app demonstrates the result.
 - Only the official Shiny colors.
 
 ## Repository layout
