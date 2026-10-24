@@ -139,3 +139,16 @@ exact-duration overviews and embedded phrase-aligned chapters.
 `validate_editorial.py` checks the encoded files and rejects stale evidence.
 Models still choose the story and verify the app; they no longer need custom
 screenshot layout, padding, chapter, or export-validation scripts for each video.
+
+## Versioned releases
+
+[GitHub releases](https://github.com/karangattu/shiny-component-shorts/releases) provide
+separate Codex and Claude skill archives and `SHA256SUMS`. Each archive includes
+its `VERSION` and a `release.json` recording the tag and exact source commit.
+Record these with a video's production inputs when you need to pin the workflow.
+
+For maintainers, push a stable `vMAJOR.MINOR.PATCH` tag on a reviewed commit.
+The release workflow runs the existing tests and type checks, packages only
+tracked skill files, and publishes both archives with checksums. A matching
+`.github/release-notes/<tag>.md` supplies curated notes; otherwise GitHub generates
+them. Patch versions cover fixes; minor versions add capabilities.
