@@ -345,6 +345,7 @@ CODE_OVERLAY_JS = "async (cfg) => {" + code_style.browser_script() + r"""
     style.id = '__code_overlay_style__';
     style.textContent = """ + json.dumps(code_style.font_css() + code_style.stylesheet()) + r""" + `
         #__code_overlay__ *{box-sizing:border-box;}
+        #__demo_cursor__,.__demo_cursor_ripple__{visibility:hidden!important;}
         #__code_overlay__ .__code_focus_line__{background:rgba(0,123,194,.12);box-shadow:inset 3px 0 #007BC2;}
         html.__demo_code_side__ body{width:51vw!important;max-width:51vw!important;margin-left:0!important;margin-right:0!important;overflow-x:hidden!important;}
         html.__demo_code_side__ body>*:not(#__code_overlay__){max-width:100%!important;}

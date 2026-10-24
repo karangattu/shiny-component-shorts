@@ -34,6 +34,9 @@ class StaticCodeTest(unittest.TestCase):
                         page.set_content(
                             '<body style="width:90%;"><main>Live app</main></body>'
                         )
+                        page.evaluate(recorder.CURSOR_OVERLAY_JS)
+                        page.mouse.move(100, 100)
+                        self.assertTrue(page.locator("#__demo_cursor__").is_visible())
                         config = recorder.code_overlay_config(
                             orientation,
                             {
@@ -46,6 +49,7 @@ class StaticCodeTest(unittest.TestCase):
                         )
                         page.evaluate(recorder.CODE_OVERLAY_JS, config)
                         overlay = page.locator("#__code_overlay__")
+                        self.assertFalse(page.locator("#__demo_cursor__").is_visible())
                         self.assertNotIn("Visual Studio Code", overlay.inner_text())
                         self.assertEqual(overlay.locator(".cursor").count(), 0)
                         self.assertEqual(
@@ -76,6 +80,7 @@ class StaticCodeTest(unittest.TestCase):
                             )
                         page.evaluate(recorder.CODE_OVERLAY_REMOVE_JS)
                         self.assertEqual(overlay.count(), 0)
+                        self.assertTrue(page.locator("#__demo_cursor__").is_visible())
                         self.assertEqual(
                             page.locator("body").evaluate("(e)=>e.style.width"), "90%"
                         )
