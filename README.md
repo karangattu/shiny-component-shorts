@@ -145,7 +145,13 @@ screenshot layout, padding, chapter, or export-validation scripts for each video
 [GitHub releases](https://github.com/karangattu/shiny-component-shorts/releases) provide
 separate Codex and Claude skill archives and `SHA256SUMS`. Each archive includes
 its `VERSION` and a `release.json` recording the tag and exact source commit.
-Record these with a video's production inputs when you need to pin the workflow.
+Agents now run `bootstrap_skill.py --project-dir <production>` automatically before
+planning a new video. It downloads and verifies the latest stable release into
+that production's `.video-skill/`, records `skill-lock.json`, and keeps that version
+for rerenders and child segments. Production commands also enforce the pin.
+The installed skill and local edits stay intact. Existing media keeps its current
+tools; network or verification failures stop setup instead of silently using an
+older release. See [version management](.agents/skills/shiny-component-shorts/references/version-management.md).
 
 For maintainers, push a stable `vMAJOR.MINOR.PATCH` tag on a reviewed commit.
 The release workflow runs the existing tests and type checks, packages only

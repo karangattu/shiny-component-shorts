@@ -1,10 +1,12 @@
 # Component video production
 
+First run [automatic production setup](version-management.md) and use the returned pinned skill for all commands below.
+
 Use this workflow for Python and R component videos. Editorial release/blog videos keep their shot-based workflow.
 
 ## Preview the complete story before narration
 
-Use the production environment’s interpreter and the absolute installed skill path. After verifying selectors and writing actions.yaml, execute the action sequence without recording or generating audio:
+Use the production environment’s interpreter and the absolute pinned skill path. After verifying selectors and writing actions.yaml, execute the action sequence without recording or generating audio:
 
 ```bash
 /path/to/venv/bin/python /path/to/shiny-component-shorts/scripts/record_demo.py \

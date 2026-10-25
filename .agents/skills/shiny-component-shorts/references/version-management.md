@@ -1,0 +1,15 @@
+# Automatic skill version management
+
+The agent handles setup before planning or generating media. Choose the production directory, then run the installed `scripts/bootstrap_skill.py --project-dir /absolute/path/to/production` with an explicit Python interpreter. No global install change or user download is needed. This helper uses only Python's standard library.
+
+The default downloads the latest stable release from `karangattu/shiny-component-shorts`, checks its published SHA-256 checksum, validates the archive and file manifest, and records its version, commit, variant, and hashes in `skill-lock.json`. Releases are published only after the repository's contract tests and type checks pass. This verifies the published package's integrity; it is not an independent signature.
+
+Read the returned `.video-skill/SKILL.md` and use its assets, references, scripts, and requirements. Install missing dependencies into the production's explicit environment using the pinned requirements; do not install globally. Keep the copied global skill as the bootstrap launcher. It is never overwritten, so local edits survive. To deliberately use customized tools, select `--local` for a user-requested local-development production.
+
+Bootstrap a series root first. Descendants inherit its nearest `skill-lock.json`. Recordings, batch production, editorial shot preparation, and reel assembly redirect to the pinned tools. Batch jobs with different snapshots run separately. Helpers called directly should also come from the pinned scripts directory. Do not mix versions or dispatch work before reading the pin's instructions.
+
+Rerenders verify the snapshot without a network request. Updates become available to the next new production; they never change an active one. Existing media under `artifacts/` without a lock is adopted as `legacy-local`: its current installed tools are copied and hashed without claiming a verified release. That records the tools available at adoption, not the historical version that originally made the media. Existing action/reel configuration files need no changes.
+
+A failed download or checksum stops setup before media work. Retry once. If it still fails, report the error; use `--local` only when local/offline work was explicitly requested. Local snapshots are labelled as local and carry file hashes rather than release verification. The default never uses moving `main` or an unverified fallback.
+
+Preserve `skill-lock.json` and `.video-skill/` with the production inputs. A missing, modified, or incompatible snapshot blocks the guarded commands. Restore it from the production backup; do not edit its hashes or quietly install the newest version. To intentionally start over with current tools, create a new production directory and bootstrap there. An occupied unmanaged `.video-skill/` is preserved. If `.skill-bootstrap.lock` remains after a crashed bootstrap, first verify no bootstrap is running before removing that marker and retrying. The helper never removes someone else's lock.

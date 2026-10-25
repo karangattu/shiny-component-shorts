@@ -17,6 +17,8 @@ from pathlib import Path
 from typing import Callable, Mapping
 
 
+import bootstrap_skill
+
 SCRIPTS_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPTS_DIR))
 import align_narration  # noqa: E402
@@ -118,6 +120,7 @@ def discover_projects(
         ".github",
         ".venv",
         ".agents",
+        ".video-skill",
         ".claude",
         "tests",
         "assets",
@@ -987,6 +990,10 @@ def main(argv: list[str] | None = None) -> int:
     if not projects:
         print("No project directories discovered.")
         return 0
+    if __name__ == "__main__":
+        bootstrap_skill.guard_batch(
+            projects, Path(__file__), sys.argv[1:] if argv is None else argv
+        )
     try:
         ports = [start_port_for(index) for index in range(len(projects))]
         # Companion recordings run beside the primaries, on their own port ranges.

@@ -36,11 +36,14 @@ def package(repo: Path, tag: str, output: Path) -> list[Path]:
         with zipfile.ZipFile(io.BytesIO(data)) as source, zipfile.ZipFile(
             path, "w", compression=zipfile.ZIP_DEFLATED
         ) as dest:
+            manifest = {}
             for item in source.infolist():
-                dest.writestr(prefix + item.filename, source.read(item))
-            dest.writestr(prefix + "VERSION", tag[1:] + "\n")
-            dest.writestr(
-                prefix + "release.json",
+                data = source.read(item)
+                dest.writestr(prefix + item.filename, data)
+                if not item.is_dir():
+                    manifest[item.filename] = hashlib.sha256(data).hexdigest()
+            version = (tag[1:] + "\n").encode()
+            metadata = (
                 json.dumps(
                     {
                         "version": tag[1:],
@@ -50,7 +53,14 @@ def package(repo: Path, tag: str, output: Path) -> list[Path]:
                     },
                     indent=2,
                 )
-                + "\n",
+                + "\n"
+            ).encode()
+            for name, content in [("VERSION", version), ("release.json", metadata)]:
+                dest.writestr(prefix + name, content)
+                manifest[name] = hashlib.sha256(content).hexdigest()
+            dest.writestr(
+                prefix + "skill-manifest.json",
+                json.dumps(manifest, sort_keys=True, indent=2) + "\n",
             )
         archives.append(path)
     (output / "SHA256SUMS").write_text(

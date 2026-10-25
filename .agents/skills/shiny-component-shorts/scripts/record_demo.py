@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import IO
 from urllib.parse import urlsplit
 
+import bootstrap_skill
 import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -1741,6 +1742,8 @@ def print_preflight(project_dir: Path, report: dict) -> None:
 def main() -> int:
     args = parse_args()
     project_dir = args.project_dir.resolve()
+    if __name__ == "__main__":
+        bootstrap_skill.guard(project_dir, Path(__file__))
     if not project_dir.is_dir():
         raise FileNotFoundError(f"Demo directory does not exist: {project_dir}")
     app_dir = (args.app_dir or project_dir).resolve()

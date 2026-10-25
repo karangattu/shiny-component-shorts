@@ -1,5 +1,7 @@
 # Reproduce the natural editorial style
 
+First run [automatic production setup](version-management.md) and use the returned pinned skill for all commands below.
+
 Use this guide for release, changelog, and blog videos. The goal is a coworker explaining real software: useful content from the first frame, a working example, readable source details, and a verified result. Keep the existing component recording workflow for component shorts.
 
 ## Start from the shared tools

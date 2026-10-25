@@ -51,6 +51,7 @@ import tempfile
 from pathlib import Path
 from typing import Any, Callable, NoReturn
 
+import bootstrap_skill
 import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -1535,6 +1536,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
     reel_dir = args.reel_dir.resolve()
+    if __name__ == "__main__":
+        bootstrap_skill.guard(reel_dir, Path(__file__), argv)
     if args.separate:
         for report in build_series(reel_dir, args.orientation):
             print(f"Wrote {report['reel']} ({report['duration_seconds']:.1f}s)")

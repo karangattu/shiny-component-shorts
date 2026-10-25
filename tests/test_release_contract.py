@@ -72,6 +72,17 @@ class ReleaseTest(unittest.TestCase):
                         ).strip(),
                     )
                     self.assertEqual(meta["tag"], "v0.1.0")
+                    manifest = json.loads(
+                        archive.read("shiny-component-shorts/skill-manifest.json")
+                    )
+                    for name, checksum in manifest.items():
+                        self.assertEqual(
+                            hashlib.sha256(
+                                archive.read("shiny-component-shorts/" + name)
+                            ).hexdigest(),
+                            checksum,
+                        )
+                    self.assertIn("SKILL.md", manifest)
                 self.assertIn(
                     hashlib.sha256(path.read_bytes()).hexdigest() + "  " + path.name,
                     sums,

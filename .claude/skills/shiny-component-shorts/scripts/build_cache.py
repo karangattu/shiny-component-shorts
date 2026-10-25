@@ -11,6 +11,8 @@ from pathlib import Path
 
 IGNORED_INPUT_DIRS = {
     ".git",
+    ".video-skill",
+    ".skill-bootstrap.lock",
     ".mypy_cache",
     ".pytest_cache",
     ".venv",

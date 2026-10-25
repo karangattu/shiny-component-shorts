@@ -7,6 +7,14 @@ description: Create Shiny Python/R, shinychat, and shinyreact demos and narrated
 
 Create focused Shiny component demos and editorial videos that explain releases and blog posts through real software, source excerpts, figures, and verified results.
 
+## Automatic production setup
+
+Before planning a new video, create its production directory and run `scripts/bootstrap_skill.py --project-dir /absolute/path/to/production` with the selected Python interpreter. Do this yourself; do not ask the user to download, update, or copy the skill. For a series, bootstrap its parent directory before creating the feature directories.
+
+Read the returned `.video-skill/SKILL.md`, then use that snapshot's references, assets, scripts, and requirements for the entire production. The bootstrap verifies the latest stable release's checksum and files, saves `skill-lock.json`, and reuses that version for every rerender and child segment. It never pulls into or overwrites the installed skill. The recording, batch, shot-preparation, and reel commands also enforce the pin automatically.
+
+Existing productions with audio/video under `artifacts/` keep a snapshot of their current tools. Do not delete their lock or update them midway. If a download fails, retry once and report the concrete failure if it persists; never silently fall back to older tools. Use `--local` only for explicitly requested local-development or offline work. See [version management](references/version-management.md) for recovery and provenance. Idea-only requests and skill maintenance do not need a production snapshot.
+
 ## Core contract
 
 **Release, changelog, and blog requests default to one detailed editorial video per distinct feature or idea.**

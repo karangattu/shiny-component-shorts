@@ -10,6 +10,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+import bootstrap_skill
 import yaml
 from playwright.sync_api import sync_playwright
 
@@ -235,6 +236,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--project-dir", type=Path, required=True)
     args = parser.parse_args()
+    if __name__ == "__main__":
+        bootstrap_skill.guard(args.project_dir, Path(__file__))
     result = prepare(args.project_dir)
     print(f'Prepared {len(result["shots"])} source-derived shots in both orientations')
 
