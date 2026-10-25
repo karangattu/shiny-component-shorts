@@ -192,7 +192,7 @@ The `simple-english` rewrite makes a script clear, not human. Run a second pass 
 - Ban the shapes, not only the words: parallel cadences (“Real units in, honest progress out”), tidy closing aphorisms, three-item lists, and “not just X, but Y”.
 - Read the transcript aloud once before you save it. Rewrite anything you stumble on; a script that is hard to say gets rewritten, not performed around.
 
-`scripts/check_narration_voice.py` enforces every rule above mechanically. Run it before generating audio and fix what it lists.
+`scripts/check_narration_voice.py` reports the style heuristics above as advice. Review its warnings before generating audio, but do not add filler or force fragments to satisfy them. Empty text and non-speech cues remain errors.
 
 For every recorded workflow, including a silent recording, write `artifacts/narration.txt` with this complete timing envelope:
 

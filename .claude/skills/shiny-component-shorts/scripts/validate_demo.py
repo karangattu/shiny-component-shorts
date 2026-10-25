@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import re
 import shutil
 import subprocess
@@ -15,6 +16,7 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import align_narration  # noqa: E402
+import production_actions  # noqa: E402
 from align_narration import NARRATION_OFFSET_SECONDS  # noqa: E402
 
 
@@ -83,11 +85,19 @@ def wait_stream_errors(index: int, value: object) -> list[str]:
     options = wait_stream_options(value)
     problems = []
     selector = options.get("selector")
-    if not isinstance(selector, str) or not selector.strip():
+    completion = options.get('completion')
+    if not completion and (not isinstance(selector, str) or not selector.strip()):
         problems.append(f"Action {index} wait_stream needs a non-empty selector")
+    if completion is not None:
+        if not isinstance(completion, dict) or not isinstance(completion.get('selector'), str) or not completion['selector'].strip():
+            problems.append(f'Action {index} completion needs a selector')
+        elif completion.get('state', 'visible') not in {'visible', 'hidden', 'attached', 'detached'}:
+            problems.append(f'Action {index} completion has an invalid state')
+        elif 'text' in completion and (not isinstance(completion['text'], str) or not completion['text']):
+            problems.append(f'Action {index} completion text must be nonempty')
     for key in ("quiet_ms", "timeout", "expect_ms"):
         option = options.get(key)
-        if option is not None and (not isinstance(option, (int, float)) or option <= 0):
+        if option is not None and (isinstance(option, bool) or not isinstance(option, (int, float)) or not math.isfinite(option) or option <= 0):
             problems.append(f"Action {index} wait_stream {key} must be positive")
     return problems
 
@@ -95,7 +105,7 @@ def wait_stream_errors(index: int, value: object) -> list[str]:
 def wait_stream_ms(value: object) -> float:
     """Projected stream span for --simulate-timing: `expect_ms` beyond the quiet window."""
     options = wait_stream_options(value)
-    return float(options.get("expect_ms", 5000)) + float(options.get("quiet_ms", 1500))
+    return float(options.get("expect_ms", 5000)) + (0 if options.get("completion") else float(options.get("quiet_ms", 1500)))
 
 
 def estimate_action_seconds(actions: list[dict]) -> float:
@@ -468,6 +478,10 @@ def validate_project(
         except (OSError, yaml.YAMLError) as exc:
             errors.append(f"Cannot read actions.yaml: {exc}")
 
+    try:
+        actions = production_actions.prepare_actions(actions, app_dir, align_narration.load_timing(project_dir))
+    except (ValueError, KeyError, TypeError) as exc:
+        errors.append(str(exc))
     app_source_lines: list[str] | None = None
     for app_name in ("app.py", "app.R"):
         app_path = app_dir / app_name

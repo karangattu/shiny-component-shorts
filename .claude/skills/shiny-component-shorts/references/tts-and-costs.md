@@ -56,7 +56,7 @@ Treat tags as preview-model hints, not a closed vocabulary or timing guarantee. 
 
 For a narrated series, vary the performance direction as deliberately as the visual direction. For example, use one curious discovery, one calm diagnostic explanation, one measured comparison, one focused accessibility demonstration, and one conversational reference-style proof rather than giving every video the same excited delivery.
 
-`scripts/check_narration_voice.py` is the spoken-voice gate: it rejects written-sounding scripts (uniform sentence rhythm, missing contractions or fragments, repeated openers, banned words and shapes, more than one `[long pause]`) before any synthesis spend. Run it on `artifacts/narration.txt` first; the batch narration phase runs it for you.
+`scripts/check_narration_voice.py` gives advisory warnings about rhythm and wording before synthesis. Empty scripts and non-speech vocalization cues still fail. Audio transcript checks still block real mismatches; equivalent currency/numeric forms and filename/file name are normalized without discarding the raw transcription.
 
 ## Generate audio
 

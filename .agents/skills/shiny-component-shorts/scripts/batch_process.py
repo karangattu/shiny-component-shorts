@@ -295,6 +295,7 @@ def recording_inputs(project_dir: Path) -> list[Path]:
         [
             SCRIPTS_DIR / "record_demo.py",
             SCRIPTS_DIR / "code_style.py",
+            SCRIPTS_DIR / "production_actions.py",
             *sorted((SCRIPTS_DIR.parent / "assets" / "highlightjs").glob("*")),
             *sorted((SCRIPTS_DIR.parent / "assets" / "fonts").glob("*")),
             SCRIPTS_DIR / "paparazzi_capture.py",
@@ -337,12 +338,13 @@ def require_nonempty(path: Path, label: str) -> None:
 
 
 def require_spoken_voice(narration: Path, source: Path | None) -> None:
-    """Written-sounding scripts fail before any synthesis spend."""
+    """Reject invalid spoken content and print advisory style warnings before synthesis."""
     if source is not None:
         return  # imported audio keeps its own wording
-    problems = check_narration_voice.voice_problems(
-        narration.read_text(encoding="utf-8")
-    )
+    prompt = narration.read_text(encoding="utf-8")
+    for warning in check_narration_voice.voice_warnings(prompt):
+        print(f"WARNING: {warning}")
+    problems = check_narration_voice.voice_errors(prompt)
     if problems:
         raise RuntimeError("Narration voice check failed: " + "; ".join(problems))
 

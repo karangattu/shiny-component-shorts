@@ -208,6 +208,22 @@ def voice_problems(prompt_text: str) -> list[str]:
     return problems
 
 
+def voice_errors(prompt_text: str) -> list[str]:
+    transcript = transcript_of(prompt_text)
+    if transcript is None:
+        return ["Narration prompt is missing the Transcript: section"]
+    errors = []
+    if not WORD_RE.search(TAG_RE.sub(" ", transcript)):
+        errors.append("Transcript has no spoken text")
+    if re.search(r"\[[^]]*\b(?:laugh\w*|giggl\w*|chuckl\w*|sigh\w*|gasp\w*|cough\w*)\b[^]]*\]", transcript, re.I):
+        errors.append("Non-speech vocalization cues are not allowed")
+    return errors
+
+
+def voice_warnings(prompt_text: str) -> list[str]:
+    return [message for message in voice_problems(prompt_text) if message not in voice_errors(prompt_text)]
+
+
 SALESY_PROMPT = """Synthesize this as a natural, curious tech explainer for a 45-second Shiny component video.
 
 Audio profile:
@@ -272,7 +288,10 @@ def main(argv: list[str] | None = None) -> int:
     if not narration.is_file():
         print(f"{narration}: no such narration file")
         return 1
-    problems = voice_problems(narration.read_text(encoding="utf-8"))
+    prompt = narration.read_text(encoding="utf-8")
+    problems = voice_errors(prompt)
+    for warning in voice_warnings(prompt):
+        print(f"WARNING: {warning}")
     if problems:
         for problem in problems:
             print(f"- {problem}")

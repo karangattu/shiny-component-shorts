@@ -24,6 +24,8 @@ import yaml
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import align_narration  # noqa: E402
 import code_style  # noqa: E402
+import production_actions  # noqa: E402
+import review_frames  # noqa: E402
 import validate_demo  # noqa: E402
 
 _active_processes = set()
@@ -359,9 +361,9 @@ CODE_OVERLAY_JS = "async (cfg) => {" + code_style.browser_script() + r"""
         + (sideBySide ? 'top:5%;bottom:5%;right:3%;width:45%;padding:24px 16px;'
                      : 'inset:0;padding:5%;');
     if (sideBySide) document.documentElement.classList.add('__demo_code_side__');
-    const before = cfg.before ? cfg.before.split('\n') : [];
-    const focus = cfg.text.split('\n');
-    const after = cfg.after ? cfg.after.split('\n') : [];
+    const before = cfg.sourceLines ? cfg.sourceLines.slice(0, cfg.focusRange[0]) : (cfg.before ? cfg.before.split('\n') : []);
+    const focus = cfg.sourceLines ? cfg.sourceLines.slice(...cfg.focusRange) : cfg.text.split('\n');
+    const after = cfg.sourceLines ? cfg.sourceLines.slice(cfg.focusRange[1]) : (cfg.after ? cfg.after.split('\n') : []);
     const lines = [...before, ...focus, ...after];
     // Remove only a common indent, keeping source-relative indentation intact.
     const indent = Math.min(...lines.filter(x => x.trim()).map(x => x.match(/^ */)[0].length), 0xffff);
@@ -539,6 +541,8 @@ def code_overlay_config(orientation: str, action: dict) -> dict:
         "after": str(action.get("after", "")).strip("\n"),
         "startLine": int(action.get("start_line", 1)),
         "language": language.lower(),
+        "sourceLines": action.get("_source_lines"),
+        "focusRange": action.get("_focus_range"),
         "layout": "side" if orientation == "horizontal" else "full",
     }
 
@@ -901,35 +905,92 @@ def human_type(page, selector: str, text: str, delay: float) -> None:
         wait_until(page, deadline)
 
 
-def wait_for_stream(page, value: object) -> None:
-    """Wait until a streaming region stops changing for `quiet_ms`.
-
-    The entry ends at that quiet moment, so an async reaction covers the dead
-    air it actually filled on screen instead of one click standing in for it.
-    """
+def wait_for_stream(page, value: object, on_change=None) -> None:
+    """Wait for observed completion, or quiet DOM; detached widgets do not hang."""
     options = validate_demo.wait_stream_options(value)
-    selector = options.get("selector")
-    if not isinstance(selector, str) or not selector.strip():
-        raise ValueError("wait_stream needs a non-empty selector")
-    quiet_ms = float(options.get("quiet_ms", 1500))
-    timeout_ms = float(options.get("timeout", 30000))
+    problems = validate_demo.wait_stream_errors(0, value)
+    if problems:
+        raise ValueError('; '.join(problems))
+    completion = options.get('completion')
+    selector = options.get('selector', 'body')
     locator = page.locator(selector).first
-    snapshot = locator.inner_html()
+    if not completion and locator.count() == 0:
+        page.wait_for_selector(selector, state='attached', timeout=float(options.get('timeout', 30000)))
+    snapshot = locator.evaluate_all('(els)=>els[0]?.innerHTML ?? null')
     quiet_since = time.monotonic()
-    deadline = quiet_since + timeout_ms / 1000
+    deadline = quiet_since + float(options.get('timeout', 30000))/1000
+    observed = False
     while True:
-        page.wait_for_timeout(200)
-        current = locator.inner_html()
         now = time.monotonic()
+        if completion:
+            target = page.locator(completion['selector']).first
+            count = target.count()
+            state = completion.get('state', 'visible')
+            visible = bool(count and target.is_visible())
+            observed = observed or (bool(count) if state == 'detached' else visible)
+            done = {'visible': visible, 'attached': bool(count),
+                    'hidden': observed and not visible, 'detached': observed and not count}[state]
+            if 'text' in completion:
+                done = done and bool(count) and completion['text'] in target.inner_text(timeout=100)
+            if done:
+                return
+        current = locator.evaluate_all('(els)=>els[0]?.innerHTML ?? null')
         if current != snapshot:
-            snapshot = current
-            quiet_since = now
-        if (now - quiet_since) * 1000 >= quiet_ms:
+            snapshot, quiet_since = current, now
+            if on_change:
+                on_change()
+        if not completion and (now-quiet_since)*1000 >= float(options.get('quiet_ms', 1500)):
             return
         if now >= deadline:
-            raise RuntimeError(
-                f"wait_stream: {selector} never went quiet within {timeout_ms:.0f} ms"
-            )
+            mode = 'did not reach completion condition' if completion else 'never went quiet'
+            raise RuntimeError(f'wait_stream: {selector} {mode} before timeout')
+        page.wait_for_timeout(50 if completion else 200)
+
+
+def preview_actions(page, actions: list[dict], project_dir: Path, orientation: str,
+                    output_dir: Path, app_dir: Path) -> list[dict]:
+    """Exercise states without narration or recording, and preview every excerpt."""
+    actions = production_actions.prepare_actions(actions, app_dir, resolve_holds=False)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    frames: list[dict] = []
+    preview_zero = time.monotonic()
+
+    def capture(kind: str) -> None:
+        assert_no_shiny_client_errors(page)
+        path = output_dir / f'{len(frames):03d}-{kind}.png'
+        page.screenshot(path=str(path))
+        frames.append({'kind': kind, 'path': str(path), 'elapsed_seconds': round(time.monotonic()-preview_zero, 3), 'warnings': []})
+
+    capture('idle')
+    for action in actions:
+        name = validate_action_shape(action)
+        if name in {'cue', 'screenshot'}:
+            continue
+        if name == 'code':
+            page.evaluate(CODE_OVERLAY_JS, code_overlay_config(orientation, action[name]))
+            try:
+                capture('code')
+                wrapped = page.locator('#__code_overlay__ .__code_source__').evaluate_all(
+                    '(els)=>els.map((e,i)=>e.getBoundingClientRect().height > parseFloat(getComputedStyle(e).lineHeight)*1.5 ? i+1 : 0).filter(Boolean)')
+                if wrapped:
+                    frames[-1]['warnings'].append(f'Code wraps on excerpt rows {wrapped}; shorten or reframe the source')
+            finally:
+                page.evaluate(CODE_OVERLAY_REMOVE_JS)
+        elif name == 'wait_stream':
+            busy_frames = 0
+            def changed():
+                nonlocal busy_frames
+                if busy_frames < 2:
+                    capture('busy')
+                    busy_frames += 1
+            wait_for_stream(page, action[name], on_change=changed)
+            capture('completed')
+        else:
+            run_actions(page, [action], project_dir, orientation=orientation)
+            if name in VISIBLE_ACTIONS:
+                capture(name)
+    capture('final')
+    return frames
 
 
 def validate_action_shape(action: object) -> str:
@@ -1074,13 +1135,12 @@ def run_actions(
             wait_until(page, anchor)
             reaction = time.monotonic()
             page.evaluate(CODE_OVERLAY_JS, config)
-            page.wait_for_timeout(
-                code_hold_ms(
-                    text,
-                    value.get("duration"),
-                    config["before"] + config["after"],
+            if '_hold_end' in value:
+                wait_until(page, origin + value['_hold_end'])
+            else:
+                page.wait_for_timeout(
+                    code_hold_ms(text, value.get("duration"), config["before"] + config["after"])
                 )
-            )
             page.evaluate(CODE_OVERLAY_REMOVE_JS)
         elif name == "screenshot":
             target = project_dir / value["path"]
@@ -1313,6 +1373,8 @@ def action_shape_problems(actions: list[dict], run: dict) -> list[str]:
                 raise ValueError(
                     f"the {name!r} action requires an `overlays` block in actions.yaml"
                 )
+            elif name == 'wait_stream':
+                problems.extend(validate_demo.wait_stream_errors(index, action[name]))
             elif name in {"drag", "select_option", "fill", "type", "press"}:
                 if not isinstance(action[name], dict) or "selector" not in action[name]:
                     raise ValueError(f"the {name!r} action needs a `selector`")
@@ -1361,6 +1423,7 @@ def preflight_project(
     port_override: int | None = None,
     logo_override: Path | None = None,
     capture: str | None = None,
+    preview_states: bool = False,
 ) -> dict:
     """Start the app, resolve every selector, and screenshot — without recording.
 
@@ -1376,7 +1439,12 @@ def preflight_project(
         raise FileNotFoundError(f"App directory does not exist: {app_dir}")
 
     run = prepare_run(actions_path, orientation_override, port_override, logo_override)
+    preparation_errors = []
     actions = run["config"]["actions"]
+    try:
+        actions = production_actions.prepare_actions(actions, app_dir, align_narration.load_timing(project_dir), resolve_holds=not preview_states)
+    except (ValueError, KeyError, TypeError) as exc:
+        preparation_errors.append(str(exc))
     report: dict = {
         "app_dir": str(app_dir),
         "app_type": app_type,
@@ -1387,7 +1455,7 @@ def preflight_project(
         "screenshot": None,
         "phone_screenshot": None,
         "app_log": None,
-        "problems": action_shape_problems(actions, run),
+        "problems": preparation_errors or action_shape_problems(actions, run),
         "cues": [],
     }
     try:
@@ -1397,7 +1465,7 @@ def preflight_project(
             paparazzi_capture.check_dependencies()
     except (RuntimeError, ValueError) as exc:
         report["problems"].append(str(exc))
-    if not report["problems"]:
+    if not report["problems"] and not preview_states:
         try:
             report["cues"] = [
                 {"action": index + 1, **cue}
@@ -1405,6 +1473,11 @@ def preflight_project(
             ]
         except ValueError as exc:
             report["problems"].append(str(exc))
+    report['code_holds'] = [
+        {'action': index+1, 'source': action['code'].get('source_file', action['code'].get('title', 'app')),
+         'duration_ms': action['code'].get('duration'), 'until': action['code'].get('_hold_end')}
+        for index, action in enumerate(actions) if isinstance(action, dict) and isinstance(action.get('code'), dict)
+    ]
     if report["problems"]:
         # A malformed action list cannot be checked against a live page.
         return report
@@ -1413,7 +1486,7 @@ def preflight_project(
     width, height = viewport_size(run["orientation"])
     artifacts = project_dir / "artifacts"
     artifacts.mkdir(parents=True, exist_ok=True)
-    screenshot_path = artifacts / "preflight.png"
+    screenshot_path = artifacts / (f"preflight-{run['orientation']}.png" if preview_states else "preflight.png")
     log_path = artifacts / "preflight-app.log"
     report["app_log"] = str(log_path)
 
@@ -1465,6 +1538,19 @@ def preflight_project(
                     "Selectors not found on the initial page: " + ", ".join(missing)
                 )
             page.screenshot(path=str(screenshot_path))
+            if preview_states and not report['problems']:
+                output_dir = artifacts / 'preflight' / run['orientation']
+                try:
+                    frames = preview_actions(page, actions, project_dir, run['orientation'], output_dir, app_dir)
+                    report['states'] = frames
+                    report['warnings'] = [warning for frame in frames for warning in frame['warnings']]
+                    report['state_reviews'] = []
+                    for offset in range(0, len(frames), 6):
+                        sheet = output_dir / f'review-{offset//6+1}.png'
+                        review_frames.build_sheet([Path(frame['path']) for frame in frames[offset:offset+6]], sheet, 390)
+                        report['state_reviews'].append(str(sheet))
+                except (RuntimeError, ValueError) as exc:
+                    report['problems'].append(str(exc))
             context.close()
             browser.close()
     finally:
@@ -1503,6 +1589,7 @@ def record_project(
         raise FileNotFoundError(f"App directory does not exist: {app_dir}")
     run = prepare_run(actions_path, orientation_override, port_override, logo_override)
     config = run["config"]
+    config["actions"] = production_actions.prepare_actions(config["actions"], app_dir, align_narration.load_timing(project_dir))
     url = run["url"]
     bind_host = run["bind_host"]
     port = run["port"]
@@ -1755,6 +1842,7 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Start the app, resolve every selector, and screenshot without recording",
     )
+    parser.add_argument("--preview-states", action="store_true", help="Execute the action sequence without audio/video, previewing both orientations (requires --dry-run)")
     return parser.parse_args()
 
 
@@ -1774,6 +1862,10 @@ def print_preflight(project_dir: Path, report: dict) -> None:
         print(f"  deferred to wait_for: {', '.join(report['deferred'])}")
     for cue in report.get("cues", []):
         print(f"  cue {cue['action']}: {cue['phrase'] or 'fixed time'!r} at {cue['target']:.2f}s video time")
+    for hold in report.get('code_holds', []):
+        if hold['duration_ms'] is not None:
+            ending = f", until {hold['until']:.2f}s video time" if hold['until'] is not None else ''
+            print(f"  code {hold['action']}: {hold['source']}, hold {hold['duration_ms']/1000:.2f}s{ending}")
     if report["screenshot"]:
         print(f"  frame: {report['screenshot']}")
     if report["phone_screenshot"]:
@@ -1785,7 +1877,7 @@ def print_preflight(project_dir: Path, report: dict) -> None:
     print(
         "Fix these before recording."
         if report["problems"]
-        else "No client-error panel, every selector resolves. Ready to record."
+        else ("Preview complete; inspect every state sheet before recording." if report.get("states") else "No client-error panel, every selector resolves. Ready to record.")
     )
 
 
@@ -1800,6 +1892,22 @@ def main() -> int:
     actions_path = args.actions if args.actions.is_absolute() else project_dir / args.actions
     if not actions_path.is_file():
         raise FileNotFoundError(f"Action file does not exist: {actions_path}")
+    if args.preview_states and not args.dry_run:
+        raise ValueError('--preview-states requires --dry-run')
+    if args.preview_states:
+        reports = []
+        for orientation in ('vertical', 'horizontal'):
+            report = preflight_project(project_dir, args.app_type, actions_path, orientation, app_dir, args.port, args.logo, args.capture, preview_states=True)
+            reports.append(report)
+            print_preflight(project_dir, report)
+            for warning in report.get('warnings', []):
+                print(f'WARNING: {warning}')
+            for sheet in report.get('state_reviews', []):
+                print('  state review:', sheet)
+        target = project_dir / 'artifacts/preflight/index.json'
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(json.dumps(reports, indent=2) + '\n')
+        return 1 if any(report['problems'] for report in reports) else 0
     if args.dry_run:
         try:
             report = preflight_project(

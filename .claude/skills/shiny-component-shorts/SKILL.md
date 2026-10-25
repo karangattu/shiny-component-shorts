@@ -49,15 +49,17 @@ Read [references/creative-playbook.md](references/creative-playbook.md) before c
 
 For any shinyreact request, also read [references/shinyreact.md](references/shinyreact.md) for package setup, frontend files, and code-card source selection.
 
+For component recordings, follow [component production](references/component-production.md): preview every state in both orientations before audio, extract real source ranges, resolve code holds from measured narration, and wait for explicit completion when possible.
+
 ## Session and context budget
 
 Every turn re-reads the whole session, so a long one keeps paying for its own history. None of the rules below change what ships; they change what it costs to ship.
 
 - Use an isolated production directory and review loop for each video. When a release/blog series is requested, coordinate and finish every selected point; do not stop after the first video. Create separate chats only when the user requests them.
 - Before writing `actions.yaml` (and before dispatching a subagent, on a runtime that has one), verify every selector the storyboard needs yourself with a throwaway script against the running app — go past "is it attached": confirm the interaction semantics the storyboard depends on (hover vs. click vs. both to open a control, whether a popover dismisses on the next action) and disambiguate any selector matching more than one element (e.g. `:nth-match()` when several targets share a class). A miss discovered live inside the record loop costs a full record → encode → validate cycle, not a page load.
-- Run `record_demo.py --dry-run` yourself once the app and a first-draft `actions.yaml` exist, before handing the recording work off (to a subagent, if the runtime has one, or before your own recording pass otherwise). Start from a clean preflight and a verified selector list, not selector discovery.
+- Run `record_demo.py --dry-run --preview-states` yourself once the app and a first-draft `actions.yaml` exist, before handing the recording work off (to a subagent, if the runtime has one, or before your own recording pass otherwise). Start from a clean preflight and a verified selector list, not selector discovery.
 - Run each video's audio → timing → record → validate → merge → review loop in a subagent when the runtime supports subagents, even for a single video. Hand it the video directory, the recorder and validator commands, the acceptance checks, and the selectors and interaction facts already verified above; take back the verdict and the fixes it applied, not its transcript. Re-run `--dry-run` after any further change to the app or `actions.yaml`.
-- Inspect frames through one phone-size sheet from `review_frames.py`, never through four full-resolution PNGs.
+- Inspect every code excerpt and important state through the phone-size sheets from `review_frames.py` and state preflight, never through four full-resolution PNGs.
 - Read a file once. When you need it again, re-read the range you need instead of the whole script.
 
 ## Choose the workflow
@@ -217,7 +219,7 @@ python .claude/skills/shiny-component-shorts/scripts/batch_process.py \
   --tts-concurrency 3
 ```
 
-For each demo, the narration phase writes word timing and a transcript check to `artifacts/narration-timing.json` and fails a take that says something other than the transcript. It also runs `check_narration_voice.py` and fails a written-sounding script before any synthesis spend. Read its differences, anchor `actions.yaml` with `cue` actions quoting the phrases that describe each reaction, and run the recorder's `--dry-run` to see every cue resolved to a video time. For new local narration, run `--phase takes` first to generate, loudness-match, rank, and pin a take (see the TTS reference). Then explicitly approve those exact inputs and finish the videos:
+For each demo, the narration phase writes word timing and a transcript check to `artifacts/narration-timing.json` and fails a take that says something other than the transcript. It also runs `check_narration_voice.py` and reports stylistic warnings before synthesis; empty text and non-speech cues remain blocking errors. Read its differences, anchor `actions.yaml` with `cue` actions quoting the phrases that describe each reaction, and run the recorder's `--dry-run` to see every cue resolved to a video time. For new local narration, run `--phase takes` first to generate, loudness-match, rank, and pin a take (see the TTS reference). Then explicitly approve those exact inputs and finish the videos:
 
 ```bash
 python .claude/skills/shiny-component-shorts/scripts/batch_process.py \
@@ -238,7 +240,7 @@ To clone narration locally, set `provider` to `local-voice-cloning` and optional
 
 To reuse existing narration instead of generating TTS for one video, set `{"audio_source": "path/to/narrated.mp4"}` in that video's `tts-settings.json` (a WAV, MP3, or narrated video file; relative paths resolve against the video directory). The narration phase then extracts and measures that audio via `import_narration.py` with no Gemini call and no API key, and includes the source file in the cache key. `audio_source` cannot be combined with `voice` or `model`.
 
-After the batch succeeds, each assigned agent must still inspect the first, reveal, code, and final frames at phone size — through that video's `review_frames.py` sheet — and listen to the final video. The lead agent accepts the series only after every subagent reports those checks and the lead confirms every requested output independently.
+After the batch succeeds, each assigned agent must still inspect the first, reveal, every code block, and final frames at phone size — through that video's `review_frames.py` sheet — and listen to the final video. The lead agent accepts the series only after every subagent reports those checks and the lead confirms every requested output independently.
 
 ### Narrated or finished video
 
@@ -305,7 +307,7 @@ Use this sequence:
 
 These beat names are planning labels only; never render them in the video.
 
-For a standalone 45-second component short, keep narration around 95–130 spoken words. Detailed editorial series use the length their explanation needs. Make every sentence describe something literally visible. Rewrite every transcript you write with the `simple-english` skill in pragmatic mode before you save `narration.txt` or generate audio; this is required for every script you write, including silent timing envelopes, and never for a transcript of user-supplied audio. Take from it only the meaning rules: one thought per sentence, active voice, simple tenses, one name per thing, and no hedges or filler. Keep contractions (spoken English uses them, so they override rule 4.2), address the viewer as "you", and never rewrite code names, labels, or values. Its short-sentence rhythm does not apply: sentence length, fragments, openers, and cadence belong to the speech-texture pass in [references/creative-playbook.md](references/creative-playbook.md) — put back fragments and one or two discourse openers, vary sentence lengths and openers, and keep parallel cadences and tidy lists out; `scripts/check_narration_voice.py` checks all of it before audio is generated. Talk like a developer showing a coworker something at their desk, never like an ad: no hype words, no pitch questions about the viewer's pain, no exclamation marks, and no call to action at the end (see "Talk, don't pitch" in the creative playbook). Avoid stock AI phrasing, parameter tours, and forced punchlines. Never use laughter, giggling, chuckling, or other non-speech vocalizations. For audio, use the prompt-and-tag hierarchy and verification rules in [references/tts-and-costs.md](references/tts-and-costs.md); tags must support the visible moment rather than decorate every sentence.
+For a standalone 45-second component short, keep narration around 95–130 spoken words. Detailed editorial series use the length their explanation needs. Make every sentence describe something literally visible. Rewrite every transcript you write with the `simple-english` skill in pragmatic mode before you save `narration.txt` or generate audio; this is required for every script you write, including silent timing envelopes, and never for a transcript of user-supplied audio. Take from it only the meaning rules: one thought per sentence, active voice, simple tenses, one name per thing, and no hedges or filler. Keep contractions (spoken English uses them, so they override rule 4.2), address the viewer as "you", and never rewrite code names, labels, or values. Its short-sentence rhythm does not apply: sentence length, fragments, openers, and cadence belong to the speech-texture pass in [references/creative-playbook.md](references/creative-playbook.md) — put back fragments and one or two discourse openers, vary sentence lengths and openers, and keep parallel cadences and tidy lists out; `scripts/check_narration_voice.py` reports stylistic advice before audio is generated; do not add filler to satisfy its rhythm heuristics. Talk like a developer showing a coworker something at their desk, never like an ad: no hype words, no pitch questions about the viewer's pain, no exclamation marks, and no call to action at the end (see "Talk, don't pitch" in the creative playbook). Avoid stock AI phrasing, parameter tours, and forced punchlines. Never use laughter, giggling, chuckling, or other non-speech vocalizations. For audio, use the prompt-and-tag hierarchy and verification rules in [references/tts-and-costs.md](references/tts-and-costs.md); tags must support the visible moment rather than decorate every sentence.
 
 ## Recording rules
 
@@ -339,7 +341,7 @@ For a recording:
 
 - Run `validate_demo.py` successfully; missing-overlay warnings are expected for clean recordings.
 - Confirm `artifacts/demo.mp4` is 1440×2560 unless landscape was explicitly requested.
-- Build `artifacts/review.png` with `review_frames.py` and inspect that one sheet: it holds the first, reveal, code, and final frames at phone size. Confirm no planning beat names or progress rail appear over the app.
+- Build `artifacts/review.png` with `review_frames.py` and inspect that one sheet: it holds the first, reveal, every code block, and final frames at phone size. Confirm no planning beat names or progress rail appear over the app.
 - Confirm no **Shiny Client Errors** panel appears in any tile; the shared recorder also fails when it detects one.
 - Confirm the visible cursor reaches each interactive target.
 - Confirm the narration would finish before the video ends.

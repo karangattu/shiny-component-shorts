@@ -81,7 +81,7 @@ class NarrationVoiceLintTest(unittest.TestCase):
             ["Narration prompt is missing the Transcript: section"],
         )
 
-    def test_cli_reports_problems_and_exits_nonzero(self) -> None:
+    def test_cli_reports_style_warnings_without_blocking(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             project = Path(temp_dir)
             artifacts = project / "artifacts"
@@ -93,8 +93,8 @@ class NarrationVoiceLintTest(unittest.TestCase):
             )
             with contextlib.redirect_stdout(io.StringIO()) as printed:
                 exit_code = check_narration_voice.main(["--project-dir", str(project)])
-            self.assertEqual(exit_code, 1)
-            self.assertIn("does not sound spoken yet", printed.getvalue())
+            self.assertEqual(exit_code, 0)
+            self.assertIn("WARNING:", printed.getvalue())
 
             narration.write_text(check_narration_voice.GOOD_PROMPT, encoding="utf-8")
             with contextlib.redirect_stdout(io.StringIO()) as printed:
@@ -108,11 +108,11 @@ class NarrationVoiceLintTest(unittest.TestCase):
 
     @patch.object(batch_process, "measure_narration")
     @patch("subprocess.run")
-    def test_batch_narration_fails_before_any_synthesis_spend(
+    def test_batch_narration_rejects_vocalization_before_synthesis(
         self, mock_run: MagicMock, mock_measure: MagicMock
     ) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
-            project = make_project(Path(temp_dir), check_narration_voice.WRITTEN_SOUNDING_PROMPT)
+            project = make_project(Path(temp_dir), check_narration_voice.WRITTEN_SOUNDING_PROMPT + " [laugh]")
 
             result = batch_process.generate_narration(project, force=True)
 

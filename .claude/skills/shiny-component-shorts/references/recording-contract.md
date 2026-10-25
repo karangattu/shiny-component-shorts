@@ -139,7 +139,7 @@ Keep that corner clear: the top band is already reserved, so no app UI, no in-ap
 
 No example may be recorded or delivered with a **Shiny Client Errors** panel visible. Assign unique output IDs across the complete rendered page, including conditional UI, modules, and repeated components. Exercise the full action sequence before accepting the app because some duplicate outputs appear only after reactive UI is inserted.
 
-The shared recorder checks for the panel after startup and after the action run. Detection is a blocking failure: fix the duplicate output IDs or other client error, restart the app, and record again from the beginning. Never click **Dismiss all**, hide the panel with CSS, crop it out, or cover it with the code card. During final review, inspect the first, reveal, code, and final frames and reject the video if the panel appears in any frame.
+The shared recorder checks for the panel after startup and after the action run. Detection is a blocking failure: fix the duplicate output IDs or other client error, restart the app, and record again from the beginning. Never click **Dismiss all**, hide the panel with CSS, crop it out, or cover it with the code card. During final review, inspect the first, reveal, every code block, and final frames and reject the video if the panel appears in any frame.
 
 For an existing app, create a sidecar production directory and keep the source separate:
 
@@ -160,6 +160,8 @@ python .claude/skills/shiny-component-shorts/scripts/validate_demo.py \
   --project-dir generated/interesting-filter \
   --app-dir /path/to/existing-app
 ```
+
+For state previews, source ranges, narration-driven holds, and explicit completion checks, use [component production](component-production.md). These additions preserve existing action files.
 
 ## Action file
 
@@ -222,7 +224,7 @@ Supported actions are `wait_for`, `wait`, `cue`, `click`, `drag`, `select_option
 - `fill` changes a field instantly; reserve it for clearing or realistic paste actions.
 - `type` clicks, focuses, moves the caret to the end, and types one key at a time with a person's uneven rhythm — quicker runs, short beats after spaces and punctuation — averaging `delay` (35–70 ms per character).
 - `press` sends one named key to the selector.
-- `code` shows a static source excerpt immediately and cuts back to the app after its hold. `text` identifies the highlighted line or small block; `before` and `after` provide relevant source context. `start_line` is the actual source line. Prefer 4–7 relevant lines, copied verbatim with relative indentation intact; only one common dedent is allowed. Portrait uses the full frame; landscape keeps the app beside the excerpt. No simulated editor title bars, breadcrumbs, status bars, cursor, typing, or slides. Keep GitHub highlighting and the real filename. Use `duration` in milliseconds to cover the complete explanation plus a quiet reading pause. For a second function, use another cued code action followed by the real interaction it explains. Never shorten speech to fit the code hold.
+- `code` shows a static source excerpt immediately and cuts back to the app after its hold. `text` identifies the highlighted line or small block; `before` and `after` provide relevant source context. `start_line` is the actual source line. Prefer 4–7 relevant lines, copied verbatim with relative indentation intact; only one common dedent is allowed. Portrait uses the full frame; landscape keeps the app beside the excerpt. No simulated editor title bars, breadcrumbs, status bars, cursor, typing, or slides. Keep GitHub highlighting and the real filename. Prefer `hold_until` plus `reading_pause` to derive the hold from measured narration; use numeric `duration` for old or silent configurations. For a second function, use another cued code action followed by the real interaction it explains. Never shorten speech to fit the code hold.
 - `screenshot` writes a full-page screenshot relative to the demo directory.
 - `wait_stream` spans an asynchronous reaction. It waits until the region inside its `selector` stops changing for `quiet_ms` (1500 ms by default), giving up after `timeout` (30000 ms by default). Its entry ends when the region goes quiet, so a streamed answer covers the dead air it actually filled on screen instead of one click standing in for the whole stream. Cue the click that starts the stream, never `wait_stream` itself, and do not count it toward the three meaningful actions. `expect_ms` (5000 ms by default) is only the projected span `--simulate-timing` uses before the stream exists. Accepts a bare selector or `{selector, quiet_ms, timeout, expect_ms}`.
 - Legacy `caption`, `beat`, and `label` actions inject visible overlays and require an `overlays` block. Do not use them in skill-generated recordings. In particular, storyboard beat names such as `Reveal` and `Proof` are planning metadata, not action entries.
@@ -283,7 +285,7 @@ Cue the phrase that names the visible change, not the start of a long sentence. 
 
 The validator prints one line per visible action with the sentence it lands in and its offset from its cue, and `--simulate-timing` projects the same check before recording. When you can, also watch the merged video with sound; the cue offsets prove timing, but only listening proves the delivery sounds natural.
 
-The legacy fallback code hold remains `4800 + 70 × focus characters + 18 × context characters` milliseconds, bounded to 7500–16000 ms. New videos must set an explicit `duration` from measured narration: allow the whole explanation and a quiet reading pause. A static excerpt has no added typing or exit-animation time. Older `type_ms` fields are ignored. Longer explanations can use holds beyond the fallback range.
+The legacy fallback code hold remains `4800 + 70 × focus characters + 18 × context characters` milliseconds, bounded to 7500–16000 ms. New narrated videos should use `hold_until` plus a measured `reading_pause`; an explicit `duration` remains available. Allow the whole explanation and a quiet reading pause. A static excerpt has no added typing or exit-animation time. Older `type_ms` fields are ignored. Longer explanations can use holds beyond the fallback range.
 
 The validator requires `artifacts/narration.txt` to contain the complete `Audio profile:`, `Scene:`, `Director's notes:`, and `Transcript:` envelope, even for silent recordings.
 
@@ -299,14 +301,14 @@ The validator requires `artifacts/narration.txt` to contain the complete `Audio 
 
 ## Review sheet
 
-The gate asks whether the video reads on a phone, so review it at phone width. `review_frames.py` samples the first, reveal, code, and final frames — using `action_timeline` from `recording.json` to find the reveal and code beats, and `final.png` for the payoff — scales each to 390 logical px, and tiles them into one image:
+The gate asks whether the video reads on a phone, so review it at phone width. Every code block is sampled from its actual reveal time, including code that waited for narration. `review_frames.py` samples the first, reveal, every code block, and final frames — using `action_timeline` from `recording.json` to find the reveal and all code beats, and `final.png` for the payoff — scales each to 390 logical px, and tiles them into one image:
 
 ```bash
 python .claude/skills/shiny-component-shorts/scripts/review_frames.py \
   --project-dir generated/demo-name
 ```
 
-It prints which tile is which and writes `artifacts/review.png` (780×1386 for a vertical demo). Inspect that one sheet rather than opening four 1440×2560 frames: it answers the same questions — legibility, cursor position, client-error panels, code card placement — at the size a viewer actually sees.
+It prints which tile is which and writes `artifacts/review.png` (780 px wide for portrait, with height set by the number of frames). Inspect that one sheet rather than opening separate full-resolution frames: it answers the same questions — legibility, cursor position, client-error panels, code card placement — at the size a viewer actually sees.
 
 Use `--images a.png b.png` to tile specific frames instead, `--output` for another path, and `--width` to change the tile width.
 

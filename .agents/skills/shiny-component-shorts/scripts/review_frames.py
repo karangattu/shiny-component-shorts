@@ -2,8 +2,8 @@
 """Tile a recording's key frames into one phone-size review sheet.
 
 The verification gate asks whether the video reads on a phone, so review it at
-phone width: one sheet holding the first, reveal, code, and final frames at
-390 logical px each answers that question better than four 1440x2560 PNGs, and
+phone width: one sheet holding the first, reveal, every code excerpt, and final frames at
+390 logical px each answers that question better than separate full-resolution PNGs, and
 costs an agent a fraction of the context to look at.
 """
 
@@ -92,22 +92,21 @@ def review_marks(timeline: list[dict], duration: float) -> list[tuple[str, float
     else:
         marks.append(("reveal", duration / 3))
 
-    code = next((entry for entry in timeline if entry.get("action") == "code"), None)
-    if code is not None:
-        start = float(code.get("start", 0.0))
+    codes = [entry for entry in timeline if entry.get("action") == "code"]
+    for index, code in enumerate(codes):
+        start = float(code.get("reaction", (code.get("cue") or {}).get("target", code.get("start", 0))))
         end = float(code.get("end", start))
-        # Land inside the hold, after the card has typed itself out.
-        marks.append(("code", start + max(2.0, (end - start) * 0.6)))
-    else:
-        marks.append(("code", duration * 2 / 3))
+        marks.append(("code" if index == 0 else f"code-{index+1}", start + max(0, end-start)*0.6))
+    if not codes:
+        marks.append(("code", duration*2/3))
 
     marks.append(("final", duration - 0.3))
 
     limit = max(0.0, duration - 0.05)
     ordered: list[tuple[str, float]] = []
-    for name, at in marks:
+    for name, at in sorted(marks, key=lambda mark: mark[1]):
         clamped = round(min(max(at, 0.0), limit), 2)
-        if ordered and abs(clamped - ordered[-1][1]) < MIN_MARK_GAP:
+        if ordered and not name.startswith("code") and abs(clamped - ordered[-1][1]) < MIN_MARK_GAP:
             continue
         ordered.append((name, clamped))
     return ordered

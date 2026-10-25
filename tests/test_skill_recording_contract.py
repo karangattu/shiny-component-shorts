@@ -430,7 +430,10 @@ class SharedRecorderContractTest(unittest.TestCase):
             def first(self):
                 return self
 
-            def inner_html(self):
+            def count(self):
+                return 1
+
+            def evaluate_all(self, _script):
                 frame = self.frames[min(self.index, len(self.frames) - 1)]
                 self.index += 1
                 return frame
@@ -457,7 +460,10 @@ class SharedRecorderContractTest(unittest.TestCase):
             def first(self):
                 return self
 
-            def inner_html(self):
+            def count(self):
+                return 1
+
+            def evaluate_all(self, _script):
                 self.index += 1
                 return f"<p>{self.index}</p>"
 

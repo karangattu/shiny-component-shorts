@@ -73,7 +73,7 @@ Design for the final orientation from the start.
 - Leave the top 20% and bottom 20% visually empty for branding; the recorder's Shiny wordmark sits in the top-left of that band. Put the app in the middle 60% height band and let it occupy all available horizontal space except 3–5% side gutters.
 - Use one primary card or panel; avoid desktop sidebars and wide multi-column dashboards.
 - Make controls large enough for a phone screen and keep labels short.
-- Verify the first, middle, code, and final frames at actual phone size.
+- Verify the first, middle, every code block, and final frames at actual phone size.
 
 In horizontal mode, place the app and a readable static source excerpt side by side. In portrait, give code the full frame. Keep the filename, exact line numbers, and GitHub highlighting; no simulated editor controls. Prefer 4–7 relevant lines, and use separate excerpts for separate functions.
 
@@ -95,7 +95,7 @@ These are the same beats and times as the story table in `SKILL.md`; the times a
 
 - Use Shiny blue `#007BC2` as the default accent; introduce another Shiny semantic color only when it communicates state.
 - Use one caption style; do not add a display headline inside the app.
-- Prefer hard cuts in any later edit; do not add scale moves, punch-ins, or novelty transitions. The code card's own short fade and slide is the only built-in transition.
+- Prefer hard cuts in any later edit; do not add scale moves, punch-ins, or novelty transitions. Static source excerpts also use hard cuts.
 - Keep captions and the code card from overlapping: show either a caption or the code card, never both.
 
 ## Natural narration

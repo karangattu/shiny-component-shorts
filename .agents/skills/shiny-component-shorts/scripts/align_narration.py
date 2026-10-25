@@ -79,6 +79,10 @@ def number_words(value: int) -> list[str]:
 def normalize_tokens(text: str) -> list[str]:
     """Lowercase spoken tokens with digits spelled out, for fair comparison."""
     text = text.lower().replace("%", " percent ").replace("&", " and ")
+    text = re.sub(r"\$\s*(-?[\d,]+(?:\.\d+)?)", r" \1 dollars ", text)
+    text = re.sub(r"(?<!\w)-(?=\d)", "minus ", text)
+    text = re.sub(r"\bfilename\b", "file name", text)
+    text = re.sub(r"\bdollar\b", "dollars", text)
     text = re.sub(r"(\d),(\d{3})", r"\1\2", text)
     text = re.sub(r"(\d)\.(\d)", r"\1 point \2", text)
     tokens: list[str] = []
@@ -147,7 +151,15 @@ def recognize(audio: Path, model_name: str = DEFAULT_MODEL) -> tuple[list[dict],
 def expand_heard(heard: list[dict]) -> list[dict]:
     """Split each recognized word into normalized tokens sharing its span."""
     tokens: list[dict] = []
-    for word in heard:
+    merged: list[dict] = []
+    for original in heard:
+        word = dict(original)
+        if merged and re.search(r"\d,$", merged[-1]["word"]) and re.match(r"^\d{3}(?:\D|$)", word["word"].strip()):
+            merged[-1]["word"] += word["word"].strip()
+            merged[-1]["end"] = word["end"]
+        else:
+            merged.append(word)
+    for word in merged:
         pieces = normalize_tokens(word["word"])
         if not pieces:
             continue
@@ -339,6 +351,13 @@ def load_timing(project_dir: Path) -> dict | None:
 
 def find_phrase(words: list[dict], phrase: str, occurrence: int = 1) -> dict:
     """Start and end of the Nth spoken occurrence of `phrase`."""
+    expanded = []
+    for word in words:
+        tokens = normalize_tokens(word['word'])
+        for index, token in enumerate(tokens):
+            step = (word['end']-word['start'])/len(tokens)
+            expanded.append({**word, 'word': token, 'start': word['start']+index*step, 'end': word['start']+(index+1)*step})
+    words = expanded
     target = normalize_tokens(phrase)
     if not target:
         raise ValueError(f"Cue phrase has no words: {phrase!r}")

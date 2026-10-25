@@ -152,3 +152,7 @@ The release workflow runs the existing tests and type checks, packages only
 tracked skill files, and publishes both archives with checksums. A matching
 `.github/release-notes/<tag>.md` supplies curated notes; otherwise GitHub generates
 them. Patch versions cover fixes; minor versions add capabilities.
+
+## Component production checks
+
+The [component production guide](.agents/skills/shiny-component-shorts/references/component-production.md) covers full state previews in both orientations, source-line extraction, narration-driven code holds, and explicit completion checks. Previews run the interactions without synthesizing audio or encoding video, and flag wrapping before a full take. Reviews include every code excerpt at its actual reveal time. Existing action files remain supported. Narration style checks give advice; invalid scripts and failed audio checks still stop production.
