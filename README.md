@@ -1,8 +1,8 @@
 # Shiny Component Shorts
 
-Make short videos about [Shiny](https://shiny.posit.co) features. Component shorts show one useful behavior. Release and blog videos explain one point in detail, usually in 60–120 seconds.
+Make short videos about [Shiny](https://shiny.posit.co) features. Component shorts focus on a single behavior. Release and blog videos explain one feature in detail, usually in 60 to 120 seconds.
 
-This repo is an agent skill. You open it in an AI coding agent (Claude Code, Codex, Google Antigravity, or OpenCode), describe the video you want, and the agent does the rest: it writes a small Shiny app, records the browser, adds narration, and checks the result.
+This repo is an agent skill for Claude Code, Codex, Google Antigravity, and OpenCode. Describe the video you want, and the agent builds a small Shiny app, records the browser, adds narration, and validates the output.
 
 ## Examples
 
@@ -21,9 +21,9 @@ python -m pip install -r requirements.txt
 python -m playwright install chromium
 ```
 
-You also need `ffmpeg` and `ffprobe` on your `PATH`.
+Make sure `ffmpeg` and `ffprobe` are on your `PATH`.
 
-Narration is optional. Gemini narration needs `pip install google-genai` and a `GEMINI_API_KEY` in your environment. Never commit the key.
+Narration is optional. Gemini voice generation requires `pip install google-genai` and a `GEMINI_API_KEY` environment variable. Never commit the key.
 
 ## Make a video
 
@@ -33,58 +33,58 @@ Open the repo in your agent and ask:
 /shiny-component-shorts Create a video about Shiny's date range picker in Python.
 ```
 
-Everything lands in `generated/<demo-name>/`, which git ignores. You get two finished videos in `artifacts/`:
+Output is written to `generated/<demo-name>/` (ignored by git). The finished files land in `artifacts/`:
 
 | Video | Narrated | Silent |
 | --- | --- | --- |
-| Vertical 9:16, for phones | `final_with_audio.mp4` | `demo.mp4` |
+| Vertical 9:16 | `final_with_audio.mp4` | `demo.mp4` |
 | Horizontal 16:9 | `final_with_audio-horizontal.mp4` | `demo-horizontal.mp4` |
 
-You also get a cover image for each one, `thumbnail.jpg` and `thumbnail-horizontal.jpg`, ready to upload.
+Each run also generates cover images (`thumbnail.jpg` and `thumbnail-horizontal.jpg`).
 
-Both videos come from one recording script and one narration track, so the voice lines up with the same clicks in each. Ask for a horizontal video and you get a vertical copy instead. If you only want one shape, say so.
+Both orientations share the same action script and narration, keeping voice cues and clicks synchronized. The skill generates both formats by default unless you request only one.
 
-In OpenCode, start with `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1 opencode` so only one copy of the skill loads.
+In OpenCode, start with `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1 opencode` to prevent loading duplicate skills.
 
 ### What you can ask for
 
-| Ask for | Example prompt |
+| Goal | Example prompt |
 | --- | --- |
 | Ideas only | `Give me 5 video ideas for Shiny's data grid.` |
 | A runnable app | `Create a runnable mini-app for toolbar-select in Python.` |
 | A finished video | `Make a narrated video about bslib value boxes in R.` |
-| An existing app | `Make a video about the best behavior in ~/apps/sales-dashboard.` The agent never edits your app. |
+| An existing app | `Make a video about the best behavior in ~/apps/sales-dashboard.` The agent does not modify your app. |
 | A pull request or commit | `Make a video about https://github.com/posit-dev/py-shiny/pull/2051` |
 | A changelog reel | `Make a changelog reel of the unreleased features in https://github.com/posit-dev/py-shiny/blob/main/CHANGELOG.md` |
 | A series | `Make 3 videos about Shiny's data grid.` The limit is 5 per component. |
 
-The skill covers Shiny for Python, R Shiny, [shinychat](https://github.com/posit-dev/shinychat), and [shinyreact](https://github.com/posit-dev/shinyreact). Chat demos use canned replies and never call a real LLM.
+The skill supports Shiny for Python, R Shiny, [shinychat](https://github.com/posit-dev/shinychat), and [shinyreact](https://github.com/posit-dev/shinyreact). Chat demos use simulated responses and do not call external LLM APIs.
 
-**Pull requests and commits** work for `rstudio/shiny`, `posit-dev/py-shiny`, `posit-dev/shinychat`, and `posit-dev/shinyreact`. The agent installs that exact build and demos one user-facing change. If the change has nothing to show on screen, it says so.
+For pull requests and commits in `rstudio/shiny`, `posit-dev/py-shiny`, `posit-dev/shinychat`, or `posit-dev/shinyreact`, the agent checks out that build and demonstrates one visible change.
 
-**Changelogs and blog posts** default to one independently understandable editorial video per feature or idea. Real app recordings, faithful code excerpts, source figures, and verified output support the narration, with hard cuts and reading time. Write `style: editorial` in `reel.yaml`, then run `stitch_reel.py --reel-dir <directory> --separate`. Each video gets both orientations, a thumbnail, chapter times, and a review sheet under `artifacts/series/`. The explanation sets the length. Combined reels remain available when explicitly requested; configurations without `style` retain their existing rendering behavior.
+For changelogs and blog posts, the pipeline creates an editorial video for each feature. Set `style: editorial` in `reel.yaml` and run `stitch_reel.py --reel-dir <directory> --separate`. Outputs include vertical and horizontal videos, thumbnails, chapter markers, and review sheets in `artifacts/series/`.
 
 ## Narration
 
-- **Local voice** is the default for new videos and uses the saved voice `karan`. Setup is in the [TTS reference](.agents/skills/shiny-component-shorts/references/tts-and-costs.md#use-local-voice-cloning).
-- **Gemini** narration needs an API key.
-- **Your own audio**: point the agent at a WAV or a narrated video, and it uses that audio instead of generating new audio.
-- **Silent**: the agent still writes a script to time the actions, but it generates no audio.
+- Local voice: uses the cloned voice `karan` by default. See the [TTS reference](.agents/skills/shiny-component-shorts/references/tts-and-costs.md#use-local-voice-cloning) for setup.
+- Gemini: generates audio using the Gemini API when a key is present.
+- Existing audio: pass a WAV file or video to reuse an existing recording.
+- Silent: times actions against the script without synthesizing speech.
 
-The agent measures when each word is spoken and times every click to the words that describe it. A transcript check catches dropped or garbled words without anyone having to listen.
+The agent aligns browser interactions to spoken word timestamps and validates transcripts to flag dropped words.
 
 ## Visual style
 
-New demos and added labels use the [bslib Shiny preset](https://rstudio.github.io/bslib/): Open Sans, Source Code Pro, and Shiny blue. All displayed code uses bundled GitHub light/dark syntax highlighting. Native captures keep their appearance.
+Demos and labels use the [bslib Shiny preset](https://rstudio.github.io/bslib/) (Open Sans, Source Code Pro, and Shiny blue) and GitHub syntax themes for code.
 
-Standalone component recordings use these composition rules:
+Component recordings follow these layout rules:
 
-- Vertical and horizontal versions of the same video. The app fills the middle 60% of the frame in both.
-- Portrait cuts to full-frame source code. Landscape places source beside the app.
-- The Shiny logo sits in the top-left for the first 5 seconds, then fades out.
-- At least three clicks or inputs, each with a visible change.
-- A static syntax-highlighted code card using GitHub colors. It shows complete, exact source from the app, with the key line highlighted, its real filename and line numbers. No simulated editor controls, cursor, or typing. Each excerpt gets its full explanation and a quiet reading pause before the app demonstrates the result.
-- Only the official Shiny colors.
+- The app occupies the middle 60% of the frame in both orientations.
+- Portrait orientation switches to full-frame code cards. Landscape displays code beside the app.
+- The Shiny logo appears in the top-left for the first 5 seconds, then fades out.
+- Recordings include at least three inputs or clicks with visible updates.
+- A syntax-highlighted code card shows exact source with the primary line highlighted, filename, and line numbers.
+- Colors stay within the official Shiny palette.
 
 ## Repository layout
 
@@ -103,62 +103,31 @@ The two skill copies are edited together but are not identical, so don't copy on
 
 ## Troubleshooting
 
-- **Missing selectors in the preflight**: the app or `actions.yaml` changed. Fix the selector instead of making it looser.
-- **"Shiny Client Errors" panel on screen**: the recording fails. Fix the app and record again.
-- **The horizontal version looks cramped or empty**: the app was styled for a phone screen. Give it fluid widths and center it so it fills both shapes.
-- **The app won't start**: the error shows the app's own output. This is usually a missing package in the demo's environment.
-- **`ffmpeg` not found**: install it and make sure `ffmpeg` and `ffprobe` are on your `PATH`.
-- **Port already in use**: the recorder picks a free port by itself. Don't kill unknown processes to free one.
+- **Missing selectors in preflight**: update the selector in `actions.yaml` to match the current app markup.
+- **Shiny Client Errors panel appears**: the app raised an unhandled client error. Fix the app before recording.
+- **Horizontal version looks cramped or empty**: use fluid widths and center the layout so the app fits both dimensions.
+- **App fails to start**: check the printed terminal output for missing dependencies.
+- **`ffmpeg` not found**: install `ffmpeg` and ensure both `ffmpeg` and `ffprobe` are in `PATH`.
+- **Port in use**: the recorder assigns an open port automatically.
 
 ## Cost
 
-Each run ends with a cost report. Gemini token usage is saved to `artifacts/narration.usage.json`. Local voice, your own audio, and silent videos cost $0 in TTS.
+Each run generates a cost summary. Gemini token usage is recorded in `artifacts/narration.usage.json`. Cloned local voice, supplied audio, and silent runs cost $0 in API fees.
 
-### Paparazzi recordings for R Shiny
+## Paparazzi capture for R Shiny
 
-Set `capture: paparazzi` in a demo's `actions.yaml` to record through
-[Paparazzi](https://posit-dev.github.io/paparazzi/). Install its optional R
-packages in a dedicated library and set `R_LIBS_USER` for recording commands.
-The [recording contract](.agents/skills/shiny-component-shorts/references/recording-contract.md#paparazzi-capture-for-r-shiny)
-includes setup and the real browser regression test.
+To capture R Shiny apps using [Paparazzi](https://posit-dev.github.io/paparazzi/), set `capture: paparazzi` in `actions.yaml`. Install the R dependencies in a dedicated library and set `R_LIBS_USER` for recording commands. See the [recording contract](.agents/skills/shiny-component-shorts/references/recording-contract.md#paparazzi-capture-for-r-shiny) for details and browser verification tests.
 
-Paparazzi captures the browser while the shared scripts drive actions, narration
-cues, the Shiny wordmark, and code cards. The exported video clock is checked through
-a WebVTT marker. Existing local voice generation, transcript alignment, cue
-validation, audio merging, and both video orientations use the same workflow.
-Projects without this setting keep the existing recording backend.
+## Editorial production
 
-### Reproducible editorial production
-
-For the evidence-led release and blog style, start from the bundled
-[editorial starter](.agents/skills/shiny-component-shorts/assets/editorial-starter/)
-and follow the [production workflow](.agents/skills/shiny-component-shorts/references/editorial-production.md).
-`prepare_editorial.py` turns real captures and exact source excerpts into readable
-GitHub-highlighted shots in both orientations. `stitch_reel.py` supports optional
-exact-duration overviews and embedded phrase-aligned chapters.
-`validate_editorial.py` checks the encoded files and rejects stale evidence.
-Models still choose the story and verify the app; they no longer need custom
-screenshot layout, padding, chapter, or export-validation scripts for each video.
+For release and blog videos, use the [editorial starter](.agents/skills/shiny-component-shorts/assets/editorial-starter/) and follow the [production workflow](.agents/skills/shiny-component-shorts/references/editorial-production.md). The tooling includes `prepare_editorial.py` to format captures and code excerpts, `stitch_reel.py` to assemble videos with chapter markers, and `validate_editorial.py` to verify output files.
 
 ## Versioned releases
 
-[GitHub releases](https://github.com/karangattu/shiny-component-shorts/releases) provide
-separate Codex and Claude skill archives and `SHA256SUMS`. Each archive includes
-its `VERSION` and a `release.json` recording the tag and exact source commit.
-Agents now run `bootstrap_skill.py --project-dir <production>` automatically before
-planning a new video. It downloads and verifies the latest stable release into
-that production's `.video-skill/`, records `skill-lock.json`, and keeps that version
-for rerenders and child segments. Production commands also enforce the pin.
-The installed skill and local edits stay intact. Existing media keeps its current
-tools; network or verification failures stop setup instead of silently using an
-older release. See [version management](.agents/skills/shiny-component-shorts/references/version-management.md).
+[GitHub releases](https://github.com/karangattu/shiny-component-shorts/releases) provide packaged skill archives with checksums. The bootstrap script (`bootstrap_skill.py --project-dir <production>`) downloads and pins verified skill releases into `.video-skill/` using `skill-lock.json`. See [version management](.agents/skills/shiny-component-shorts/references/version-management.md).
 
-For maintainers, push a stable `vMAJOR.MINOR.PATCH` tag on a reviewed commit.
-The release workflow runs the existing tests and type checks, packages only
-tracked skill files, and publishes both archives with checksums. A matching
-`.github/release-notes/<tag>.md` supplies curated notes; otherwise GitHub generates
-them. Patch versions cover fixes; minor versions add capabilities.
+Maintainers publish releases by tagging a commit with `vMAJOR.MINOR.PATCH`. GitHub Actions tests the build, packages tracked files, and attaches release assets.
 
 ## Component production checks
 
-The [component production guide](.agents/skills/shiny-component-shorts/references/component-production.md) covers full state previews in both orientations, source-line extraction, narration-driven code holds, and explicit completion checks. Previews run the interactions without synthesizing audio or encoding video, and flag wrapping before a full take. Reviews include every code excerpt at its actual reveal time. Existing action files remain supported. Narration style checks give advice; invalid scripts and failed audio checks still stop production.
+The [component production guide](.agents/skills/shiny-component-shorts/references/component-production.md) describes dry-run previews, source extraction, and validation checks. Previews test interactions and layout fit without generating audio or rendering full video.
