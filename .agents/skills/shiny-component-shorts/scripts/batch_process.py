@@ -17,10 +17,10 @@ from pathlib import Path
 from typing import Callable, Mapping
 
 
-import bootstrap_skill
 
 SCRIPTS_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPTS_DIR))
+import bootstrap_skill  # noqa: E402
 import align_narration  # noqa: E402
 import build_cache  # noqa: E402
 import check_narration_voice  # noqa: E402

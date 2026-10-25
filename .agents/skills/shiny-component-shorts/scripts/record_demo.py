@@ -19,10 +19,10 @@ from pathlib import Path
 from typing import IO
 from urllib.parse import urlsplit
 
-import bootstrap_skill
 import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import bootstrap_skill  # noqa: E402
 import align_narration  # noqa: E402
 import code_style  # noqa: E402
 import production_actions  # noqa: E402

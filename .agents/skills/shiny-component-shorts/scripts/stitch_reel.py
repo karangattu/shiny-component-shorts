@@ -51,10 +51,10 @@ import tempfile
 from pathlib import Path
 from typing import Any, Callable, NoReturn
 
-import bootstrap_skill
 import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import bootstrap_skill  # noqa: E402
 import code_style
 import align_narration  # noqa: E402
 from align_narration import NARRATION_OFFSET_SECONDS  # noqa: E402
