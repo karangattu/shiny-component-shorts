@@ -449,7 +449,7 @@ def resolve_logo_path(override: Path | None = None) -> Path:
 
 def resolve_logo_seconds(config: dict) -> float:
     """Seconds the wordmark stays on screen; 0 records without it (reel segments)."""
-    value = config.get("logo_seconds", LOGO_VISIBLE_SECONDS)
+    value = config.get("logo_seconds", 0.0)
     if isinstance(value, bool) or not isinstance(value, (int, float)) or value < 0:
         raise ValueError("logo_seconds must be a number of seconds, 0 or more")
     return float(value)

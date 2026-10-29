@@ -324,13 +324,22 @@ class LogoTimingTest(unittest.TestCase):
     def test_logo_seconds_default_and_validation(self):
         for copy in COPIES:
             recorder = load("record_demo", copy)
-            self.assertEqual(recorder.resolve_logo_seconds({}), 5.0)
+            self.assertEqual(recorder.resolve_logo_seconds({}), 0.0)
             self.assertEqual(recorder.resolve_logo_seconds({"logo_seconds": 0}), 0.0)
             for bad in (-1, "5", True):
                 with self.assertRaises(ValueError):
                     recorder.resolve_logo_seconds({"logo_seconds": bad})
             logo = recorder.logo_overlay_config("vertical", recorder.resolve_logo_path(), 0)
             self.assertTrue(logo["hidden"])
+
+    def test_reel_logo_is_opt_in(self):
+        for copy in COPIES:
+            stitch = load("stitch_reel", copy)
+            self.assertEqual(stitch.reel_logo_seconds({}), 0.0)
+            self.assertEqual(stitch.reel_logo_seconds({"logo_seconds": 5}), 5.0)
+            for bad in (-1, "5", True):
+                with self.assertRaises(ValueError):
+                    stitch.reel_logo_seconds({"logo_seconds": bad})
 
     def test_overlay_fades_out_and_branding_check_allows_it(self):
         from playwright.sync_api import sync_playwright
@@ -361,7 +370,7 @@ class LogoTimingTest(unittest.TestCase):
     def test_reel_logo_lives_on_the_intro_only(self):
         stitch = load("stitch_reel")
         self.assertGreaterEqual(stitch.INTRO_SECONDS, stitch.LOGO_SECONDS)
-        self.assertIn('"logoSeconds": LOGO_SECONDS', (COPIES[0] / "scripts/stitch_reel.py").read_text())
+        self.assertIn('"logoSeconds": logo_seconds', (COPIES[0] / "scripts/stitch_reel.py").read_text())
 
 
 if __name__ == "__main__":

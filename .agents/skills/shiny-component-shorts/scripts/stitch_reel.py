@@ -1258,6 +1258,14 @@ def embed_chapters(video: Path, chapters: list[dict], work: Path) -> None:
     shutil.copy2(output, video)
 
 
+def reel_logo_seconds(config: dict) -> float:
+    """Use no wordmark by default; allow explicit branding when requested."""
+    value = config.get("logo_seconds", 0.0)
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or value < 0:
+        raise ValueError("logo_seconds must be a number of seconds, 0 or more")
+    return float(value)
+
+
 def build_editorial(reel_dir: Path, config: dict, orientation: str, *, output_dir: Path | None = None) -> dict:
     """Assemble source-led segments with no interstitial cards or audio crossfades."""
     from playwright.sync_api import sync_playwright
@@ -1288,7 +1296,7 @@ def build_editorial(reel_dir: Path, config: dict, orientation: str, *, output_di
                     feature,
                     orientation,
                     cache,
-                    max(0, LOGO_SECONDS - elapsed),
+                    max(0, reel_logo_seconds(config) - elapsed),
                 )
                 normalized = work / f"segment-{number}.mp4"
                 duration = normalize(source, normalized, orientation, 0, cache)
@@ -1412,14 +1420,12 @@ def build(reel_dir: Path, orientation: str | None = None) -> dict:
                     print(f"Rendered explainer {feature['path'].name} ({spec['duration']:.1f}s)")
             plan: list[tuple[str, Path, str]] = []
             intro_seconds = float(config.get("intro_seconds", INTRO_SECONDS))
-            if intro_seconds < LOGO_SECONDS:
-                raise SystemExit(
-                    f"intro_seconds must be at least {LOGO_SECONDS}: "
-                    "the logo stays on the intro card for its first 5 seconds"
-                )
+            logo_seconds = reel_logo_seconds(config)
+            if intro_seconds < logo_seconds:
+                raise SystemExit("intro_seconds must cover the requested logo duration")
             intro = render_card(browser, {
                 "kind": "intro", "orientation": orientation, "accent": ACCENTS[0],
-                "duration": intro_seconds, "logoSeconds": LOGO_SECONDS,
+                "duration": intro_seconds, "logoSeconds": logo_seconds,
                 "eyebrow": release_label,
                 "title": config.get("title") or "What's new in Shiny",
                 "items": [feature["title"] for feature in features],
