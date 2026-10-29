@@ -8,8 +8,11 @@ Read this reference when creating `actions.yaml`, recording a demo, or diagnosin
 New release/changelog/blog videos use `style: editorial` and the shot contract
 in [changelog-reel.md](changelog-reel.md). `editorial.yaml` combines clean still
 images and original-speed video clips with phrase cues and explicit framing
-for both orientations. Source labels and static highlights identify evidence;
-no fake editor chrome, simulated command results, or decorative animations.
+for both orientations. Prefer recorded interactions when motion explains the
+behavior; use stills for readable evidence. Keep provenance in the production
+index and omit routine on-screen source labels; retain essential attribution or
+qualifications. Use static highlights sparingly. No fake editor chrome,
+simulated command results, or decorative animations.
 Keep source captures and edited exports separate. Source text must be verbatim,
 and test/performance results must come from saved actual runs.
 

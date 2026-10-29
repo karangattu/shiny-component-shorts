@@ -16,6 +16,10 @@ For each claim, identify what a viewer can inspect: the actual app state, a verb
 
 Start around 60–120 seconds for a detailed feature. Let the example set the length. Show a useful result, then explain the decisive code and prove it with an actual run. Include a caveat only when it changes how someone uses the feature. New points need new narration; extending an old 22-second clip does not add detail.
 
+When an app interaction or changing state supports a spoken point, record the real interaction as video in both orientations, including its visible result. Plan and time the action to the narration; hold or cut to a readable still only when needed for a code or evidence reading pause. Keep capture at original speed, preserve the clean recording, and do not loop footage or animate screenshots to imply a real interaction. Static code, figures, and results remain appropriate when they explain the point best. Do not add motion just to fill time.
+
+Minimize text added outside the evidence. Omit repeated explanatory footers and routine source labels from the frame; record provenance and any capture qualifications in the production index instead. Add a short on-screen qualification when it is necessary to avoid misleading the viewer, and retain attribution when required. Narration or optional accurate captions carry the explanation; never cover code or a key app state with captions.
+
 An overview is a separate edit, created only when requested. Reuse verified source captures from the detailed videos and write a fresh short explanation of each point. Do not concatenate their full narrations or squeeze the detailed videos into the overview's time budget.
 
 Keep the chosen brand system consistent across these editorial videos: Open Sans for prose, Source Code Pro for code/output, GitHub syntax highlighting, Shiny blue emphasis, and restrained light surfaces. Preserve native app styling and source figures. No fake editor windows, simulated typing, decorative animation, feature-card interstitials, or progress ornaments. Use hard cuts and one static highlight at a time. Captured countdowns held as stills must be labelled as captured stills, not presented as a ticking clock.
@@ -30,7 +34,7 @@ Write `source-shots.yaml` and run:
 
 Replace `<python>` with the explicit project interpreter and `<skill>` with this installed skill directory. All commands below use the same interpreter.
 
-Each shot quotes a narration `cue`, an optional `source` label, an optional `chapter` title, and `panels`. A panel reads a local `file`:
+Each shot quotes a narration `cue`, an optional `chapter` title, and `panels`. Omit the optional visible `source` label unless it is necessary for attribution or an essential qualification. A panel reads a local `file`:
 
 - `kind: code`: exact source, inferred language or explicit `language`, optional inclusive `lines: [first, last]`, and one optional `highlight` source line number.
 - `kind: output`: exact saved output in a monospace face, with no fabricated terminal chrome.
@@ -73,4 +77,4 @@ Add `chapter` to the first shot for each idea. The renderer embeds those chapter
 
 The validator fully decodes the declared exports, checks dimensions, 30 fps, audio, frame counts, shot continuity, spoken-phrase offsets, embedded chapter boundaries, and current source/narration hashes. Original source edits invalidate generated stills even if their PNG files have not changed. It ignores caches and preserved comparison renders. Fix every failure before delivery.
 
-Finally inspect each shot and cut in both encoded phone-size review sheets, check that highlights and labels do not hide evidence, and audition the merged videos when available. Keep this human review separate from automated validation. Deliver both orientations, thumbnails, review sheets, source/configuration files, and a concise file index. For a series plus overview, retain the detailed videos and put the short overview first in that index. A paid-service cost report is needed only if a paid API was used or the user asks for costs.
+Finally inspect each shot and cut in both encoded phone-size review sheets, and watch app footage through its action and result in both orientations. Check that text and highlights do not hide evidence or compete with the narration, and audition the merged videos when available. Keep this human review separate from automated validation. Deliver both orientations, thumbnails, review sheets, source/configuration files, and a concise file index. For a series plus overview, retain the detailed videos and put the short overview first in that index. A paid-service cost report is needed only if a paid API was used or the user asks for costs.

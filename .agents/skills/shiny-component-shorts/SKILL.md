@@ -23,8 +23,7 @@ Write `style: editorial` in every new `reel.yaml`, render with `--separate`, and
 [references/changelog-reel.md](references/changelog-reel.md). Use real app
 footage, source excerpts, figures, and measured results. Show a useful visual
 immediately; keep titles small, use hard cuts, and let reading pauses breathe.
-No decorative objects, animated backgrounds, typewriter effects, or feature-card
-interstitials. Preserve captured UI and source text.
+Prefer genuine recorded app interactions and changing states when they illustrate the narration; use stills for code, figures, and evidence that need reading time. Minimize added non-code text: omit recurring source labels and explanatory footers, and keep provenance in the production index. Optional narration captions should not obscure evidence. No decorative objects, animated backgrounds, typewriter effects, or feature-card interstitials. Preserve captured UI and source text.
 
 The three-action quota, middle-60% composition, mandatory code action, and
 fixed activity cadence below apply to **standalone component recordings**.

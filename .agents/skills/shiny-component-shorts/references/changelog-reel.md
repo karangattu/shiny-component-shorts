@@ -31,7 +31,7 @@ claim in real app footage, a source excerpt or figure, captured output, or a
 measured result. Use a simple static diagram only when those sources cannot
 explain the concept. No generated decorative artwork, fake editor/browser
 windows, simulated typing, invented results, or illustrative objects added for
-motion. Preserve the native appearance of captured apps and documents.
+motion. Prefer real recordings where an app interaction or changing state demonstrates the point, with actions timed to the narration. Preserve the native appearance of captured apps and documents. Use stills for readable code or evidence and whenever motion adds no understanding. Avoid repeated source labels and explanatory footers; keep provenance in the production index and retain only essential on-screen attribution or qualifications. Optional accurate narration captions must not obscure evidence.
 
 Open on useful content. The renderer adds a small title over the first shot
 and the Shiny wordmark for the first five seconds of each video. It uses hard
@@ -52,7 +52,7 @@ segments. Do not use the component `finish` phase for editorial segments.
 style: editorial
 orientation: vertical
 title: Shiny for Python feature walkthroughs
-release: "1.8.0"  # omit for a blog; labels in source shots identify the post
+release: "1.8.0"  # omit for a blog; identify the post in the production index
 features:
   - title: Test without a browser
     dir: 01-server-tests
@@ -64,12 +64,10 @@ features:
 # 01-server-tests/editorial.yaml
 shots:
   - cue: Testing reactive server logic
-    source: Shiny 1.8.0 release notes
     views:
       vertical: {file: sources/release-vertical.png, fit: contain}
       horizontal: {file: sources/release-horizontal.png, fit: contain}
   - cue: Now your test runs in memory
-    source: test_app.py, exact source excerpt
     views:
       vertical:
         file: sources/test-vertical.png
