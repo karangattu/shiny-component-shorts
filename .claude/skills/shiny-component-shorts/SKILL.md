@@ -23,8 +23,13 @@ Write `style: editorial` in every new `reel.yaml`, render with `--separate`, and
 [references/changelog-reel.md](references/changelog-reel.md). Use real app
 footage, source excerpts, figures, and measured results. Show a useful visual
 immediately; keep titles small, use hard cuts, and let reading pauses breathe.
-No decorative objects, animated backgrounds, typewriter effects, or feature-card
-interstitials. Preserve captured UI and source text.
+Prefer genuine recorded app interactions and changing states when they illustrate the narration; use stills for code, figures, and evidence that need reading time. Build a concrete problem-to-result story; compare real runs, connect the relevant code to the app, and use evidence-based timelines for otherwise invisible behavior when helpful. Minimize added non-code text: omit production-status labels such as “runnable example” and “verified app captures” from all visible headers, footers, and graphics; keep provenance in the production index. Include only concise qualifications that viewers need to interpret the evidence, such as “Simulated query.” Optional narration captions should not obscure evidence. No decorative objects, animated backgrounds, typewriter effects, or feature-card interstitials. Preserve captured UI and source text.
+
+For skill-created demos and graphics, do not put explanatory, simulation, timing, or production notes in a footer, including in the app UI itself. Explain simulated work in narration; if viewers need an on-screen qualification, show a brief, non-footer label near the evidence once when it matters. Review every captured app state and final shot in both orientations. An unwanted footer in an app, image, graphic, or overlay blocks delivery: fix the authored source and re-record or rebuild the affected shots, then review the new exports. Do not hide errors, required attribution, or essential limitations. Preserve user-provided apps and third-party captures; if their unwanted footer cannot be removed without altering them, report it rather than silently editing or obscuring it.
+
+Make editorial videos feel like a developer walking a colleague through one real task: follow the same app state through the problem, action, result, relevant code, and return to the result. Show the actual app result before replacing it with an editorial summary. Include natural cursor travel, click, and response when useful, without invented interactions or motion for its own sake. Vary holds by meaning and reading difficulty. Write narration around the observed actions and consequences; see [editorial production](references/editorial-production.md#follow-one-observable-story).
+
+Present explanatory results as concise, readable editorial summaries with prose typography and selective emphasis, not line-numbered code. Keep exact values, units, conditions, ordering, and source evidence. When a claim depends on seeing literal console output, a log, or source code, show the faithful original instead; do not disguise a rewritten summary as captured output. See [editorial production](references/editorial-production.md#format-explanatory-results).
 
 The three-action quota, middle-60% composition, mandatory code action, and
 fixed activity cadence below apply to **standalone component recordings**.
@@ -60,7 +65,6 @@ For any shinyreact request, also read [references/shinyreact.md](references/shin
 For component recordings, follow [component production](references/component-production.md): preview every state in both orientations before audio, extract real source ranges, resolve code holds from measured narration, and wait for explicit completion when possible.
 
 ## Session and context budget
-
 Every turn re-reads the whole session, so a long one keeps paying for its own history. None of the rules below change what ships; they change what it costs to ship.
 
 - Use an isolated production directory and review loop for each video. When a release/blog series is requested, coordinate and finish every selected point; do not stop after the first video. Create separate chats only when the user requests them.
@@ -71,11 +75,9 @@ Every turn re-reads the whole session, so a long one keeps paying for its own hi
 - Read a file once. When you need it again, re-read the range you need instead of the whole script.
 
 ## Choose the workflow
-
 Create only what the user requested.
 
 ### Idea only
-
 Return:
 
 1. Component and language

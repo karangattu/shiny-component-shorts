@@ -15,6 +15,14 @@ motion, typewriter effects, numbered feature cards, or novelty transitions.
 Use about 5% margins and frame each orientation for legibility rather than
 reserving 40% of the frame. Preserve the captured UI's appearance.
 
+Follow the same app task across the problem, real action, visible result, code,
+and return to that result. Let the pointer reach the control and show its real
+response. Keep familiar setup moving; hold a key result or code for the time
+it needs. Vary shot length with the thought instead of using equal holds or
+inventing activity. Prefer the app's own result to a duplicate summary; use a
+comparison or diagram only when it makes the point clearer. Narration should
+describe the visible actions and consequences in their actual order.
+
 The action cadence, code-card requirements, and middle-band layout below apply
 to standalone component shorts, not editorial segments.
 

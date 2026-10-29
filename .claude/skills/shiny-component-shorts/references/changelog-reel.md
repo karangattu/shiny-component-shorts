@@ -28,17 +28,15 @@ detail. Keep each point understandable on its own and link its sources.
 
 Use `style: editorial` in the series configuration. Ground each
 claim in real app footage, a source excerpt or figure, captured output, or a
-measured result. Use a simple static diagram only when those sources cannot
-explain the concept. No generated decorative artwork, fake editor/browser
+measured result. Use a concise evidence-based diagram or timeline when it clarifies behavior that is hard to see directly; distinguish it from a real recording and derive its events from verified runs or authoritative sources. No generated decorative artwork, fake editor/browser
 windows, simulated typing, invented results, or illustrative objects added for
-motion. Preserve the native appearance of captured apps and documents.
+motion. Prefer real recordings where an app interaction or changing state demonstrates the point, with actions timed to the narration. Preserve the native appearance of captured apps and documents. Use stills for readable code or evidence and whenever motion adds no understanding. Avoid repeated source labels and explanatory footers; keep provenance in the production index and retain only essential on-screen attribution or qualifications. Optional accurate narration captions must not obscure evidence.
 
 Open on useful content. The renderer adds a small title over the first shot
 and the Shiny wordmark for the first five seconds of each video. It uses hard
 cuts and brief annotation fades; no feature-card interstitials or mandatory
 intro/outro. Use one consistent overlay typeface and Shiny blue for emphasis.
-Compose media with about 5% safe margins and leave the top 12% and bottom 7%
-clear for metadata. Let the main content fill the remaining frame. Framing is
+Compose media with about 5% safe margins. Reserve space only for the title, wordmark, essential labels, or optional captions actually present. Let evidence fill the remaining frame. Framing is
 specific to each orientation; never shrink a complete landscape desktop into
 an unreadable portrait frame.
 
@@ -52,7 +50,7 @@ segments. Do not use the component `finish` phase for editorial segments.
 style: editorial
 orientation: vertical
 title: Shiny for Python feature walkthroughs
-release: "1.8.0"  # omit for a blog; labels in source shots identify the post
+release: "1.8.0"  # omit for a blog; identify the post in the production index
 features:
   - title: Test without a browser
     dir: 01-server-tests
@@ -64,12 +62,10 @@ features:
 # 01-server-tests/editorial.yaml
 shots:
   - cue: Testing reactive server logic
-    source: Shiny 1.8.0 release notes
     views:
       vertical: {file: sources/release-vertical.png, fit: contain}
       horizontal: {file: sources/release-horizontal.png, fit: contain}
   - cue: Now your test runs in memory
-    source: test_app.py, exact source excerpt
     views:
       vertical:
         file: sources/test-vertical.png
