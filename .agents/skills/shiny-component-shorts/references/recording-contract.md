@@ -11,13 +11,24 @@ images and original-speed video clips with phrase cues and explicit framing
 for both orientations. Prefer recorded interactions when motion explains the
 behavior; use stills for readable evidence. Keep provenance in the production
 index and omit routine on-screen source labels; retain essential attribution or
-qualifications. Use static highlights sparingly. No fake editor chrome,
+qualifications. Review panel labels, graphics, and captured demo UI as well as
+renderer overlays: omit production notes such as “runnable example” and
+“verified app captures”; use a brief qualification like “Simulated query” only
+when viewers need it to understand the evidence. Keep verification details in
+the production index. Do not add explanatory or simulation notes as footers
+inside skill-created apps or graphics. Inspect app states before recording and
+every final shot in both orientations; a footer blocks delivery until its
+authored source is fixed and the affected footage is rebuilt. Preserve existing
+user-provided apps and third-party captures; report an unremovable footer rather
+than conceal it, and never hide errors, required attribution, or essential
+limitations. Use static highlights sparingly. No fake editor chrome,
 simulated command results, or decorative animations.
 Keep source captures and edited exports separate. Source text must be verbatim,
 and test/performance results must come from saved actual runs.
 
-The source media uses about 5% safe margins, with the top 12% and bottom 7%
-clear for small metadata overlays. Preserve native app/document styling.
+The source media uses about 5% safe margins. Reserve additional space only for
+needed titles, captions, attribution, or qualifications. Preserve native
+app/document styling.
 Capture any app behavior with the same stable selectors and client-error checks
 as below. Never crop out an error panel. The component recorder's existing
 three-action, code-action, activity-gap, and middle-band checks apply to its
