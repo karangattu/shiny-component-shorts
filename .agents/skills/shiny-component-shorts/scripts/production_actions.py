@@ -24,11 +24,11 @@ def line_range(value: object, total: int, label: str) -> tuple[int, int]:
 
 def cue_time(cue: object, timing: dict, *, end: bool = False) -> float:
     offset = float(timing.get("narration_offset_seconds", 0.15))
-    options = cue if isinstance(cue, dict) else {"phrase": cue}
+    options: dict = cue if isinstance(cue, dict) else {"phrase": cue}
     if "at" in options:
-        return float(options["at"]) + offset
+        return float(str(options["at"])) + offset
     match = align_narration.find_phrase(
-        timing["words"], options["phrase"], options.get("occurrence", 1)
+        timing["words"], str(options["phrase"]), int(options.get("occurrence", 1))
     )
     return float(match["end" if end else "start"]) + offset
 

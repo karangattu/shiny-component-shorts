@@ -27,7 +27,6 @@ import check_narration_voice  # noqa: E402
 import companion  # noqa: E402
 import thumbnail  # noqa: E402
 import merge_audio  # noqa: E402
-import validate_demo  # noqa: E402
 from generate_local_voice import (  # noqa: E402
     MAX_SPEAKING_RATE,
     MIN_SPEAKING_RATE,

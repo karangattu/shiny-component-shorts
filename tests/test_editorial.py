@@ -470,7 +470,8 @@ def test_embedded_chapters_and_validator_reject_changed_evidence(segment, monkey
 
 
 def test_source_manifest_rejects_unrendered_code_edits(segment):
-    source=segment/'app.py';source.write_text('print(42)\n')
+    source = segment / 'app.py'
+    source.write_text('print(42)\n')
     manifest=segment/'source-manifest.json'
     manifest.write_text(json.dumps({'sources':[{'file':str(source),'sha256':hashlib.sha256(source.read_bytes()).hexdigest()}]}))
     change(segment,lambda c:c.update(source_manifest='source-manifest.json'))

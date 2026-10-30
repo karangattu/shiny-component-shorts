@@ -6,7 +6,7 @@ from playwright.sync_api import sync_playwright
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / '.agents/skills/shiny-component-shorts/scripts'))
-import record_demo
+import record_demo  # noqa: E402
 
 class CodeStyleTest(unittest.TestCase):
     def test_recorder_uses_github_colors_and_bslib_fonts(self):

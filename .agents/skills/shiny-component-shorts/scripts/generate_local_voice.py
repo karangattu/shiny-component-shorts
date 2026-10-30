@@ -500,7 +500,6 @@ def main(argv: list[str] | None = None) -> int:
     try:
         words = len(script.split())
         pace = check_pace(args.output, words, args.max_wpm)
-        duration = pace["duration_seconds"]
     except (OSError, wave.Error, ZeroDivisionError) as exc:
         print(f"Could not read generated WAV file: {exc}", file=sys.stderr)
         return 1
