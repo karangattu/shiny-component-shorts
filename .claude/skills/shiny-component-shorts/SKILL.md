@@ -29,9 +29,11 @@ For skill-created demos and graphics, do not put explanatory, simulation, timing
 
 Make editorial videos feel like a developer walking a colleague through one real task: follow the same app state through the problem, action, result, relevant code, and return to the result. Show the actual app result before replacing it with an editorial summary. Include natural cursor travel, click, and response when useful, without invented interactions or motion for its own sake. Vary holds by meaning and reading difficulty. Write narration around the observed actions and consequences; see [editorial production](references/editorial-production.md#follow-one-observable-story).
 
-Use the release name requested by the user consistently in video titles, on-screen labels, and narration (for example, “Shiny 1.9”); do not append “preview” unless they request it. Record the exact tested build and release status in the production provenance. Do not claim a version has shipped unless verified.
+Use the release name requested by the user consistently in video titles, on-screen labels, and narration (for example, “Shiny 1.9”); do not append “preview” unless they request it. Record the exact tested build and release status in the production provenance. Do not claim a version has shipped unless verified. For release videos, identify the release by its version alone, such as “Shiny 1.9,” across on-screen text, narration, and captions. Do not refer to a “blog,” “post,” or “release post” in the video. Keep source links and full attribution in the production index. When describing a published benchmark, say it was reported for the specified workload; preserve its conditions and distinguish it from a measurement made for the video. Do not imply that a cited result was measured locally.
 
 Present explanatory results as concise, readable editorial summaries with prose typography and selective emphasis, not line-numbered code. Keep exact values, units, conditions, ordering, and source evidence. When a claim depends on seeing literal console output, a log, or source code, show the faithful original instead; do not disguise a rewritten summary as captured output. See [editorial production](references/editorial-production.md#format-explanatory-results).
+
+In explanatory text, render API names, identifiers, arguments, commands, and code values as actual inline code: use a readable monospace face and subtle contrast while keeping surrounding prose proportional. Preserve exact spelling and make long identifiers readable in both orientations. Do not display raw Markdown backticks or rely on plain-text panels to interpret them. Verify the final frames; see [inline code in explanations](references/editorial-production.md#inline-code-in-explanations).
 
 The three-action quota, middle-60% composition, mandatory code action, and
 fixed activity cadence below apply to **standalone component recordings**.
@@ -278,7 +280,6 @@ Use `Reveal`, `Proof`, `Code`, and `Payoff` to organize the storyboard and time 
 Do not add `beat`, `label`, or `caption` actions to `actions.yaml`, and omit the top-level `overlays` block. The browser deliverable should remain a clean recording of the app, with only the concise `code` action rendered when the storyboard reaches its code section. See [references/recording-contract.md](references/recording-contract.md).
 
 ## Research and concept selection
-
 1. Inspect the official docs for the named component.
 2. List the genuinely visual behaviors: updates, reactive values, layout effects, validation, accessibility, or state changes.
 3. Reject behaviors that need explanation before they become visible.
@@ -288,7 +289,6 @@ Do not add `beat`, `label`, or `caption` actions to `actions.yaml`, and omit the
 If the proposed action plan cannot produce three meaningful reactions from the same trick, choose a stronger angle.
 
 ## App rules
-
 - Prefer one primary card or panel sized for a vertical frame.
 - The font rule works in both languages: use `tags$head(tags$link(...), tags$style(...))` in R Shiny and `ui.tags.head(ui.tags.link(...), ui.tags.style(...))` in Shiny for Python.
 - Do not render a visible app title, page title, eyebrow, kicker, series label, or oversized marketing headline. Keep the problem-led hook in the storyboard, narration, or later edit; start the app UI directly with the component or its realistic field/task label.
