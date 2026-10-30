@@ -10,7 +10,7 @@ Read the official [Python guide](https://github.com/posit-dev/shinyreact/blob/ma
 - Keep `app.py` or `app.R` as the server entry point. Record using `--app-type python` or `--app-type r`; React is the frontend, not a third server runtime.
 - For tiny new demos, use plain `www/ui.js` and `www/ui.css` with the package's `window.shinyreact.React` and `ReactDOM`. This avoids a frontend build and duplicate React instances. Do not put JSX or TypeScript directly in a browser script.
 - For an existing JSX/TSX app, inspect its manifest and build commands, build its assets first, and keep its original source and layout. The recorder starts only Shiny; it does not start Vite. Retain the frontend source for code-card validation.
-- Apply the Shiny palette, readable type, stable DOM IDs, and middle 60% recording area in the frontend CSS. Do not assume Bootstrap classes are available. The recorder supplies the wordmark.
+- Apply the Shiny palette, readable type, stable DOM IDs, and middle 60% recording area in the frontend CSS. Do not assume Bootstrap classes are available. Leave the video unbranded unless the user explicitly requests a wordmark.
 
 ## Installation
 

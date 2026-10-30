@@ -33,10 +33,10 @@ windows, simulated typing, invented results, or illustrative objects added for
 motion. Prefer real recordings where an app interaction or changing state demonstrates the point, with actions timed to the narration. Preserve the native appearance of captured apps and documents. Use stills for readable code or evidence and whenever motion adds no understanding. Avoid repeated source labels and explanatory footers; keep provenance in the production index and retain only essential on-screen attribution or qualifications. Optional accurate narration captions must not obscure evidence.
 
 Open on useful content. The renderer adds a small title over the first shot
-and the Shiny wordmark for the first five seconds of each video. It uses hard
+and no wordmark by default. It uses hard
 cuts and brief annotation fades; no feature-card interstitials or mandatory
 intro/outro. Use one consistent overlay typeface and Shiny blue for emphasis.
-Compose media with about 5% safe margins. Reserve space only for the title, wordmark, essential labels, or optional captions actually present. Let evidence fill the remaining frame. Framing is
+Compose media with about 5% safe margins. Reserve space only for the title, essential labels, or optional captions actually present. Let evidence fill the remaining frame. Framing is
 specific to each orientation; never shrink a complete landscape desktop into
 an unreadable portrait frame.
 
@@ -98,7 +98,7 @@ explicit Python environment. Each point writes its own `reel.mp4`, companion
 orientation, timing JSON, source-labelled review sheets, and thumbnails into
 `artifacts/series/<number>-<point-title>/`. The `artifacts/series.json` manifest
 indexes all delivered videos. Each video starts at time zero with its own
-wordmark and title; other points' narration is not included. An optional
+title without a wordmark; other points' narration is not included. An optional
 `--orientation vertical|horizontal` renders only that view. Series can contain
 more than six selected points; the combined-reel feature cap does not apply. Style, media bytes, narration, framing, fonts, and
 renderer code participate in caching. Keep originals separate from edits.
@@ -160,7 +160,7 @@ Follow the normal app, recording, and narration rules, with these reel changes:
 - The `code` action is optional. Use it only when the code is the point of the feature.
 - Install the release or the unreleased build into a throwaway environment, as in [changeset-sourcing.md](changeset-sourcing.md), and confirm the feature exists in the installed build.
 - Every demo segment needs both orientations: record the reel's orientation as the primary, then run `companion.py` for the other one.
-- Put `logo_seconds: 0` at the top of the segment's `actions.yaml`. The reel shows the Shiny logo only in its first 5 seconds, on the intro card, so segments record without it. `stitch_reel.py` warns about a segment recorded with the logo.
+- Record segments without a logo. Only use `logo_seconds` to add one when the user explicitly requests it.
 
 ### Explainer segments
 
@@ -261,4 +261,4 @@ python .agents/skills/shiny-component-shorts/scripts/stitch_reel.py \
 
 The script builds the reel twice: `reel.mp4` in the reel's orientation and `reel-<orientation>.mp4` in the other one (pass `--orientation` to build one). For each, it renders explainer segments, then an intro card listing every feature, one feature card per segment, and the outro card. It joins them with a slide into each card and a circle-open into each feature. It writes `artifacts/reel.mp4`, `artifacts/reel.json` with chapter start times (paste them into a video description as chapters), and `artifacts/reel-review.png` with one frame per chapter. It also writes `artifacts/reel-thumbnail.jpg` (and `reel-thumbnail-<orientation>.jpg`) from the intro card. Rendered cards, explainer clips, and normalized clips are cached in `artifacts/.reel-cache/` by a hash of their inputs, so a rebuild after a small change only renders what changed; delete that folder to force a full rebuild. Cards use the Open Sans and Source Code Pro files bundled in `assets/fonts/`, so a reel looks the same on every machine. Inspect that sheet before you report the reel done, and report every warning the script prints.
 
-Optional `reel.yaml` keys: `eyebrow` (replaces the release label), `intro_seconds` (5.4, at least 5 so the logo can fade out on the intro card), `card_seconds` (2.6), `outro.seconds` (3.2), `outro.why`, and a per-feature `accent` from the Shiny palette. Cards are silent; the feature title and the "why" line carry the transition.
+Optional `reel.yaml` keys: `eyebrow` (replaces the release label), `intro_seconds` (5.4; must cover any explicitly requested `logo_seconds`), `card_seconds` (2.6), `outro.seconds` (3.2), `outro.why`, and a per-feature `accent` from the Shiny palette. Cards are silent; the feature title and the "why" line carry the transition.
