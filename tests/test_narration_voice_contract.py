@@ -75,6 +75,71 @@ class NarrationVoiceLintTest(unittest.TestCase):
             with self.subTest(marker=marker):
                 self.assertIn(marker, flagged)
 
+    def test_templated_series_script_is_flagged_for_every_shape(self) -> None:
+        flagged = " ".join(
+            check_narration_voice.voice_problems(check_narration_voice.TEMPLATED_PROMPT)
+        )
+        for marker in (
+            "contrast used 3 times",
+            "Template lead-in",
+            "release-note voice",
+            "bare imperative",
+            "same [pause 1s]",
+        ):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, flagged)
+
+    def test_one_contrast_and_first_person_actions_pass(self) -> None:
+        spoken = (
+            "I click Refresh, and all three cards are ready after one second, not three. "
+            "I expected the sum. Each output runs as its own task, so the page waits for the "
+            "slowest one. Click Reset and the cards clear."
+        )
+        self.assertEqual(check_narration_voice.template_problems(spoken), [])
+
+    def test_series_check_reports_shared_shapes_only(self) -> None:
+        shared = check_narration_voice.series_problems(
+            {
+                "01": check_narration_voice.TEMPLATED_PROMPT,
+                "02": check_narration_voice.TEMPLATED_PROMPT,
+                "03": check_narration_voice.GOOD_PROMPT,
+            }
+        )
+        joined = " ".join(shared)
+        for marker in (
+            "scripts open with",
+            "scripts close with",
+            "appears in 2 scripts",
+            "hands off a beat",
+            "close on a caveat or tacked-on",
+        ):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, joined)
+        self.assertEqual(
+            check_narration_voice.series_problems(
+                {"01": check_narration_voice.GOOD_PROMPT, "02": check_narration_voice.TEMPLATED_PROMPT}
+            ),
+            [],
+        )
+
+    def test_series_cli_walks_sibling_narrations(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            series = Path(temp_dir)
+            for name, prompt in (
+                ("01-a", check_narration_voice.TEMPLATED_PROMPT),
+                ("02-b", check_narration_voice.TEMPLATED_PROMPT),
+            ):
+                artifacts = series / name / "artifacts"
+                artifacts.mkdir(parents=True)
+                (artifacts / "narration.txt").write_text(prompt, encoding="utf-8")
+            with contextlib.redirect_stdout(io.StringIO()) as printed:
+                exit_code = check_narration_voice.main(["--series", str(series)])
+            self.assertEqual(exit_code, 0)
+            out = printed.getvalue()
+            self.assertIn("WARNING 01-a:", out)
+            self.assertIn("WARNING series:", out)
+            self.assertIn("2 script(s) checked", out)
+
     def test_missing_transcript_section_is_reported(self) -> None:
         self.assertEqual(
             check_narration_voice.voice_problems("Audio profile:\nVoice.\n"),

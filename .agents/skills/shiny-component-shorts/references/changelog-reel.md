@@ -26,6 +26,32 @@ Write a fresh script for each expanded explanation. Cutting an existing
 22-second overview into smaller files or lengthening its holds does not add
 detail. Keep each point understandable on its own and link its sources.
 
+### Vary the series
+
+Viewers watch these videos back to back, so a shape that is fine once reads as
+a template by the third video. Before narration, lay the series' scripts side
+by side and check:
+
+- No two videos open the same way. Rotate the opening move: the problem in the
+  running app, the surprising result first, the decisive code first, or what
+  you expected to happen and did not.
+- No two videos end the same way. A closing caveat is one option, not the
+  default; others are the result on screen, the code that caused it, or one
+  plain fact about when it applies.
+- No transition phrase repeats across videos. "Here's why", "Here's the app",
+  "One thing to know", and "One condition" each appear in at most one script of
+  the series, and the series as a whole leans on none of them.
+- Chapter labels name the specific thing on screen ("All three ready after one
+  second"), not a slot in the template. "The result" or "Why it works" in every
+  video is a template showing through. Titles vary in form too; a series where
+  every title is a tidy claim sentence looks generated.
+- Pause tags follow the thought, not the paragraph. A `[pause 1s]` after every
+  paragraph is a metronome; let one stretch run long and cut another short.
+
+Run `scripts/check_narration_voice.py --series <series-dir>` after writing the
+scripts; it reports openers, closers, and phrases shared across the sibling
+`narration.txt` files, alongside each script's own warnings.
+
 Use `style: editorial` in the series configuration. Ground each
 claim in real app footage, a source excerpt or figure, captured output, or a
 measured result. Use a concise evidence-based diagram or timeline when it clarifies behavior that is hard to see directly; distinguish it from a real recording and derive its events from verified runs or authoritative sources. No generated decorative artwork, fake editor/browser
@@ -124,7 +150,7 @@ python .agents/skills/shiny-component-shorts/scripts/changelog_features.py \
 - An R development section often has no subsections. The script then lists every bullet that does not start with "Fixed". Keep only new, user-facing features from that list.
 - If the release has no features, say so and offer the latest release that has them. Never pad the reel with bug fixes.
 
-For a series, inventory every selected distinct capability and order the videos by usefulness; there is no six-point series cap. Read each point's pull request (from `references` in the JSON) before writing anything; the changelog line alone is not enough to explain behavior. For a combined overview explicitly requested by the user, choose at most six features and keep the pacing concise.
+For a series, inventory every selected distinct capability and order the videos by usefulness; there is no six-point series cap. A post's breaking changes and deprecations are user-facing too, and often the most useful video for someone about to upgrade: give them one combined video when the post has a section for them, and prove each one with a real run that fails on the previous release and passes after the documented edit (a test suite, a selector, a column name). Describe a change that cannot be shown this way, such as a telemetry span shape, in one plain sentence over its source, and skip a deprecation that has no visible effect. The "never pad with bug fixes" rule still applies to the fixes list. Read each point's pull request (from `references` in the JSON) before writing anything; the changelog line alone is not enough to explain behavior. For a combined overview explicitly requested by the user, choose at most six features and keep the pacing concise.
 
 ## Optional combined overview
 
@@ -133,6 +159,19 @@ overview or compilation. Omit `--separate` to retain the combined editorial
 renderer. Overview segments can be brief, but do not shorten the standalone
 series to fit that optional overview. Existing combined exports are preserved
 when rendering the separate series.
+
+An overview is one connected explanation, not the changelog read aloud. Open
+on the change that matters most to someone with an existing app, said the way a
+developer would say why it happened ("Most of 1.9 is about what happens while
+an app is waiting on something"). Group the points that share that idea as its
+consequences, in the order a person would discover them, with a connecting
+clause rather than "And" between them. When the remaining points share nothing
+with it, say so plainly ("Two things in this release aren't about waiting at
+all") instead of inventing a theme that covers everything; a forced through-line
+reads as generated as a list does. One sentence per feature, each carrying a
+number, is a list; the ear hears it as release notes. Title the overview by its
+subject and release ("Shiny 1.9", "Concurrent async in Shiny 1.9"), never by
+its length or a count ("in 40 seconds", "4 things").
 
 ## Legacy reels
 

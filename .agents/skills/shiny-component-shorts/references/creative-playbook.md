@@ -190,6 +190,12 @@ The `simple-english` rewrite makes a script clear, not human. Run a second pass 
 - Allow at most one first-person reaction per script (“I missed this for months”).
 - Vary the rhythm: no three consecutive sentences within four words of each other, at least one fragment and one sentence of twelve words or more, and no three consecutive sentences that start with the same word.
 - Ban the shapes, not only the words: parallel cadences (“Real units in, honest progress out”), tidy closing aphorisms, three-item lists, and “not just X, but Y”.
+- Use the plain contrast “X, not Y” at most once per script; a second one is a pattern, so state that result directly. Skip “comes for free”, “One thing to know”, and an opener of the form “<Product> now <does something>”, which is release-note voice.
+- Speak actions in the first person or as “when you …”, not as bare imperatives, and where the behavior is surprising let the narrator say once what they expected against what happened. Do not force a surprise onto a plain addition.
+- Do not end on a tacked-on afterthought (“And one more thing”, “Also, …”, “There's a limit.”) in more than one video of a series; fold the fact into the body or end on the result.
+- A list of literal API values or column types (“form, search, complementary, and region”) is a fact, not a cadence; the checker's three-item-list warning does not apply to it.
+- Vary pause tags with the thought; the same `[pause 1s]` after every paragraph is a metronome.
+- For a series, also run `check_narration_voice.py --series <dir>` so the scripts do not share openers, closers, or transitions. See [changelog-reel.md](changelog-reel.md#vary-the-series).
 - Read the transcript aloud once before you save it. Rewrite anything you stumble on; a script that is hard to say gets rewritten, not performed around.
 
 `scripts/check_narration_voice.py` reports the style heuristics above as advice. Review its warnings before generating audio, but do not add filler or force fragments to satisfy them. Empty text and non-speech cues remain errors.
