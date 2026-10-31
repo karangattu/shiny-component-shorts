@@ -38,9 +38,14 @@ jobs:
           GH_REPO: ${{ github.repository }}
           TAG: ${{ github.ref_name }}
         run: |
+          # Bootstrap pins GitHub's "latest" release, so only the highest version
+          # may claim it, even when an older tag finishes publishing later.
+          highest=$(gh api "repos/$GH_REPO/tags" --paginate -q '.[].name' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1)
+          latest=false
+          if [ "$TAG" = "$highest" ]; then latest=true; fi
           notes=".github/release-notes/$TAG.md"
           if [ -f "$notes" ]; then
-            gh release create "$TAG" dist/* --verify-tag --title "$TAG" --notes-file "$notes"
+            gh release create "$TAG" dist/* --verify-tag --title "$TAG" --latest="$latest" --notes-file "$notes"
           else
-            gh release create "$TAG" dist/* --verify-tag --title "$TAG" --generate-notes
+            gh release create "$TAG" dist/* --verify-tag --title "$TAG" --latest="$latest" --generate-notes
           fi

@@ -459,6 +459,12 @@ class BatchProcessTest(unittest.TestCase):
 
 
 class TakeResilienceTest(unittest.TestCase):
+    def setUp(self) -> None:
+        # Exercise the sequential CLI path, whether or not a voice API is running here.
+        patcher = patch.object(batch_process, "resolve_api_url", return_value=None)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
     def make_local_project(self, root: Path) -> Path:
         project = make_project(root)
         engine = root / "local-voice-cloning"
@@ -570,6 +576,47 @@ class TakeResilienceTest(unittest.TestCase):
             self.assertEqual(result["tts"], "FAILED")
             self.assertTrue(any("usable take" in error for error in result["errors"]))
             self.assertEqual(calls, [1, 1, 1, 2, 2, 2])
+
+    @patch.object(batch_process.align_narration, "rank_takes")
+    @patch.object(batch_process.merge_audio, "measure_loudness")
+    @patch("subprocess.run")
+    def test_takes_run_concurrently_when_the_api_is_up(
+        self, mock_run, mock_loudness, mock_rank
+    ) -> None:
+        import threading
+        import time as clock
+
+        mock_loudness.return_value = {"input_i": -20.0, "input_tp": -2.0}
+        mock_rank.return_value = {"recommended": "take-1.wav", "takes": []}
+        calls: list[int] = []
+        active, peak, lock = [0], [0], threading.Lock()
+        synthesize = self.synthesis_mock(set(), calls)
+
+        def run(command, **kwargs):
+            if "generate_local_voice.py" not in " ".join(command):
+                return synthesize(command, **kwargs)
+            with lock:
+                active[0] += 1
+                peak[0] = max(peak[0], active[0])
+            clock.sleep(0.2)
+            with lock:
+                active[0] -= 1
+            return synthesize(command, **kwargs)
+
+        mock_run.side_effect = run
+        with tempfile.TemporaryDirectory() as temp_dir, \
+                patch.object(batch_process, "resolve_api_url", return_value="http://127.0.0.1:8001"), \
+                patch.object(batch_process, "ensure_local_voice_warm"):
+            project = self.make_local_project(Path(temp_dir))
+            result = batch_process.generate_takes(project, 3, force=True)
+
+        self.assertEqual(result["tts"], "SUCCESS", result["errors"])
+        self.assertEqual(sorted(calls), [1, 2, 3])
+        self.assertEqual(peak[0], 3)
+        self.assertEqual(
+            [entry["take"] for entry in result["takes"]["attempts"]],
+            ["take-1.wav", "take-2.wav", "take-3.wav"],
+        )
 
 
 if __name__ == "__main__":

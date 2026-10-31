@@ -600,14 +600,24 @@ def generate_takes(project_dir: Path, count: int, force: bool) -> dict:
                     })
             return None
 
-        raws: list[Path] = []
+        needed = []
         for number in range(1, count + 1):
             raw = takes_dir / f"take-{number}.wav"
             if force or stale or not raw.is_file() or raw.stat().st_size == 0:
-                raw = synthesize(number)
+                needed.append(number)
             else:
                 attempts.append({"take": raw.name, "attempt": 0, "status": "cached"})
-            if raw is not None:
+        # A running API merges concurrent requests into one batched pass; the
+        # CLI loads a model per call, so it stays sequential.
+        api_url = resolve_api_url(str(settings["api_url"]) if "api_url" in settings else None)
+        workers = len(needed) if api_url is not None else 1
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, workers)) as executor:
+            made = dict(zip(needed, executor.map(synthesize, needed)))
+        attempts.sort(key=lambda entry: (entry["take"], entry["attempt"]))
+        raws: list[Path] = []
+        for number in range(1, count + 1):
+            raw = made.get(number, takes_dir / f"take-{number}.wav")
+            if raw is not None and (number in made or raw.is_file()):
                 raws.append(raw)
         if len(raws) < 2:
             details = "; ".join(
