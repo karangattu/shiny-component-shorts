@@ -95,6 +95,28 @@ The builder creates both PNGs and inspectable HTML under `artifacts/editorial-so
 
 Inspect the stills at phone size before narration or final encoding. Break crowded shots into shorter excerpts; compose the two orientations separately. Preserve clean captures and edited outputs separately.
 
+### Fill the frame for phone viewing
+
+The defaults leave room to spare, and most first renders come out as small text in an empty frame. Check every shot at phone size before narration:
+
+- Capture each app at a viewport shaped like its frame (about 680×900 CSS px for portrait and 1200×650 for landscape, at device scale 2), so the UI fills the width. Do not crop a desktop capture into a portrait frame.
+- Fill the frame within about 5% margins. Raise the per-view `font_size` for code and output, to about 30–34 in portrait and 36–40 in landscape, as far as the builder accepts without overflow. Portrait code below about 28 px is unreadable on a phone. One readable wrap of a long line beats shrinking it; if the line still does not fit, show one function per shot.
+- In landscape, put the app and its evidence side by side with `views.horizontal.panels` rather than stacking them.
+- Trim literal output to the meaningful lines, mark omissions with `…`, and record the trim in the production notes. A wall of wrapped warning text is not evidence anyone can read.
+- Size authored inline-code panels to the frame instead of leaving one short paragraph in a corner.
+
+### Combine video shots with built stills
+
+`prepare_editorial.py` builds still panels only. For recorded footage, hand-author the video views (`file`, `fit`, `in`) in `editorial.yaml`, copy the still shots the builder generated into the same file, and keep that assembly script in the production directory so the shot list can be rebuilt. The builder will not replace a hand-authored `editorial.yaml`: move it aside, rebuild the stills, then reassemble.
+
+### Record comparisons you can trust
+
+- When recording several browser sessions at once, launch Chromium with `--disable-background-timer-throttling`, `--disable-renderer-backgrounding`, and `--disable-backgrounding-occluded-windows`. Without these flags a background page can skip its final repaint, so the video shows a spinner that already finished. Check the final frame of every session.
+- Other agents and renders running on the same machine shift measured timings. Re-record until the visible readout matches the measured result. Never change narrated numbers to fit a noisy run.
+- Land each visible action on the words that describe it. Move a clip's `in` point so the click happens on its phrase, instead of holding idle footage while the narration runs ahead.
+- Label each code panel with the file its lines actually come from, such as `test_app_before.py`, even when the narration calls it "my test suite".
+- Before presenting a local run as evidence that a release changed something, run the same check on the previous release. If both releases behave the same, the run does not show the change. Present the claim as a release-note statement and record in the production notes why it was not reproduced.
+
 ## Select narration before cutting
 
 Use the saved local voice workflow in [tts-and-costs.md](tts-and-costs.md). Apply the simple-English meaning pass and speech-texture pass. Run `check_narration_voice.py`. Keep natural speed and planned pauses; no time stretching or removal of speech pauses to hit a duration.
@@ -107,6 +129,12 @@ Generate and rank three takes with `batch_process.py --phase takes --dirs <featu
 ```
 
 Choose the actual best take, not always take 1. Review every transcript difference, especially API names, numbers, and limits. A recognizer can mishear a proper name or invent a word near a pause. If uncertain, independently transcribe that short span with another available local recognizer or audition it. Regenerate when a content error is confirmed; do not repeatedly synthesize identical cached takes to repair a decoder/library failure. Preserve the original and selected audio. When listening is unavailable, report that limitation; transcript checks do not establish naturalness.
+
+Common transcript-check patterns:
+
+- If the pace gate rejects every take, add pause tags between thoughts before cutting words.
+- Recognizers often drop "point" from version numbers (hearing "1.8" for "one point eight"). This is a normalization artifact, not a mispronunciation; confirm it with a second recognizer.
+- If two recognizers garble the same term in every take, the voice cannot say it. Reword that sentence with the same meaning (for example, "nullable Float64" became "Float64 … with missing values"), rerun the series voice check, and regenerate.
 
 ## Render, validate, and deliver
 

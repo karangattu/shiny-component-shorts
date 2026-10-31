@@ -479,3 +479,14 @@ def test_source_manifest_rejects_unrendered_code_edits(segment):
     source.write_text('print(43)\n')
     with pytest.raises(ValueError,match='source.*changed|stale'):
         reel.editorial_plan(segment,'vertical')
+
+
+def test_normalize_sets_an_explicit_output_frame_rate(tmp_path, monkeypatch):
+    # With only fps= and -t, ffmpeg 8.1 drops a piece's final frame (29.99 fps).
+    calls = []
+    monkeypatch.setattr(reel, 'probe_duration', lambda path: 78.4)
+    monkeypatch.setattr(reel, 'has_audio', lambda path: True)
+    monkeypatch.setattr(reel.subprocess, 'run', lambda command, **kwargs: calls.append(command))
+    reel._normalize(tmp_path / 'in.mp4', tmp_path / 'out.mp4', 'vertical')
+    command = calls[0]
+    assert command[command.index('-r') + 1] == str(reel.FPS)

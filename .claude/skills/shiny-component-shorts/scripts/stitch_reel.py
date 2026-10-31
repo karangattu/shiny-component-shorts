@@ -763,7 +763,10 @@ def _normalize(source: Path, output: Path, orientation: str, lead: float = 0.0) 
             "ffmpeg", "-y", "-loglevel", "error", "-i", str(source),
             "-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo",
             "-filter_complex", f"{video};{audio}", "-map", "[v]", "-map", "[a]",
-            "-t", f"{duration:.3f}", "-c:v", "libx264", "-crf", "16", "-preset", "medium",
+            # An explicit output rate keeps the final frame; with only fps= and -t,
+            # ffmpeg 8.1 drops it and the piece averages 29.99 fps.
+            "-t", f"{duration:.3f}", "-r", str(FPS),
+            "-c:v", "libx264", "-crf", "16", "-preset", "medium",
             "-c:a", "aac", "-b:a", "192k", str(output),
         ],
         check=True,
