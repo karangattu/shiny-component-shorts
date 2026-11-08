@@ -67,6 +67,14 @@ For changelogs and blog posts, the pipeline creates an editorial video for each 
 
 Widget showcases use the same editorial pipeline. Each video shows the working widget, its installation command, the relevant imports and rendering function, and recorded interaction with a visible result. Use still images for setup and code. Record cursor movement, hover, clicks, and the widget's response as real browser footage. Plotly, Altair, Bokeh, ipyleaflet, and other compatible widgets use their own dependencies and renderer. See the [widget workflow](.agents/skills/shiny-component-shorts/references/widget-showcases.md) and [starter](.agents/skills/shiny-component-shorts/assets/widget-starter/).
 
+To make a video with [py-shinywidgets](https://github.com/posit-dev/py-shinywidgets), ask:
+
+```text
+/shiny-component-shorts Make a 75-second narrated Plotly showcase with shinywidgets.
+Show installation, imports, and a small Shiny Express app.
+Record real hover and legend clicks. Export portrait and landscape videos.
+```
+
 ## Narration
 
 - Local voice: uses the cloned voice `karan` by default. See the [TTS reference](.agents/skills/shiny-component-shorts/references/tts-and-costs.md#use-local-voice-cloning) for setup.
