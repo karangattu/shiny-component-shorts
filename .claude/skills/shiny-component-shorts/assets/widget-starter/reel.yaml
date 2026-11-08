@@ -1,0 +1,6 @@
+style: editorial
+orientation: vertical
+title: Plotly in Shiny
+features:
+  - title: Plotly in Shiny
+    dir: .

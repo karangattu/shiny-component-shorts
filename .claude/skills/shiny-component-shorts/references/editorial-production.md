@@ -91,6 +91,8 @@ Before rendering, review all authored panel `label` and shot `source` fields and
 
 Common panels reflow independently in the two orientations. For different captures or excerpts, set `views.vertical.panels` and `views.horizontal.panels` explicitly. Keep excerpts short. The builder refuses vertical overflow and horizontal scrolling rather than shrinking code until it fits. The optional per-view `font_size` is in logical pixels (default 26 portrait, 32 landscape); do not lower it to rescue an overloaded shot.
 
+Panels stack by default. Set `views.horizontal.layout: columns` to place code beside an app capture in landscape. The columns share the available width equally. Keep excerpts short enough for each column; the same overflow checks apply. Portrait keeps its stacked layout unless its own view requests columns.
+
 The builder creates both PNGs and inspectable HTML under `artifacts/editorial-sources/`, computes highlight rectangles, records hashes of the original evidence, and writes `editorial.yaml`. It replaces only its own generated configuration. Edit `source-shots.yaml`, not generated screenshots or configuration. If you already authored `editorial.yaml` by hand, keep that workflow; the builder is optional. Videos still use hand-authored views with `file`, `fit`, and an optional original-speed `in` point as described in [changelog-reel.md](changelog-reel.md).
 
 Inspect the stills at phone size before narration or final encoding. Break crowded shots into shorter excerpts; compose the two orientations separately. Preserve clean captures and edited outputs separately.
@@ -101,7 +103,7 @@ The defaults leave room to spare, and most first renders come out as small text 
 
 - Capture each app at a viewport shaped like its frame (about 680×900 CSS px for portrait and 1200×650 for landscape, at device scale 2), so the UI fills the width. Do not crop a desktop capture into a portrait frame.
 - Fill the frame within about 5% margins. Raise the per-view `font_size` for code and output, to about 30–34 in portrait and 36–40 in landscape, as far as the builder accepts without overflow. Portrait code below about 28 px is unreadable on a phone. One readable wrap of a long line beats shrinking it; if the line still does not fit, show one function per shot.
-- In landscape, put the app and its evidence side by side with `views.horizontal.panels` rather than stacking them.
+- In landscape, put the app and its evidence side by side with `views.horizontal.layout: columns` and `views.horizontal.panels`.
 - Trim literal output to the meaningful lines, mark omissions with `…`, and record the trim in the production notes. A wall of wrapped warning text is not evidence anyone can read.
 - Size authored inline-code panels to the frame instead of leaving one short paragraph in a corner.
 

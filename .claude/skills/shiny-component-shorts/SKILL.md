@@ -1,6 +1,6 @@
 ---
 name: shiny-component-shorts
-description: Create Shiny Python/R, shinychat, and shinyreact demos and narrated videos from components, apps, PRs, commits, changelogs, or blogs. Use for recordings, detailed feature video series, and release reels.
+description: Create Shiny Python/R, shinywidgets, shinychat, and shinyreact demos and narrated videos from widgets, components, apps, PRs, commits, changelogs, or blogs. Use for recordings, 60–90 second widget showcases, detailed feature video series, and release reels.
 ---
 
 # Shiny Component Shorts (Claude Code)
@@ -79,7 +79,7 @@ Every turn re-reads the whole session, so a long one keeps paying for its own hi
 - Read a file once. When you need it again, re-read the range you need instead of the whole script.
 
 ## Choose the workflow
-Create only what the user requested.
+Create only what the user requested. For `shinywidgets`, `py-shinywidgets`, or supported Jupyter widget showcases, read [references/widget-showcases.md](references/widget-showcases.md) and use the [widget starter](assets/widget-starter/). Default to one 60–90 second editorial video per widget with installation, imports, rendering code, and recorded interaction. Reuse editorial framing and tools instead of the 45-second component quotas.
 
 ### Idea only
 Return:

@@ -1,0 +1,9 @@
+# Append this shot to editorial.yaml after preparing the stills.
+# Capture the real input change, hover, and clicks in one continuous clip.
+# Match their times to the same spoken phrases in each orientation.
+shots:
+  - cue: Changing the input updates the chart
+    chapter: Use the widget
+    views:
+      vertical: {file: sources/interaction-vertical.mp4, fit: contain, in: 0}
+      horizontal: {file: sources/interaction-horizontal.mp4, fit: contain, in: 0}

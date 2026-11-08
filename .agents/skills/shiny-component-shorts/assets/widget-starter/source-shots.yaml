@@ -1,0 +1,31 @@
+# Replace cues, source ranges, and captures with the tested widget example.
+# Aim for 60–90 seconds through narration and useful reading holds.
+# After building these stills, append the video shot in interaction-shot.yaml.
+shots:
+  - cue: This chart responds to a Shiny input
+    chapter: Plotly in Shiny
+    views:
+      vertical:
+        panels:
+          - {kind: image, file: sources/app-vertical.png}
+      horizontal:
+        panels:
+          - {kind: image, file: sources/app-horizontal.png}
+  - cue: I install Shiny and the widget packages
+    chapter: Install the integration
+    panels:
+      - {kind: code, file: setup.sh, language: bash}
+  - cue: These imports connect the two libraries
+    panels:
+      - {kind: code, file: app.py, lines: [1, 3], label: app.py}
+  - cue: The render function reads the selected value
+    chapter: Render the chart
+    views:
+      vertical:
+        panels:
+          - {kind: code, file: app.py, lines: [5, 11], label: app.py}
+      horizontal:
+        layout: columns
+        panels:
+          - {kind: code, file: app.py, lines: [5, 11], label: app.py}
+          - {kind: image, file: sources/app-horizontal-code.png}

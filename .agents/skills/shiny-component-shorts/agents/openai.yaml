@@ -1,4 +1,4 @@
 interface:
   display_name: "Shiny Component Shorts"
-  short_description: "Create Shiny demos and editorial release videos"
+  short_description: "Create Shiny demos, widget showcases, and editorial videos"
   default_prompt: "Use $shiny-component-shorts to explain a Shiny feature with real evidence, readable source, natural narration, and portrait and landscape videos."

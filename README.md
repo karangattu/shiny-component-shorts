@@ -1,6 +1,6 @@
 # Shiny Component Shorts
 
-Make short videos about [Shiny](https://shiny.posit.co) features. Component shorts focus on a single behavior. Release and blog videos explain one feature in detail, usually in 60 to 120 seconds.
+Make short videos about [Shiny](https://shiny.posit.co) features. Component shorts focus on a single behavior. Widget showcases explain one shinywidgets integration in 60 to 90 seconds. Release and blog videos explain one feature in detail, usually in 60 to 120 seconds.
 
 This repo is an agent skill for Claude Code, Codex, Google Antigravity, and OpenCode. Describe the video you want, and the agent builds a small Shiny app, records the browser, adds narration, and validates the output.
 
@@ -53,16 +53,19 @@ In OpenCode, start with `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1 opencode` to prev
 | Ideas only | `Give me 5 video ideas for Shiny's data grid.` |
 | A runnable app | `Create a runnable mini-app for toolbar-select in Python.` |
 | A finished video | `Make a narrated video about bslib value boxes in R.` |
+| A widget showcase | `Make a 75-second narrated Plotly showcase with shinywidgets. Show installation, imports, a reactive chart, and hover interaction.` |
 | An existing app | `Make a video about the best behavior in ~/apps/sales-dashboard.` The agent does not modify your app. |
 | A pull request or commit | `Make a video about https://github.com/posit-dev/py-shiny/pull/2051` |
 | A changelog reel | `Make a changelog reel of the unreleased features in https://github.com/posit-dev/py-shiny/blob/main/CHANGELOG.md` |
 | A series | `Make 3 videos about Shiny's data grid.` The limit is 5 per component. |
 
-The skill supports Shiny for Python, R Shiny, [shinychat](https://github.com/posit-dev/shinychat), and [shinyreact](https://github.com/posit-dev/shinyreact). Chat demos use simulated responses and do not call external LLM APIs.
+The skill supports Shiny for Python, R Shiny, [shinywidgets](https://github.com/posit-dev/py-shinywidgets), [shinychat](https://github.com/posit-dev/shinychat), and [shinyreact](https://github.com/posit-dev/shinyreact). Chat demos use simulated responses and do not call external LLM APIs.
 
 For pull requests and commits in `rstudio/shiny`, `posit-dev/py-shiny`, `posit-dev/shinychat`, or `posit-dev/shinyreact`, the agent checks out that build and demonstrates one visible change.
 
 For changelogs and blog posts, the pipeline creates an editorial video for each feature. Set `style: editorial` in `reel.yaml` and run `stitch_reel.py --reel-dir <directory> --separate`. Outputs include vertical and horizontal videos, thumbnails, chapter markers, and review sheets in `artifacts/series/`.
+
+Widget showcases use the same editorial pipeline. Each video shows the working widget, its installation command, the relevant imports and rendering function, and recorded interaction with a visible result. Use still images for setup and code. Record cursor movement, hover, clicks, and the widget's response as real browser footage. Plotly, Altair, Bokeh, ipyleaflet, and other compatible widgets use their own dependencies and renderer. See the [widget workflow](.agents/skills/shiny-component-shorts/references/widget-showcases.md) and [starter](.agents/skills/shiny-component-shorts/assets/widget-starter/).
 
 ## Narration
 

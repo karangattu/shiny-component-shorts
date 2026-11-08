@@ -155,6 +155,11 @@ main{{width:100%}}section+section{{margin-top:28px}}.filename{{font-size:20px;co
 .text,.prose{{white-space:pre-wrap;overflow-wrap:anywhere}}img{{display:block;max-width:100%;max-height:{height*.65}px;margin:auto;object-fit:contain}}
 """
                     )
+                    if view.get("layout") == "columns":
+                        css += (
+                            f"main{{display:grid;grid-template-columns:repeat({len(panels)},minmax(0,1fr));gap:40px;align-items:center}}"
+                            "section+section{margin-top:0}"
+                        )
                     page = browser.new_page(
                         viewport={"width": width, "height": height}, device_scale_factor=2
                     )

@@ -5,6 +5,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from PIL import Image
 from playwright.sync_api import sync_playwright
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -12,6 +13,46 @@ sys.path.insert(0, str(ROOT / ".agents/skills/shiny-component-shorts/scripts"))
 
 
 class EditorialAssetsTest(unittest.TestCase):
+    def test_horizontal_columns_put_code_beside_the_app_without_changing_portrait(self):
+        import prepare_editorial
+
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp)
+            (project / "app.py").write_text("answer = 42\nprint(answer)\n")
+            Image.new("RGB", (400, 200), "white").save(project / "app.png")
+            (project / "source-shots.yaml").write_text(
+                """shots:
+- cue: The input updates the chart
+  panels:
+  - {kind: code, file: app.py}
+  - {kind: image, file: app.png}
+  views:
+    horizontal:
+      layout: columns
+"""
+            )
+            result = prepare_editorial.prepare(project)
+            with sync_playwright() as p:
+                browser = p.chromium.launch()
+                try:
+                    for orientation in ("vertical", "horizontal"):
+                        view = result["shots"][0]["views"][orientation]
+                        page = browser.new_page()
+                        try:
+                            page.goto((project / view["file"]).with_suffix(".html").as_uri())
+                            code = page.locator("section").nth(0).bounding_box()
+                            app = page.locator("section").nth(1).bounding_box()
+                            assert code and app
+                            if orientation == "horizontal":
+                                self.assertLessEqual(code["x"] + code["width"], app["x"])
+                                self.assertLess(app["y"], code["y"] + code["height"])
+                            else:
+                                self.assertLessEqual(code["y"] + code["height"], app["y"])
+                        finally:
+                            page.close()
+                finally:
+                    browser.close()
+
     def test_exact_code_and_provenance_in_both_orientations(self):
         import prepare_editorial
 
