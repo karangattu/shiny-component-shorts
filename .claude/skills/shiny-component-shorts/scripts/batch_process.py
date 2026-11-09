@@ -328,7 +328,9 @@ def merge_inputs(project_dir: Path) -> list[Path]:
         artifacts / "demo.mp4",
         artifacts / "narration.wav",
         SCRIPTS_DIR / "merge_audio.py",
+        SCRIPTS_DIR / "end_card.py",
         SCRIPTS_DIR / "align_narration.py",
+        *([project_dir / "actions.yaml"] if (project_dir / "actions.yaml").is_file() else []),
         *([settings_path] if settings_path.is_file() else []),
         *([bed] if bed is not None else []),
     ]

@@ -18,6 +18,8 @@ import code_style
 import context_cards
 
 SIZES = {"vertical": (720, 1280), "horizontal": (1280, 720)}
+CONTINUATION_INDENT = 4  # extra characters before the wrapped part of a code line
+HIGHLIGHT_PADDING = (6, 3)  # logical pixels between the glyphs and the outline
 LANGUAGES = {
     ".py": "python",
     ".r": "r",
@@ -84,8 +86,12 @@ def panel_html(project: Path, panel: dict, sources: dict) -> str:
     rows = []
     for number in range(first, last + 1):
         marked = ' data-highlight="true"' if number == highlight else ""
+        text = lines[number - 1].expandtabs(4)
+        # A wrapped code line continues past its own indentation, so it still reads as one line.
+        hang = len(text) - len(text.lstrip(" ")) + CONTINUATION_INDENT if kind == "code" else 0
+        style = f' style="padding-left:{hang}ch;text-indent:-{hang}ch"' if hang else ""
         rows.append(
-            f'<div class="line"{marked}><span class="number">{number}</span><span class="text">{html.escape(lines[number-1])}</span></div>'
+            f'<div class="line"{marked}><span class="number">{number}</span><span class="text"{style}>{html.escape(text)}</span></div>'
         )
     return (
         head
@@ -210,8 +216,17 @@ main{{width:100%}}section+section{{margin-top:28px}}.filename{{font-size:20px;co
                             "fit": "contain",
                         }
                         if marked.count():
-                            rect = marked.bounding_box()
-                            assert rect
+                            # Outline the characters, including a wrapped part, not the empty row.
+                            rect = marked.evaluate(
+                                """(node, [padX, padY]) => {
+ const range = document.createRange(); range.selectNodeContents(node);
+ const r = range.getBoundingClientRect();
+ const x = Math.max(0, r.left - padX), y = Math.max(0, r.top - padY);
+ return {x, y, width: Math.min(innerWidth, r.right + padX) - x,
+         height: Math.min(innerHeight, r.bottom + padY) - y};
+}""",
+                                list(HIGHLIGHT_PADDING),
+                            )
                             frame["highlight"] = [
                                 rect["x"] / width,
                                 rect["y"] / height,

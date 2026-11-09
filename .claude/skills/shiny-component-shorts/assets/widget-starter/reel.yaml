@@ -4,3 +4,8 @@ title: Plotly in Shiny
 features:
   - title: Plotly in Shiny
     dir: .
+# The end card. Name a version in the title only after the release has shipped.
+outro:
+  title: Try it yourself
+  command: pip install shiny shinywidgets plotly
+  link: shiny.posit.co

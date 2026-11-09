@@ -22,7 +22,11 @@ import stitch_reel as reel
 
 
 @pytest.fixture
-def segment(tmp_path):
+def segment(tmp_path, monkeypatch):
+    # These tests measure the narrated timeline; tests/test_end_card.py covers the closing card.
+    monkeypatch.setattr(reel.end_card, "resolve", lambda *args, **kwargs: None)
+    # Cut exactly on the phrase here; test_cut_leads_its_phrase covers the default lead.
+    monkeypatch.setattr(reel, "CUT_LEAD_SECONDS", 0.0)
     artifacts = tmp_path / "artifacts"
     artifacts.mkdir()
     audio = artifacts / "narration.wav"

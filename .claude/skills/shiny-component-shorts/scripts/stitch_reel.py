@@ -14,7 +14,7 @@ Reads `reel.yaml` in the reel directory:
     release: "1.8.0"              # or "Unreleased"
     eyebrow: From the Shiny blog  # optional; replaces the "New in 1.8.0" label
     orientation: vertical         # vertical (default) or horizontal
-    outro:                        # optional closing card
+    outro:                        # closing card; editorial reels add it by default
       title: Try it today
       command: pip install -U shiny
     features:
@@ -57,6 +57,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import bootstrap_skill  # noqa: E402
 import code_style
 import context_cards
+import end_card
 import align_narration  # noqa: E402
 from align_narration import NARRATION_OFFSET_SECONDS  # noqa: E402
 from merge_audio import merge, probe_duration  # noqa: E402
@@ -89,6 +90,12 @@ MIN_SCENE_SECONDS = 2.0
 MAX_CODE_LINES = 12
 MAX_CODE_COLUMNS = 64  # wider lines drop below a readable size in the vertical reel
 MAX_FEATURES = 6
+# Editorial cuts: the picture changes just before its phrase, the way an editor cuts.
+CUT_LEAD_SECONDS = 0.2
+MAX_CUT_LEAD_SECONDS = 0.5
+# Stills drift in a little and settle, so a long hold is never a frozen frame.
+PUSH_IN = 0.03
+PUSH_IN_SETTLE_SECONDS = 4.0
 MAX_SEGMENT_SECONDS = 30.0
 
 PAGE_CSS = """
@@ -961,10 +968,14 @@ def editorial_plan(segment: Path, orientation: str) -> dict:
             raise ValueError("Shot cues must be in strictly increasing order")
         if number == 1 and moment > 0.5:
             raise ValueError("The opening shot must match the opening narration")
+        lead = cue.get("lead", CUT_LEAD_SECONDS)
+        if (isinstance(lead, bool) or not isinstance(lead, (int, float))
+                or not 0 <= lead <= MAX_CUT_LEAD_SECONDS):
+            raise ValueError(f"Cue lead must be 0 to {MAX_CUT_LEAD_SECONDS:g} seconds")
         start = (
             0.0
             if number == 1
-            else math.ceil((moment + NARRATION_OFFSET_SECONDS) * FPS) / FPS
+            else math.ceil(max(0.0, moment + NARRATION_OFFSET_SECONDS - lead) * FPS) / FPS
         )
         if shots and start <= shots[-1]["start"]:
             raise ValueError(
@@ -1009,6 +1020,9 @@ def editorial_plan(segment: Path, orientation: str) -> dict:
                 raise ValueError("Video in point must be finite and non-negative")
             if still and media_in:
                 raise ValueError("Still images cannot have a video in point")
+            motion = view.get("motion", "push" if still else "none")
+            if motion not in ("push", "none") or (motion == "push" and not still):
+                raise ValueError("motion must be push or none, and only a still can push in")
             resolved[view_name] = {
                 "file": str(path),
                 "sha256": file_digest(path),
@@ -1017,6 +1031,7 @@ def editorial_plan(segment: Path, orientation: str) -> dict:
                 "in": media_in,
                 "crop": editorial_rect(view.get("crop"), "crop"),
                 "highlight": editorial_rect(view.get("highlight"), "highlight"),
+                "motion": motion,
                 "available": None if still else probe_duration(path) - media_in,
             }
         chapter = shot.get("chapter")
@@ -1173,18 +1188,31 @@ def render_editorial(
                     sizing = f"scale={width}:{height}:force_original_aspect_ratio=decrease,pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:color=0xF8F8F8"
                 else:
                     sizing = f"scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height}"
-                filters = [
-                    f"[0:v]setpts=PTS-STARTPTS,{crop}{sizing},setsar=1,fps={FPS}[media]",
-                    "[1:v]format=rgba,fade=t=in:st=0:d=0.12:alpha=1[labels]",
-                    "[media][labels]overlay=0:0:shortest=1[composed]",
-                ]
-                last = "composed"
+                filters = [f"[0:v]setpts=PTS-STARTPTS,{crop}{sizing},setsar=1,fps={FPS}[media]"]
+                last = "media"
+                focus = (0.5, 0.5)
                 if view["highlight"]:
                     x, y, w, h = view["highlight"]
+                    focus = (x + w / 2, y + h / 2)
                     filters.append(
                         f"[{last}]drawbox=x=iw*{x}:y=ih*{y}:w=iw*{w}:h=ih*{h}:color=0x007BC2:t={max(2, round(width / 360))}[marked]"
                     )
                     last = "marked"
+                if view["motion"] == "push":
+                    # Zoom on a 2x canvas so the drift moves by sub-pixels instead of stepping.
+                    filters.append(
+                        f"[{last}]scale={width * 2}:{height * 2}:flags=bicubic,"
+                        f"zoompan=z='1+{PUSH_IN}*(1-exp(-on/{PUSH_IN_SETTLE_SECONDS * FPS}))'"
+                        f":x='(iw-iw/zoom)*{focus[0]}':y='(ih-ih/zoom)*{focus[1]}'"
+                        f":d=1:s={width}x{height}:fps={FPS},setsar=1[moved]"
+                    )
+                    last = "moved"
+                # Labels stay still above the moving picture.
+                filters += [
+                    "[1:v]format=rgba,fade=t=in:st=0:d=0.12:alpha=1[labels]",
+                    f"[{last}][labels]overlay=0:0:shortest=1[composed]",
+                ]
+                last = "composed"
                 intro_remaining = min(duration, context_cards.INTRO_SECONDS - shot["start"])
                 next_input = 2
                 if intro_remaining > 0:
@@ -1275,6 +1303,43 @@ def render_editorial(
     return output, plan
 
 
+def highlight_warnings(plan: dict, orientation: str) -> list[str]:
+    """Report an outline whose edge runs through text instead of around it."""
+    frame_width, frame_height = SIZES[orientation]
+    warnings = []
+    for number, shot in enumerate(plan["shots"], start=1):
+        view = shot["views"][orientation]
+        if not view["highlight"] or not view["still"] or view["crop"]:
+            continue
+        source_width, source_height = video_size(Path(view["file"]))
+        if abs(source_width / source_height - frame_width / frame_height) > 0.01:
+            continue  # letterboxed stills do not share the frame's coordinates
+        width, height = 360, round(360 * frame_height / frame_width)
+        gray = subprocess.run(
+            ["ffmpeg", "-v", "error", "-i", view["file"], "-vf", f"scale={width}:{height},format=gray",
+             "-frames:v", "1", "-f", "rawvideo", "-"],
+            capture_output=True, check=True,
+        ).stdout
+        x, y, w, h = view["highlight"]
+        left, right = round(x * width), min(width - 1, round((x + w) * width))
+        top, bottom = round(y * height), min(height - 1, round((y + h) * height))
+        edges = [
+            [gray[row * width + column] for column in range(left, right + 1)] for row in (top, bottom)
+        ] + [
+            [gray[row * width + column] for row in range(top, bottom + 1)] for column in (left, right)
+        ]
+        for edge in edges:
+            background = sorted(edge)[len(edge) // 2]
+            ink = sum(abs(value - background) > 48 for value in edge)
+            if ink >= max(3, len(edge) * 0.04):
+                warnings.append(
+                    f"Shot {number} {orientation}: the highlight outline crosses content "
+                    f'("{shot["cue"]["phrase"]}"); adjust it to surround the whole line'
+                )
+                break
+    return warnings
+
+
 def embed_chapters(video: Path, chapters: list[dict], work: Path) -> None:
     """Mux accurate chapter metadata without changing encoded video or narration."""
     lines = [";FFMETADATA1"]
@@ -1314,6 +1379,7 @@ def build_editorial(reel_dir: Path, config: dict, orientation: str, *, output_di
     cache = artifacts / ".reel-cache"
     suffix = "" if orientation == config["orientation"] else f"-{orientation}"
     chapters, shots, pieces, segments, elapsed = [], [], [], [], 0.0
+    warnings: list[str] = []
     with tempfile.TemporaryDirectory(
         prefix="editorial-reel-"
     ) as temporary, sync_playwright() as playwright:
@@ -1338,6 +1404,7 @@ def build_editorial(reel_dir: Path, config: dict, orientation: str, *, output_di
                 duration = normalize(source, normalized, orientation, 0, cache)
                 pieces.append((normalized, duration, "cut"))
                 segments.append({"path": str(feature["path"]), "plan_key": cache_key(plan)})
+                warnings += highlight_warnings(plan, orientation)
                 marked = [(shot["start"], shot["chapter"]) for shot in plan["shots"] if shot["chapter"]]
                 if not marked or marked[0][0] != 0:
                     marked.insert(0, (0.0, feature["title"]))
@@ -1356,12 +1423,30 @@ def build_editorial(reel_dir: Path, config: dict, orientation: str, *, output_di
                     for shot in plan["shots"]
                 )
                 elapsed += duration
+            # One silent closing card after the last word: the next step for the viewer.
+            still = artifacts / f"end-card{suffix}.png"
+            card = end_card.resolve(
+                config.get("outro"),
+                release=config.get("release"),
+                language=end_card.language_of(*(feature["path"] for feature in config["features"])),
+            )
+            if card:
+                end_card.render(browser, card, orientation, still, SCALE)
+                width, height = SIZES[orientation]
+                previous = end_card.last_frame(pieces[-1][0], work / "before-end-card.png")
+                tail = end_card.clip(still, card["seconds"], work / "end-card.mp4",
+                                     (width * SCALE, height * SCALE), str(FPS), previous)
+                pieces.append((tail, card["seconds"], "cut"))
         finally:
             browser.close()
         output = artifacts / f"reel{suffix}.mp4"
         join(pieces, output)
         total = probe_duration(output)
         chapters[-1]["end"] = total
+        if card:
+            start = shots[-1]["end"]
+            shots.append({"label": "End card", "start": start, "end": total, "cue": None,
+                          "cue_time": start, "source": str(still)})
         embed_chapters(output, chapters, work)
         review_sheet(output, shots, artifacts / f"reel-review{suffix}.png", work)
         shutil.copyfile(
@@ -1377,7 +1462,8 @@ def build_editorial(reel_dir: Path, config: dict, orientation: str, *, output_di
         "chapters": chapters,
         "shots": shots,
         "segments": segments,
-        "warnings": [],
+        "end_card": card,
+        "warnings": warnings,
     }
     (artifacts / f"reel{suffix}.json").write_text(json.dumps(report, indent=2) + "\n")
     return report
@@ -1564,6 +1650,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.separate:
         for report in build_series(reel_dir, args.orientation):
             print(f"Wrote {report['reel']} ({report['duration_seconds']:.1f}s)")
+            for warning in report["warnings"]:
+                print(f"  warning: {warning}")
         return 0
     primary = load_reel(reel_dir)["orientation"]
     orientations = (

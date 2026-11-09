@@ -216,6 +216,13 @@ def main() -> int:
         require_nonempty(bed, "music bed")
     merge(video, audio, output, preserve_audio=args.preserve_audio, bed=bed,
           bed_lufs=args.bed_lufs)
+    # `outro:` in actions.yaml asks for the closing card; the clean recording stays untouched.
+    import end_card
+
+    card = end_card.for_project(project_dir)
+    if card:
+        end_card.append(output, card)
+        print(f"End card: {card['title']} ({card['seconds']:g}s)")
     return 0
 
 

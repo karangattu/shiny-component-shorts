@@ -79,6 +79,9 @@ SHORT_LIST_RE = re.compile(r"\b\w+,\s\w+,\s+and\s+\w+\b")
 SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
 
 FRAGMENT_MAX_WORDS = 5
+MIN_PAUSES_FOR_RHYTHM = 6
+MAX_PAUSE_SHARE = 0.5
+PAUSE_CLUSTER_SHARE = 0.8
 LONG_SENTENCE_MIN_WORDS = 12
 UNIFORM_LENGTH_DELTA = 4
 
@@ -190,6 +193,30 @@ def pause_tag_problems(transcript: str) -> list[str]:
     return []
 
 
+def pause_rhythm_problems(transcript: str) -> list[str]:
+    """Pauses after most sentences, or of two or three fixed lengths, sound generated."""
+    pauses = [tag.casefold() for tag in TAG_RE.findall(transcript) if "pause" in tag.casefold()]
+    sentences = sentences_of(TAG_RE.sub(" ", transcript))
+    if len(pauses) < MIN_PAUSES_FOR_RHYTHM or len(sentences) < 2:
+        return []
+    problems = []
+    gaps = len(sentences) - 1
+    if len(pauses) / gaps > MAX_PAUSE_SHARE:
+        problems.append(
+            f"A pause tag follows {len(pauses)} of {gaps} sentence breaks; keep the ones that "
+            "mark a reveal or a change of thought and let punctuation carry the rest"
+        )
+    counts = sorted(((pauses.count(tag), tag) for tag in set(pauses)), key=lambda item: (-item[0], item[1]))
+    common = counts[:2]
+    if sum(count for count, _ in common) / len(pauses) >= PAUSE_CLUSTER_SHARE:
+        problems.append(
+            f"{sum(count for count, _ in common)} of {len(pauses)} pauses are "
+            + " or ".join(tag for _, tag in common)
+            + "; vary the lengths with the thought, and let one stretch run with no tag at all"
+        )
+    return problems
+
+
 def sales_problems(spoken: str) -> list[str]:
     """Flag pitch language; the narrator explains, the way you'd tell a coworker."""
     problems = []
@@ -272,6 +299,7 @@ def voice_problems(prompt_text: str) -> list[str]:
     for tag in adjacent:
         problems.append(f"Tag {tag} repeats back to back; vary or drop it")
     problems.extend(pause_tag_problems(transcript))
+    problems.extend(pause_rhythm_problems(transcript))
     spoken = TAG_RE.sub(" ", transcript)
     problems.extend(phrase_problems(spoken))
     problems.extend(sentence_problems(sentences_of(spoken)))

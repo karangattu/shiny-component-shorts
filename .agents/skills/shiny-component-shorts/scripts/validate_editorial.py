@@ -70,7 +70,12 @@ def validate_report(report: dict) -> dict:
     for index, shot in enumerate(shots):
         if shot["end"] <= shot["start"] or (index and shots[index - 1]["end"] != shot["start"]):
             raise ValueError("Shot times overlap or leave a gap")
-        if index and not 0 <= shot["start"] - shot["cue_time"] <= 1 / reel.FPS + 0.001:
+        # A cut may lead its phrase by a few frames; it never trails it.
+        if index and not (
+            -reel.MAX_CUT_LEAD_SECONDS - 0.001
+            <= shot["start"] - shot["cue_time"]
+            <= 1 / reel.FPS + 0.001
+        ):
             raise ValueError("A shot is out of sync with its spoken phrase")
     chapters = report["chapters"]
     embedded = probe.get("chapters", [])
@@ -113,7 +118,7 @@ def validate_report(report: dict) -> dict:
         "frames": frames,
         "decode": "passed",
         "sources": "current",
-        "phrase_sync": "within one frame",
+        "phrase_sync": "each cut leads its phrase by at most half a second",
         "listening": "not assessed by this tool",
     }
 

@@ -4,3 +4,8 @@ title: Explain one feature
 features:
   - title: Explain one feature
     dir: .
+# The end card. Name a version in the title only after the release has shipped.
+outro:
+  title: Try it yourself
+  command: pip install shiny --upgrade
+  link: shiny.posit.co

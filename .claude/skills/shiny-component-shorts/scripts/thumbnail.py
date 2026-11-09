@@ -22,6 +22,9 @@ from pathlib import Path
 
 import yaml
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import end_card  # noqa: E402
+
 ASSETS = Path(__file__).resolve().parent.parent / "assets"
 LOGO_PATH = ASSETS / "shiny-logo.png"
 FONT_PATH = ASSETS / "fonts" / "OpenSans-Latin.woff2"
@@ -51,8 +54,9 @@ def probe_duration(path: Path) -> float:
     return float(out)
 
 
-def payoff_frame(video: Path, output: Path) -> None:
-    moment = max(0.0, probe_duration(video) - PAYOFF_OFFSET_SECONDS)
+def payoff_frame(video: Path, output: Path, tail: float = 0.0) -> None:
+    """`tail` is the closing end card's length, so the cover shows the app."""
+    moment = max(0.0, probe_duration(video) - tail - PAYOFF_OFFSET_SECONDS)
     subprocess.run(
         ["ffmpeg", "-y", "-loglevel", "error", "-ss", f"{moment:.2f}", "-i", str(video),
          "-frames:v", "1", str(output)],
@@ -128,10 +132,10 @@ def project_title(project_dir: Path) -> str | None:
     return title or None
 
 
-def thumbnail_for(video: Path, output: Path, title: str | None) -> Path:
+def thumbnail_for(video: Path, output: Path, title: str | None, tail: float = 0.0) -> Path:
     with tempfile.TemporaryDirectory(prefix="thumb-") as temp:
         frame = Path(temp) / "frame.png"
-        payoff_frame(video, frame)
+        payoff_frame(video, frame, tail)
         return render(frame, output, video_orientation(video), title)
 
 
@@ -139,18 +143,24 @@ def make_thumbnails(project_dir: Path, title: str | None = None) -> list[Path]:
     """Cover images for the primary video and, when present, its companion."""
     artifacts = project_dir / "artifacts"
     title = title or project_title(project_dir)
+    card = end_card.for_project(project_dir)
+
+    def tail(video: Path) -> float:
+        # Only the narrated video carries the end card.
+        return card["seconds"] if card and video.name.startswith("final_with_audio") else 0.0
+
     made = []
     primary = next(
         (artifacts / name for name in ("final_with_audio.mp4", "demo.mp4") if (artifacts / name).is_file()),
         None,
     )
     if primary is not None:
-        made.append(thumbnail_for(primary, artifacts / "thumbnail.jpg", title))
+        made.append(thumbnail_for(primary, artifacts / "thumbnail.jpg", title, tail(primary)))
     for orientation in SIZES:
         for name in (f"final_with_audio-{orientation}.mp4", f"demo-{orientation}.mp4"):
             companion = artifacts / name
             if companion.is_file():
-                made.append(thumbnail_for(companion, artifacts / f"thumbnail-{orientation}.jpg", title))
+                made.append(thumbnail_for(companion, artifacts / f"thumbnail-{orientation}.jpg", title, tail(companion)))
                 break
     return made
 
