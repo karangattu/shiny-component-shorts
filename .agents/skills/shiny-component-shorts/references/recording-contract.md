@@ -286,6 +286,7 @@ Cue the phrase that names the visible change, not the start of a long sentence. 
 - A narrated video needs at least three cued meaningful actions and a cued code card.
 - The first meaningful action must be visible before the first sentence ends. The pointer needs roughly a second from its resting place, so cue the first action to a word about 1.5–3 s into the narration rather than the first word.
 - No visible action may land after the narration ends; after the last sentence, only hold the payoff.
+- A narrated standalone video ends on the end card when `actions.yaml` has a top-level `outro`: `outro: true` for the defaults, or a mapping with `title`, `command`, `link`, and `seconds` (see [end card](editorial-production.md#end-card)). `merge_audio.py` appends the card to `final_with_audio.mp4` after the final hold. `demo.mp4` stays the clean recording, and the thumbnail still uses the app's payoff frame. Leave `outro` out of a segment recorded for a legacy combined reel; that reel has its own outro card.
 - While narration plays, never leave the screen without a visible reaction for more than 8 seconds.
 - Keep the video one to three seconds longer than the narration (the validator enforces 0.75–3.5 s after the narration's end, including its 0.15 s lead-in); place slack in the holds after reveals or the final wait — never at the start.
 

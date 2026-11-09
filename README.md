@@ -74,6 +74,11 @@ Set `context.label`, `context.title`, and `context.summary` in `source-shots.yam
 `stitch_reel.py` uses them as thumbnails and clears the opening title after three seconds without delaying the app or narration.
 Posters and editable HTML are saved under `artifacts/context/`.
 
+Every script ends on a short conclusion, and every narrated video ends on a silent end card with the next step.
+The card shows the Shiny wordmark, a title such as “Try Shiny 1.9 today”, the install command, and “Learn more at shiny.posit.co”.
+Set `outro.title`, `outro.command`, `outro.link`, and `outro.seconds` in `reel.yaml`, or in `actions.yaml` for a standalone component video.
+`outro: false` removes the card.
+
 To make a video with [py-shinywidgets](https://github.com/posit-dev/py-shinywidgets), ask:
 
 ```text

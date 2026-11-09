@@ -103,7 +103,7 @@ These are the same beats and times as the story table in `SKILL.md`; the times a
 
 - Use Shiny blue `#007BC2` as the default accent; introduce another Shiny semantic color only when it communicates state.
 - Use one caption style; do not add a display headline inside the app.
-- Prefer hard cuts in any later edit; do not add scale moves, punch-ins, or novelty transitions. Static source excerpts also use hard cuts.
+- Prefer hard cuts in any later edit; do not add scale moves, punch-ins, or novelty transitions. Static source excerpts also use hard cuts. The editorial renderer's own slow push-in on stills and its dissolve into the end card are the only exceptions; do not add others.
 - Keep captions and the code card from overlapping: show either a caption or the code card, never both.
 
 ## Natural narration

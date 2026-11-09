@@ -35,9 +35,10 @@ by side and check:
 - No two videos open the same way. Rotate the opening move: the problem in the
   running app, the surprising result first, the decisive code first, or what
   you expected to happen and did not.
-- No two videos end the same way. A closing caveat is one option, not the
-  default; others are the result on screen, the code that caused it, or one
-  plain fact about when it applies.
+- Every video ends on a conclusion, and no two conclusions take the same form.
+  Rotate what it says: when to use the feature, what you no longer need to do,
+  or what to check before you rely on it. A closing caveat alone is not a
+  conclusion; see "End on a conclusion" in the creative playbook.
 - No transition phrase repeats across videos. "Here's why", "Here's the app",
   "One thing to know", and "One condition" each appear in at most one script of
   the series, and the series as a whole leans on none of them.
@@ -60,8 +61,9 @@ motion. Prefer real recordings where an app interaction or changing state demons
 
 Open on useful content. The renderer adds a small title over the first shot
 and no wordmark by default. It uses hard
-cuts and brief annotation fades; no feature-card interstitials or mandatory
-intro/outro. Use one consistent overlay typeface and Shiny blue for emphasis.
+cuts and brief annotation fades, with no feature-card interstitials or intro
+card. Each video ends on a silent [end card](editorial-production.md#end-card)
+that shows the next step. Use one consistent overlay typeface and Shiny blue for emphasis.
 Compose media with about 5% safe margins. Reserve space only for the title, essential labels, or optional captions actually present. Let evidence fill the remaining frame. Framing is
 specific to each orientation; never shrink a complete landscape desktop into
 an unreadable portrait frame.
@@ -77,6 +79,10 @@ style: editorial
 orientation: vertical
 title: Shiny for Python feature walkthroughs
 release: "1.8.0"  # omit for a blog; identify the post in the production index
+outro:            # optional; the default end card comes from `release`
+  title: Try Shiny 1.8 today
+  command: pip install shiny --upgrade
+  link: shiny.posit.co
 features:
   - title: Test without a browser
     dir: 01-server-tests
@@ -104,15 +110,26 @@ Every shot needs an explicit `vertical` and `horizontal` view with `file` and
 `fit: contain|cover`. Reusing the same file is allowed only with deliberate
 framing. Optional `crop: [x, y, width, height]` uses normalized source
 coordinates before fitting; `highlight` uses normalized final-frame coordinates
-and draws one static outline. A video view can set `in` in seconds; playback
+and draws one outline. The outline must surround the whole line or region,
+including the wrapped part of a long code line; the renderer warns when an
+edge of it crosses content. A still pushes in about 3% toward its highlight
+(or its center) and settles, so a long hold is not a frozen frame; labels stay
+fixed. Set `motion: none` on a view to keep a still fixed, for example when
+viewers must compare two stills pixel for pixel. Recorded footage never
+zooms. A video view can set `in` in seconds; playback
 stays at original speed and its embedded audio is replaced by the narration.
 Provide enough footage for the whole shot, including the final hold.
 
 Cues quote actual spoken words; a repeated phrase uses
 `cue: {phrase: "the result", occurrence: 2}`. The first shot matches the
-opening words and begins at frame zero. Later cuts land on the first video
-frame at or after their phrase plus the shared 0.15-second narration offset.
-They must be strictly ordered, without overlapping frames. Each shot lasts
+opening words and begins at frame zero. Later cuts lead their phrase by 0.2
+seconds, the way an editor cuts: the picture changes, then the words arrive.
+The cut is the first video frame at or after the phrase time, plus the shared
+0.15-second narration offset, minus that lead. Set
+`cue: {phrase: "the result", lead: 0}` when a change must land exactly on its
+word; `lead` accepts 0 to 0.5 seconds. A clip's `in` point plays from the cut,
+so its action arrives that much before the phrase.
+Cuts must be strictly ordered, without overlapping frames. Each shot lasts
 until the next; the final shot lasts until one second after narration ends,
 rounded up to a frame. The renderer rejects absent media, stale timing,
 invalid framing, bad cues, and insufficient footage before encoding. Still

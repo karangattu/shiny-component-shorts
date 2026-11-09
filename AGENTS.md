@@ -16,7 +16,9 @@ This repo generates short Shiny component demo apps and 30-second video concepts
 - Do not add a Shiny wordmark to videos by default. Branding can be added in later editing; add a logo only on explicit request.
 - Use only the official Shiny preset palette, with accessible light- or dark-mode text colors.
 - Write every voiceover script with the `simple-english` skill for meaning-level clarity (one thought per sentence, active voice, one name per thing, no hedges or filler), keeping contractions so it sounds spoken; sentence rhythm and texture come from the speech-texture pass.
-- Narration sounds like a developer explaining something to a coworker, never like an ad: no hype words, pitch questions, exclamation marks, or calls to action.
+- Narration sounds like a developer explaining something to a coworker, never like an ad: no hype words, pitch questions, exclamation marks, or spoken calls to action.
+- Every script ends on a conclusion: one or two plain sentences on what the viewer now knows and when it matters to them.
+- Every narrated video ends on a silent end card with the one call to action: a title such as “Try Shiny 1.9 today”, the install command, and “Learn more at shiny.posit.co”. Name a version only for a release that has shipped.
 - Never include laughing, giggling, chuckling, or other non-speech vocalizations in narration.
 - Every generated video ships in both orientations (vertical and horizontal) from the same actions and narration; build apps that fill the frame in both.
 - In horizontal videos, show code beside the live app rather than over it.

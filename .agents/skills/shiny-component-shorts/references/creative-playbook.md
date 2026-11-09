@@ -177,9 +177,32 @@ The narrator is a developer explaining what they're doing, not a presenter selli
 - No ad phrases: “Here's the thing”, “The best part”, “Say goodbye to”, “No more…”, “Imagine…”, “Trust me”, “You'll love”, “That's the trick”, “It's that easy”.
 - No exclamation marks. Excitement comes from what the viewer sees, not from punctuation.
 - Don't open with a pitch question about the viewer's pain; say what's on screen or what you hit.
-- Don't end on a call to action (“Try it today”, “Give it a try”, “Check it out”). End on what the viewer just saw, or one plain fact about it.
+- Don't speak a call to action (“Try it today”, “Give it a try”, “Check it out”). The end card shows the next step; the narration ends on a conclusion (see below).
 - State the benefit as a concrete fact (“You don't need the CSS anymore”), once. Don't oversell it.
 - Small honest asides are fine: “I missed this for months”, “It's a small thing, but”. They're what make it sound like a person.
+
+### End on a conclusion
+
+Every script ends with a conclusion: one or two sentences that tell the viewer what they now know and when it matters to them. It gives the video a reason to stop, so the cut to the end card does not feel abrupt.
+
+- Sum up the one thing the video proved, in terms of the viewer's own work: “So if your outputs wait on a slow query, mark them async and the rest of the page keeps going.”
+- Build it from what was on screen. It adds no new feature, number, or claim.
+- Say it the way you would wrap up at a coworker's desk. A slogan, a tidy aphorism, or a repeat of the title is not a conclusion.
+- Do not announce it with “In conclusion” or “To sum up”. In a series, vary the form: when to use the feature, what you no longer need to do, or what to check before you rely on it.
+- A caveat can be part of the conclusion. A caveat alone is not one.
+- Leave the install command, the link, and “try it” to the end card. Do not read the end card aloud.
+
+Weak (slogan):
+
+> Async outputs. Faster apps, happier users.
+
+Weak (stops without concluding):
+
+> And the third table shows up at one second.
+
+Strong:
+
+> So all three tables are ready after one second instead of three. If your page has more than one slow output, this is the change to make first.
 
 ### Speech texture pass
 
@@ -194,7 +217,7 @@ The `simple-english` rewrite makes a script clear, not human. Run a second pass 
 - Speak actions in the first person or as “when you …”, not as bare imperatives, and where the behavior is surprising let the narrator say once what they expected against what happened. Do not force a surprise onto a plain addition.
 - Do not end on a tacked-on afterthought (“And one more thing”, “Also, …”, “There's a limit.”) in more than one video of a series; fold the fact into the body or end on the result.
 - A list of literal API values or column types (“form, search, complementary, and region”) is a fact, not a cadence; the checker's three-item-list warning does not apply to it.
-- Vary pause tags with the thought; the same `[pause 1s]` after every paragraph is a metronome.
+- Vary pause tags with the thought; the same `[pause 1s]` after every paragraph is a metronome. So is a tag after most sentences, or a script whose pauses are all one or two lengths. Tag a pause only before a reveal or at a change of thought, at most after about half the sentence breaks, and let at least one stretch of several sentences run on punctuation alone.
 - For a series, also run `check_narration_voice.py --series <dir>` so the scripts do not share openers, closers, or transitions. See [changelog-reel.md](changelog-reel.md#vary-the-series).
 - Read the transcript aloud once before you save it. Rewrite anything you stumble on; a script that is hard to say gets rewritten, not performed around.
 

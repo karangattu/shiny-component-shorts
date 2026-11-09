@@ -7,6 +7,7 @@ Choose one widget and one useful task. If the user names several widgets, make o
 Give each video a `context` label, specific title, and short outcome sentence in `source-shots.yaml`.
 The shared scripts automatically generate professional posters and brief opening titles in both orientations.
 Use the actual widget capture as evidence. See [context posters and opening titles](editorial-production.md#context-posters-and-opening-titles).
+Set `outro.command` in `reel.yaml` to the tested installation command, so the [end card](editorial-production.md#end-card) shows what the viewer needs to install.
 
 ## Plan the explanation
 

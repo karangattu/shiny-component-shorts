@@ -106,6 +106,41 @@ The app remains visible and plays at its original speed.
 The renderer refuses text that overlaps the evidence.
 Inspect both posters and encoded openings at phone size before delivery.
 
+### End card
+
+Every editorial video ends on a silent end card after the last spoken word.
+`stitch_reel.py` dissolves into it over 0.3 seconds, inside the card's own length. It does not move a shot, a cue, or the narration.
+The card shows the Shiny wordmark, a title, an install command, and “Learn more at” with a link.
+It is the only call to action in the video, so the narration does not repeat it.
+
+Set it in `reel.yaml`:
+
+```yaml
+outro:
+  title: Try Shiny 1.9 today
+  command: pip install shiny --upgrade
+  link: shiny.posit.co
+  seconds: 4   # 2 to 8
+```
+
+Every key is optional.
+Without `outro`, a numbered `release` gives “Try Shiny <version> today” and the upgrade command for the app's language.
+An unreleased or unnumbered `release` gives “Learn more about Shiny” and no command, because the upgrade would not install the feature.
+With no `release`, the title is “Try it yourself”.
+`command: ""` or `link: ""` drops that line.
+`outro: false` removes the card; use it only when the user asks for no end card.
+
+Name a version on the card only after you verify that the release has shipped.
+For a widget video, give the tested command that also installs the widget package.
+Keep the title to a few words; the renderer refuses text that does not fit.
+
+A series uses the same `outro` for every video.
+The card is saved beside each export as `end-card.png` and `end-card-<orientation>.png`.
+The report lists it as the last shot, so it appears on the review sheet.
+Inspect it in both orientations before delivery.
+
+Standalone component videos use the same keys under a top-level `outro` in `actions.yaml`; see the [recording contract](recording-contract.md).
+
 Write `source-shots.yaml` and run:
 
 ```bash
@@ -118,7 +153,7 @@ Each shot quotes a narration `cue`, an optional `chapter` title, and `panels`. O
 
 Before rendering, review all authored panel `label` and shot `source` fields and text in custom graphics and demo UI using the audience-facing rule above. Inspect the final encoded frames in both orientations for leftover production notes, not just the configuration; remove or revise the authored text at its source.
 
-- `kind: code`: exact source, inferred language or explicit `language`, optional inclusive `lines: [first, last]`, and one optional `highlight` source line number.
+- `kind: code`: exact source, inferred language or explicit `language`, optional inclusive `lines: [first, last]`, and one optional `highlight` source line number. A line too long for the frame wraps with a hanging indent, and the highlight surrounds all of it. Build code stills with this panel; if you author a code graphic yourself, give wrapped lines the same hanging indent and check the outline at full size.
 - `kind: output`: exact saved output in a monospace face, with no fabricated terminal chrome. Use this when the literal output is the evidence; use an authored, evidence-backed summary image for formatted explanatory results.
 - `kind: text`: verbatim source prose or a saved explanation. Keep quotations short and retain attribution.
 - `kind: image`: an actual clean capture or source figure. Crop deliberately before supplying it; never cut out an error or a relevant limitation.
