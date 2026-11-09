@@ -4,6 +4,10 @@ Use this workflow for a 60–90 second video about one [shinywidgets](https://gi
 
 Choose one widget and one useful task. If the user names several widgets, make one independently understandable video for each, unless they request a comparison. If none is named, Plotly is a useful starting point: a Shiny input changes a chart, and the chart retains its own hover and legend controls. Other candidates include a linked Altair selection, an ipyleaflet map control, or a Bokeh chart update. Verify the specific behavior before writing narration.
 
+Give each video a `context` label, specific title, and short outcome sentence in `source-shots.yaml`.
+The shared scripts automatically generate professional posters and brief opening titles in both orientations.
+Use the actual widget capture as evidence. See [context posters and opening titles](editorial-production.md#context-posters-and-opening-titles).
+
 ## Plan the explanation
 
 Use editorial framing, hard cuts, readable source, and about 5% margins. The 45-second component quotas, three-action rule, and middle-60% composition do not apply. Keep the video focused on one behavior while giving viewers enough setup to reproduce it.

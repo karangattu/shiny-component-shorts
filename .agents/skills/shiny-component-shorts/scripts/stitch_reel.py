@@ -56,6 +56,7 @@ import yaml
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import bootstrap_skill  # noqa: E402
 import code_style
+import context_cards
 import align_narration  # noqa: E402
 from align_narration import NARRATION_OFFSET_SECONDS  # noqa: E402
 from merge_audio import merge, probe_duration  # noqa: E402
@@ -467,7 +468,7 @@ def file_digest(path: Path) -> str:
 
 def cache_key(*parts: object) -> str:
     """Key a rendered piece by everything that shapes it, this script included."""
-    parts = (*parts, code_style.browser_script(), code_style.stylesheet())
+    parts = (*parts, code_style.browser_script(), code_style.stylesheet(), context_cards.digest())
     payload = json.dumps([SCRIPT_DIGEST, *parts], sort_keys=True, default=str)
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:24]
 
@@ -1046,8 +1047,17 @@ def editorial_plan(segment: Path, orientation: str) -> dict:
                 raise ValueError(
                     f"Insufficient footage at original speed: {view['file']}"
                 )
+    context = context_cards.resolve(segment, config)
+    capture_hashes = {}
+    for name, capture in context["captures"].items():
+        path = (segment / capture).resolve()
+        if not path.is_file() or not path.stat().st_size:
+            raise ValueError(f"Missing context capture: {path}")
+        capture_hashes[name] = file_digest(path)
     return {
         "style": "editorial",
+        "context": context,
+        "context_capture_sha256": capture_hashes,
         "source_manifest_sha256": manifest_key,
         "orientation": orientation,
         "duration": duration,
@@ -1104,6 +1114,13 @@ def render_editorial(
     browser, feature: dict, orientation: str, cache: Path, logo_seconds: float
 ) -> tuple[Path, dict]:
     plan = editorial_plan(feature["path"], orientation)
+    first_view = plan["shots"][0]["views"][orientation]
+    capture = plan["context"]["captures"].get(orientation)
+    cards = context_cards.render(
+        browser(), feature["path"], plan["context"], orientation,
+        feature["path"] / capture if capture else Path(first_view["file"]),
+        media_in=0 if capture else first_view["in"],
+    )
     width, height = (size * SCALE for size in SIZES[orientation])
     key = "editorial-" + cache_key(
         plan,
@@ -1131,7 +1148,7 @@ def render_editorial(
                     layer,
                     orientation,
                     shot["source"],
-                    feature["title"] if index == 0 else "",
+                    "",
                     False,
                 )
                 inputs = (
@@ -1168,6 +1185,22 @@ def render_editorial(
                         f"[{last}]drawbox=x=iw*{x}:y=ih*{y}:w=iw*{w}:h=ih*{h}:color=0x007BC2:t={max(2, round(width / 360))}[marked]"
                     )
                     last = "marked"
+                intro_remaining = min(duration, context_cards.INTRO_SECONDS - shot["start"])
+                next_input = 2
+                if intro_remaining > 0:
+                    inputs += ["-loop", "1", "-framerate", str(FPS), "-i", str(cards["overlay"])]
+                    x, y, w, h = context_cards.MEDIA_RECTS[orientation]
+                    rect_width, rect_height = (max(2, round(width*w/2)*2), max(2, round(height*h/2)*2))
+                    filters += [
+                        f"[{last}]split=2[full][intro-src]",
+                        f"[intro-src]scale={rect_width}:{rect_height}:force_original_aspect_ratio=decrease,"
+                        f"pad={width}:{height}:{round(width*x)}+({rect_width}-iw)/2:{round(height*y)}+({rect_height}-ih)/2:color=0xF8F8F8[intro-media]",
+                        f"[full][intro-media]overlay=enable='lt(t,{intro_remaining})':shortest=1[framed]",
+                        f"[{next_input}:v]scale={width}:{height},format=rgba[intro-title]",
+                        f"[framed][intro-title]overlay=enable='lt(t,{intro_remaining})':shortest=1[introduced]",
+                    ]
+                    last = "introduced"
+                    next_input += 1
                 remaining = logo_seconds - shot["start"]
                 if remaining > 0:
                     editorial_overlay(browser(), logo_layer, orientation, "", "", True)
@@ -1180,7 +1213,7 @@ def render_editorial(
                         str(logo_layer),
                     ]
                     filters += [
-                        f"[2:v]format=rgba,fade=t=out:st={max(0, remaining - LOGO_FADE_SECONDS)}:d={min(remaining, LOGO_FADE_SECONDS)}:alpha=1[logo]",
+                        f"[{next_input}:v]format=rgba,fade=t=out:st={max(0, remaining - LOGO_FADE_SECONDS)}:d={min(remaining, LOGO_FADE_SECONDS)}:alpha=1[logo]",
                         f"[{last}][logo]overlay=0:0:shortest=1[branded]",
                     ]
                     last = "branded"
@@ -1331,28 +1364,9 @@ def build_editorial(reel_dir: Path, config: dict, orientation: str, *, output_di
         chapters[-1]["end"] = total
         embed_chapters(output, chapters, work)
         review_sheet(output, shots, artifacts / f"reel-review{suffix}.png", work)
-        thumb_width, thumb_height = (
-            (1080, 1920) if orientation == "vertical" else (1280, 720)
-        )
-        subprocess.run(
-            [
-                "ffmpeg",
-                "-y",
-                "-loglevel",
-                "error",
-                "-ss",
-                str(min(1, total / 2)),
-                "-i",
-                str(output),
-                "-frames:v",
-                "1",
-                "-vf",
-                f"scale={thumb_width}:{thumb_height}",
-                "-q:v",
-                "3",
-                str(artifacts / f"reel-thumbnail{suffix}.jpg"),
-            ],
-            check=True,
+        shutil.copyfile(
+            config["features"][0]["path"] / f"artifacts/context/poster-{orientation}.jpg",
+            artifacts / f"reel-thumbnail{suffix}.jpg",
         )
     report = {
         "reel": str(output),

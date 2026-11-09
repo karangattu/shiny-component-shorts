@@ -15,6 +15,7 @@ import yaml
 from playwright.sync_api import sync_playwright
 
 import code_style
+import context_cards
 
 SIZES = {"vertical": (720, 1280), "horizontal": (1280, 720)}
 LANGUAGES = {
@@ -121,6 +122,7 @@ def prepare(project: Path) -> dict:
         source_manifest="artifacts/editorial-sources/provenance.json",
         shots=[],
     )
+    result["context"] = context_cards.resolve(project, config)
     with sync_playwright() as p:
         browser = p.chromium.launch()
         try:
@@ -223,6 +225,22 @@ main{{width:100%}}section+section{{margin-top:28px}}.filename{{font-size:20px;co
                     finally:
                         page.close()
                 result["shots"].append(built)
+                if index == 1:
+                    for orientation in SIZES:
+                        view = shot.get("views", {}).get(orientation, {})
+                        panels = view.get("panels", shot.get("panels"))
+                        capture = result["context"]["captures"].get(orientation)
+                        if capture is None:
+                            capture = (panels[0]["file"] if len(panels) == 1
+                                       and panels[0].get("kind") == "image"
+                                       else built["views"][orientation]["file"])
+                            result["context"]["captures"][orientation] = capture
+                        capture_path = (project / capture).resolve()
+                        sources[str(capture_path)] = {
+                            "file": str(capture_path),
+                            "sha256": hashlib.sha256(capture_path.read_bytes()).hexdigest(),
+                        }
+                        context_cards.render(browser, project, result["context"], orientation, capture_path)
         finally:
             browser.close()
     config_file = project / "source-shots.yaml"

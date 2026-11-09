@@ -1,6 +1,11 @@
 # Replace every cue with words from your finished narration.
 # Capture real media and save actual output before running prepare_editorial.py.
 # For an explicitly requested exact-length overview, add target_seconds: 50.
+# Replace all context text with the specific feature and its visible outcome.
+context:
+  label: Shiny for Python
+  title: Explain one feature
+  summary: Describe the visible change in one short sentence.
 shots:
   - cue: This app shows the result
     source: Actual running app

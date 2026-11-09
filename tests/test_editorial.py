@@ -159,7 +159,7 @@ def probe(path):
     return json.loads(result.stdout)
 
 
-def pixel(video, second):
+def pixel(video, second, center=(0.5, 0.5)):
     frame = subprocess.run(
         [
             "ffmpeg",
@@ -170,7 +170,7 @@ def pixel(video, second):
             "-i",
             str(video),
             "-vf",
-            "crop=2:2:iw/2:ih/2,scale=1:1",
+            f"crop=2:2:iw*{center[0]}:ih*{center[1]},scale=1:1",
             "-frames:v",
             "1",
             "-f",
@@ -243,12 +243,33 @@ def test_editorial_build_has_real_hard_cuts_and_invalidates_changed_assets(
         assert abs(float(metadata["format"]["duration"]) - 95 / 30) < 0.05
         assert [c["label"] for c in report["chapters"]] == ["Evidence"]
         assert report["chapters"][0]["start"] == 0
-        assert pixel(video, 1.10)[0] > 200
-        assert pixel(video, 1.20)[2] > 200
-        assert pixel(video, 1.80)[1] > 200
+        x, y, w, h = reel.context_cards.MEDIA_RECTS[orientation]
+        center = (x + w/2, y + h/2)
+        assert pixel(video, 1.10, center)[0] > 200
+        assert pixel(video, 1.20, center)[2] > 200
+        assert pixel(video, 1.80, center)[1] > 200
+        assert (segment / f"artifacts/context/poster-{orientation}.jpg").is_file()
     Image.new("RGB", (128, 128), "lime").save(segment / "first.png")
     changed = reel.build(segment, "vertical")
-    assert pixel(Path(changed["reel"]), 0.5)[1] > 200
+    assert pixel(Path(changed["reel"]), 0.5, (0.5, 0.61))[1] > 200
+
+
+def test_context_title_ends_at_three_seconds_without_delaying_evidence(segment, monkeypatch):
+    monkeypatch.setattr(reel, "SIZES", {"vertical": (144, 256), "horizontal": (256, 144)})
+    (segment / "reel.yaml").write_text("""style: editorial
+title: A reactive chart
+features:
+- {title: A reactive chart, dir: .}
+""")
+    report = reel.build(segment, "vertical")
+    video = Path(report["reel"])
+    assert pixel(video, 2.5, (0.1, 0.3))[0] > 230
+    assert pixel(video, 3.1, (0.1, 0.3))[0] < 30
+    assert pixel(video, 3.1, (0.1, 0.3))[2] > 220
+    assert report["shots"][1]["start"] == 35/30
+    before = report["segments"][0]["plan_key"]
+    change(segment, lambda c: c.update(context={"title": "A different outcome"}))
+    assert before != reel.cache_key(reel.editorial_plan(segment, "vertical"))
 
 
 def test_legacy_reel_keeps_cards_and_transitions(segment, monkeypatch):

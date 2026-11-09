@@ -1,6 +1,10 @@
 # Replace cues, source ranges, and captures with the tested widget example.
 # Aim for 60–90 seconds through narration and useful reading holds.
 # After building these stills, append the video shot in interaction-shot.yaml.
+context:
+  label: Shiny for Python · shinywidgets
+  title: Reactive Plotly charts
+  summary: A Shiny input updates the chart. Plotly's hover and legend controls stay interactive.
 shots:
   - cue: This chart responds to a Shiny input
     chapter: Plotly in Shiny

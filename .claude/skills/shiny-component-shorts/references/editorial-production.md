@@ -72,6 +72,40 @@ The current `prepare_editorial.py` `kind: text` panel renders literal plain text
 
 ## Build readable evidence shots
 
+### Context posters and opening titles
+
+Every blog, release, and widget video gets a context poster in both orientations automatically.
+`prepare_editorial.py` creates the posters before narration exists.
+`stitch_reel.py` also creates them for hand-authored timelines and uses them as the exported thumbnails.
+
+Add `context` to `source-shots.yaml`, or to a hand-authored `editorial.yaml`:
+
+```yaml
+context:
+  label: Shiny for Python · shinywidgets
+  title: Reactive Plotly charts
+  summary: A Shiny input updates the chart. Plotly's hover and legend controls stay interactive.
+```
+
+Write a specific title and one short outcome sentence for each video.
+For release videos, use the requested release name as the label.
+Keep each claim tied to the recorded behavior.
+Existing projects use their release, title, and feature description as defaults.
+The scripts omit an unavailable description rather than invent a claim.
+
+The poster pairs the text with actual opening evidence.
+For a single image panel, the builder uses the original capture without its surrounding canvas.
+Optional `context.captures` maps `vertical` and `horizontal` to local files for a different poster capture.
+Keep captures faithful and retain all required attribution.
+
+Outputs under `artifacts/context/` include `poster-<orientation>.jpg`, `opening-<orientation>.png`, and editable HTML.
+The summary appears only on the poster.
+During playback, the short title and label appear above the app in portrait and beside it in landscape.
+The title clears after three seconds, without adding a shot, delaying narration, or freezing footage.
+The app remains visible and plays at its original speed.
+The renderer refuses text that overlaps the evidence.
+Inspect both posters and encoded openings at phone size before delivery.
+
 Write `source-shots.yaml` and run:
 
 ```bash

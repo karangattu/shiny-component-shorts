@@ -13,6 +13,13 @@ def normalized(path: Path) -> str:
 
 
 class EditorialSkillSyncTest(unittest.TestCase):
+    def test_context_scripts_and_starters_match(self) -> None:
+        for name in ('scripts/context_cards.py', 'scripts/prepare_editorial.py',
+                     'scripts/stitch_reel.py', 'assets/widget-starter/source-shots.yaml',
+                     'assets/editorial-starter/source-shots.yaml'):
+            with self.subTest(file=name):
+                self.assertEqual(normalized(AGENTS / name), normalized(CLAUDE / name))
+
     def test_shared_editorial_references_match(self) -> None:
         for name in ('changelog-reel.md', 'editorial-production.md', 'short-form-pacing.md'):
             with self.subTest(reference=name):

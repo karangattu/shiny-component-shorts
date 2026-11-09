@@ -67,6 +67,13 @@ For changelogs and blog posts, the pipeline creates an editorial video for each 
 
 Widget showcases use the same editorial pipeline. Each video shows the working widget, its installation command, the relevant imports and rendering function, and recorded interaction with a visible result. Use still images for setup and code. Record cursor movement, hover, clicks, and the widget's response as real browser footage. Plotly, Altair, Bokeh, ipyleaflet, and other compatible widgets use their own dependencies and renderer. See the [widget workflow](.agents/skills/shiny-component-shorts/references/widget-showcases.md) and [starter](.agents/skills/shiny-component-shorts/assets/widget-starter/).
 
+Blog, release, and widget videos automatically get context posters and brief opening titles in both orientations.
+Each poster combines a real app capture with a specific title and a short outcome sentence.
+Set `context.label`, `context.title`, and `context.summary` in `source-shots.yaml`.
+`prepare_editorial.py` builds the posters before narration exists.
+`stitch_reel.py` uses them as thumbnails and clears the opening title after three seconds without delaying the app or narration.
+Posters and editable HTML are saved under `artifacts/context/`.
+
 To make a video with [py-shinywidgets](https://github.com/posit-dev/py-shinywidgets), ask:
 
 ```text
