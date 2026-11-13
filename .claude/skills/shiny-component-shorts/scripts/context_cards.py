@@ -19,6 +19,19 @@ MEDIA_RECTS = {
 }
 
 
+def orientations(config: dict) -> list[str]:
+    """Require both views by default and allow explicitly single-view productions."""
+    views = config.get("orientations", list(SIZES))
+    if (
+        not isinstance(views, list)
+        or not views
+        or any(not isinstance(view, str) or view not in SIZES for view in views)
+        or len(set(views)) != len(views)
+    ):
+        raise ValueError("orientations must list vertical, horizontal, or both once each")
+    return views
+
+
 def resolve(project: Path, config: dict) -> dict:
     """Keep old projects usable; new projects author a specific outcome sentence."""
     supplied = config.get("context", {})
@@ -50,7 +63,10 @@ def resolve(project: Path, config: dict) -> dict:
                               or config["shots"][0].get("chapter") or "Shiny in action"),
         "summary": supplied.get("summary", feature.get("why") or ""),
         "captures": supplied.get("captures", {}),
+        "layout": supplied.get("layout", "editorial"),
     }
+    if result["layout"] not in ("editorial", "showcase"):
+        raise ValueError("context.layout must be editorial or showcase")
     for name in ("label", "title", "summary"):
         if not isinstance(result[name], str) or (name != "summary" and not result[name].strip()):
             raise ValueError(f"context.{name} must be readable text")
@@ -100,6 +116,23 @@ h1{font-size:54px}.summary{font-size:26px}
 .evidence{left:43%;top:10%;width:52%;height:80%;align-items:center}
 .intro h1{font-size:46px}
 """
+    showcase = context.get("layout") == "showcase"
+    if showcase:
+        css += """
+body{background:#1D1F21;color:#FFFFFF}
+.label{color:#CDD4DA}.summary{color:#CDD4DA}
+header{top:6%;transform:none}
+h1{font-size:72px;font-weight:800;line-height:1.02;letter-spacing:-.055em;text-wrap:balance}
+.summary{margin-top:16px;font-size:25px;line-height:1.35}
+.evidence{top:29%;height:65%;align-items:center}
+img{border:0;border-radius:12px;box-shadow:none}
+"""
+        if orientation == "horizontal":
+            css += """
+header{top:50%;transform:translateY(-50%)}
+h1{font-size:62px}
+.evidence{top:7%;height:86%}
+"""
     page = browser.new_page(viewport={"width": width, "height": height}, device_scale_factor=2)
     files = {}
     try:
@@ -111,7 +144,7 @@ h1{font-size:54px}.summary{font-size:26px}
         )
         page.evaluate("document.fonts.ready")
         page.evaluate("Promise.all([...document.images].map(i => i.decode()))")
-        for mode in ("poster", "opening", "overlay"):
+        for mode in (("poster",) if showcase else ("poster", "opening", "overlay")):
             page.evaluate("mode => document.body.className = mode === 'poster' ? '' : 'intro ' + mode", mode)
             fits = page.evaluate("""() => {
  const header=document.querySelector('header').getBoundingClientRect();

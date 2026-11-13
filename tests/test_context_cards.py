@@ -82,3 +82,21 @@ features:
 def test_invalid_context_is_rejected(tmp_path, context):
     with pytest.raises(ValueError, match="context"):
         context_cards.resolve(tmp_path, {"context": context, "shots": [{}]})
+
+
+def test_showcase_poster_has_no_opening_overlay(tmp_path):
+    spec = context_cards.resolve(tmp_path, {
+        "context": {"layout": "showcase", "title": "Power through the peak"},
+        "shots": [{}],
+    })
+    Image.new("RGB", (640, 800), "#007BC2").save(tmp_path / "app.png")
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        files = context_cards.render(browser, tmp_path, spec, "vertical", tmp_path / "app.png")
+        assert set(files) == {"poster"}
+        page = browser.new_page(viewport={"width": 720, "height": 1280})
+        page.goto(files["poster"].with_suffix(".html").as_uri())
+        assert page.locator("h1").inner_text() == "Power through the peak"
+        evidence = page.locator("img").bounding_box()
+        assert evidence and evidence["width"] >= 600
+        browser.close()

@@ -7,6 +7,7 @@ import base64
 import hashlib
 import html
 import json
+import textwrap
 from pathlib import Path
 from typing import Any
 
@@ -36,14 +37,18 @@ LANGUAGES = {
 }
 
 
-def panel_html(project: Path, panel: dict, sources: dict) -> str:
+def panel_html(
+    project: Path, panel: dict, sources: dict, *, code_wrap: bool = True, code_theme: str = "light"
+) -> str:
     """Read exact source text or embed a clean capture without manufacturing content."""
     path = (project / panel["file"]).resolve()
     raw = path.read_bytes()
     sources[str(path)] = {"file": str(path), "sha256": hashlib.sha256(raw).hexdigest()}
     kind = panel.get("kind", "code")
     label = html.escape(str(panel.get("label", panel["file"])))
-    head = "" if kind == "image" and "label" not in panel else f'<p class="filename">{label}</p>'
+    head = "" if panel.get("label") == "" or (kind == "image" and "label" not in panel) else (
+        f'<p class="filename">{label}</p>'
+    )
     if kind == "image":
         mime = {
             ".png": "image/png",
@@ -83,26 +88,30 @@ def panel_html(project: Path, panel: dict, sources: dict) -> str:
         if kind == "code"
         else "plaintext"
     )
+    code_lines = [line.expandtabs(4) for line in lines[first - 1 : last]]
+    if kind == "code" and not code_wrap:
+        code_lines = textwrap.dedent("\n".join(code_lines)).split("\n")
     rows = []
-    for number in range(first, last + 1):
+    for number, text in enumerate(code_lines, start=first):
         marked = ' data-highlight="true"' if number == highlight else ""
-        text = lines[number - 1].expandtabs(4)
         # A wrapped code line continues past its own indentation, so it still reads as one line.
-        hang = len(text) - len(text.lstrip(" ")) + CONTINUATION_INDENT if kind == "code" else 0
+        hang = len(text) - len(text.lstrip(" ")) + CONTINUATION_INDENT if kind == "code" and code_wrap else 0
         style = f' style="padding-left:{hang}ch;text-indent:-{hang}ch"' if hang else ""
         rows.append(
             f'<div class="line"{marked}><span class="number">{number}</span><span class="text"{style}>{html.escape(text)}</span></div>'
         )
+    theme = f"github-{code_theme}" if kind == "code" else "github-light"
+    whole_lines = " whole-lines" if kind == "code" and not code_wrap else ""
     return (
         head
-        + f'<div class="code github-light" data-language="{html.escape(language,quote=True)}">'
+        + f'<div class="code {theme}{whole_lines}" data-file="{html.escape(panel["file"], quote=True)}" data-language="{html.escape(language,quote=True)}">'
         + "".join(rows)
         + "</div>"
     )
 
 
 def prepare(project: Path) -> dict:
-    """Prepare both views, refusing source mistakes and unreadable overflow."""
+    """Prepare the requested views, refusing source mistakes and unreadable overflow."""
     project = project.resolve()
     config = yaml.safe_load((project / "source-shots.yaml").read_text())
     if (
@@ -122,7 +131,8 @@ def prepare(project: Path) -> dict:
     destination = project / "artifacts/editorial-sources"
     destination.mkdir(parents=True, exist_ok=True)
     sources: dict[str, Any] = {}
-    result = {key: config[key] for key in ("target_seconds",) if key in config}
+    orientations = context_cards.orientations(config)
+    result = {key: config[key] for key in ("target_seconds", "orientations") if key in config}
     result.update(
         generated_by="prepare_editorial.py",
         source_manifest="artifacts/editorial-sources/provenance.json",
@@ -137,7 +147,8 @@ def prepare(project: Path) -> dict:
                     raise ValueError("Every shot needs its narration phrase cue")
                 built = {key: shot[key] for key in ("cue", "source", "chapter") if key in shot}
                 built["views"] = {}
-                for orientation, (width, height) in SIZES.items():
+                for orientation in orientations:
+                    width, height = SIZES[orientation]
                     view = shot.get("views", {}).get(orientation, {})
                     panels = view.get("panels", shot.get("panels"))
                     if not isinstance(panels, list) or not panels:
@@ -147,8 +158,14 @@ def prepare(project: Path) -> dict:
                         raise ValueError(
                             "font_size must be 20–40 logical pixels; use shorter excerpts instead of tiny code"
                         )
+                    code_wrap = view.get("code_wrap", True)
+                    code_theme = view.get("code_theme", "light")
+                    if type(code_wrap) is not bool or code_theme not in ("light", "dark"):
+                        raise ValueError("code_wrap must be a boolean and code_theme must be light or dark")
                     content = "".join(
-                        "<section>" + panel_html(project, panel, sources) + "</section>"
+                        "<section>"
+                        + panel_html(project, panel, sources, code_wrap=code_wrap, code_theme=code_theme)
+                        + "</section>"
                         for panel in panels
                     )
                     css = (
@@ -161,8 +178,17 @@ main{{width:100%}}section+section{{margin-top:28px}}.filename{{font-size:20px;co
 .code,.prose{{font-size:{size}px;line-height:1.55}}.code{{font-family:'Source Code Pro',monospace}}
 .line{{display:grid;grid-template-columns:24px minmax(0,1fr);gap:12px}}.number{{font-size:14px;color:#707782;text-align:right;padding-top:8px}}
 .text,.prose{{white-space:pre-wrap;overflow-wrap:anywhere}}img{{display:block;max-width:100%;max-height:{height*.65}px;margin:auto;object-fit:contain}}
+.code.github-dark{{background:#1D1F21;color:#FFFFFF;border-radius:16px;padding:24px 20px}}
+.github-dark .number{{color:#CDD4DA}}
+.whole-lines .text{{white-space:pre;overflow-wrap:normal}}
 """
                     )
+                    if orientation == "vertical" and result["context"]["layout"] == "showcase":
+                        css += (
+                            "section+section{margin-top:14px}"
+                            "img{max-height:52vh;border-radius:16px}"
+                            ".filename{font-weight:700;margin-bottom:12px}"
+                        )
                     if view.get("layout") == "columns":
                         css += (
                             f"main{{display:grid;grid-template-columns:repeat({len(panels)},minmax(0,1fr));gap:40px;align-items:center}}"
@@ -194,6 +220,16 @@ main{{width:100%}}section+section{{margin-top:28px}}.filename{{font-size:20px;co
 }}"""
                         )
                         page.evaluate("document.fonts.ready")
+                        overflow = page.evaluate("""() => {
+ const row = [...document.querySelectorAll('.whole-lines .line')].find(
+   row => { const text = row.querySelector('.text'); return text.scrollWidth > text.clientWidth; });
+ return row ? row.closest('.code').dataset.file + ':' + row.querySelector('.number').textContent : null;
+}""")
+                        if overflow:
+                            raise ValueError(
+                                f"{overflow} does not fit in the {orientation} code card. "
+                                "Shorten the excerpt or add a line break in the actual source."
+                            )
                         box = page.locator("main").bounding_box()
                         if (
                             not box
@@ -215,6 +251,8 @@ main{{width:100%}}section+section{{margin-top:28px}}.filename{{font-size:20px;co
                             ),
                             "fit": "contain",
                         }
+                        if not code_wrap:
+                            frame["motion"] = "none"
                         if marked.count():
                             # Outline the characters, including a wrapped part, not the empty row.
                             rect = marked.evaluate(
@@ -241,7 +279,7 @@ main{{width:100%}}section+section{{margin-top:28px}}.filename{{font-size:20px;co
                         page.close()
                 result["shots"].append(built)
                 if index == 1:
-                    for orientation in SIZES:
+                    for orientation in orientations:
                         view = shot.get("views", {}).get(orientation, {})
                         panels = view.get("panels", shot.get("panels"))
                         capture = result["context"]["captures"].get(orientation)
@@ -277,7 +315,8 @@ def main() -> None:
     if __name__ == "__main__":
         bootstrap_skill.guard(args.project_dir, Path(__file__))
     result = prepare(args.project_dir)
-    print(f'Prepared {len(result["shots"])} source-derived shots in both orientations')
+    views = ", ".join(context_cards.orientations(result))
+    print(f'Prepared {len(result["shots"])} source-derived shots for {views}')
 
 
 if __name__ == "__main__":

@@ -1,9 +1,18 @@
-# Append this shot to editorial.yaml after preparing the stills.
-# Capture the real input change, hover, and clicks in one continuous clip.
-# Match their times to the same spoken phrases in each orientation.
+# Place the setup still after the opening clip and the code still before the payoff.
+# Use measured words for the cuts. Keep real interactions at original speed.
 shots:
-  - cue: Changing the input updates the chart
-    chapter: Use the widget
+  - cue: This forecast changes with the scenario
+    chapter: The forecast
+    views:
+      vertical: {file: sources/opening-vertical.mp4, fit: contain, in: 0}
+      horizontal: {file: sources/opening-horizontal.mp4, fit: contain, in: 0}
+  - cue: I switch to the second forecast
+    chapter: Compare scenarios
     views:
       vertical: {file: sources/interaction-vertical.mp4, fit: contain, in: 0}
       horizontal: {file: sources/interaction-horizontal.mp4, fit: contain, in: 0}
+  - cue: The gap closes here
+    chapter: Read the result
+    views:
+      vertical: {file: sources/payoff-vertical.mp4, fit: contain, in: 0}
+      horizontal: {file: sources/payoff-horizontal.mp4, fit: contain, in: 0}

@@ -127,3 +127,41 @@ shots:
             )
             with self.assertRaisesRegex(ValueError, "image"):
                 prepare_editorial.prepare(project)
+
+
+class PortraitCodeTest(unittest.TestCase):
+    def test_portrait_code_keeps_whole_lines_and_supports_a_dark_card(self):
+        import prepare_editorial
+
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp)
+            (project / "app.py").write_text("    def show():\n        return selected()\n")
+            (project / "source-shots.yaml").write_text("""orientations: [vertical]
+shots:
+- cue: The code
+  views:
+    vertical:
+      code_wrap: false
+      code_theme: dark
+      font_size: 32
+      panels:
+      - {kind: code, file: app.py}
+""")
+            result = prepare_editorial.prepare(project)
+            self.assertEqual(result["orientations"], ["vertical"])
+            view = result["shots"][0]["views"]["vertical"]
+            self.assertNotIn("horizontal", result["shots"][0]["views"])
+            self.assertEqual(view["motion"], "none")
+            with sync_playwright() as p:
+                browser = p.chromium.launch()
+                page = browser.new_page(viewport={"width": 720, "height": 1280})
+                page.goto((project / view["file"]).with_suffix(".html").as_uri())
+                self.assertEqual(page.locator(".code.github-dark .text").all_text_contents(),
+                                 ["def show():", "    return selected()"])
+                self.assertEqual(page.locator(".text").first.evaluate(
+                    "node => getComputedStyle(node).whiteSpace"), "pre")
+                browser.close()
+
+            (project / "app.py").write_text("    value = " + "a_very_long_identifier_" * 4 + "\n")
+            with self.assertRaisesRegex(ValueError, "app.py:1.*fits|app.py:1.*fit"):
+                prepare_editorial.prepare(project)

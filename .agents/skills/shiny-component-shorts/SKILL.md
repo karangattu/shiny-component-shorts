@@ -1,6 +1,6 @@
 ---
 name: shiny-component-shorts
-description: Create Shiny Python/R, shinywidgets, shinychat, and shinyreact demos and narrated videos from widgets, components, apps, PRs, commits, changelogs, or blogs. Use for recordings, 60–90 second widget showcases, detailed feature video series, and release reels.
+description: Create Shiny Python/R, shinywidgets, shinychat, and shinyreact demos and narrated videos from widgets, components, apps, PRs, commits, changelogs, or blogs. Use for recordings, app-led widget showcases, detailed feature video series, and release reels.
 ---
 
 # Shiny Component Shorts
@@ -22,7 +22,7 @@ Start with [the reproducible editorial production workflow](references/editorial
 Write `style: editorial` in every new `reel.yaml`, render with `--separate`, and follow
 [references/changelog-reel.md](references/changelog-reel.md). Use real app
 footage, source excerpts, figures, and measured results. Show a useful visual
-immediately; keep titles small, use hard cuts, and let reading pauses breathe. Every editorial video includes an automatic context poster and a three-second opening title in both orientations. Author its label, specific title, and short outcome sentence in `context` in `source-shots.yaml` (or hand-authored `editorial.yaml`). The shared scripts use real opening evidence, preserve playback timing, and export the posters as thumbnails; see [context posters](references/editorial-production.md#context-posters-and-opening-titles).
+immediately; keep titles small, use hard cuts, and let reading pauses breathe. Editorial videos include a context poster and a three-second opening title by default. For widget showcases, `context.layout: showcase` keeps the cover separate and opens on full-frame app footage. Author its label, specific title, and short outcome sentence in `context` in `source-shots.yaml` (or hand-authored `editorial.yaml`). The shared scripts use real opening evidence, preserve playback timing, and export the posters as thumbnails; see [context posters](references/editorial-production.md#context-posters-and-opening-titles).
 Prefer genuine recorded app interactions and changing states when they illustrate the narration; use stills for code, figures, and evidence that need reading time. Build a concrete problem-to-result story; compare real runs, connect the relevant code to the app, and use evidence-based timelines for otherwise invisible behavior when helpful. Minimize added non-code text: omit production-status labels such as “runnable example” and “verified app captures” from all visible headers, footers, and graphics; keep provenance in the production index. Include only concise qualifications that viewers need to interpret the evidence, such as “Simulated query.” Optional narration captions should not obscure evidence. No decorative objects, animated backgrounds, typewriter effects, or feature-card interstitials. Preserve captured UI and source text.
 
 For skill-created demos and graphics, do not put explanatory, simulation, timing, or production notes in a footer, including in the app UI itself. Explain simulated work in narration; if viewers need an on-screen qualification, show a brief, non-footer label near the evidence once when it matters. Review every captured app state and final shot in both orientations. An unwanted footer in an app, image, graphic, or overlay blocks delivery: fix the authored source and re-record or rebuild the affected shots, then review the new exports. Do not hide errors, required attribution, or essential limitations. Preserve user-provided apps and third-party captures; if their unwanted footer cannot be removed without altering them, report it rather than silently editing or obscuring it.
@@ -80,7 +80,7 @@ Every turn re-reads the whole session, so a long one keeps paying for its own hi
 
 ## Choose the workflow
 
-Create only what the user requested. For `shinywidgets`, `py-shinywidgets`, or supported Jupyter widget showcases, read [references/widget-showcases.md](references/widget-showcases.md) and use the [widget starter](assets/widget-starter/). Default to one 60–90 second editorial video per widget with installation, imports, rendering code, and recorded interaction. Reuse editorial framing and tools instead of the 45-second component quotas.
+Create only what the user requested. For `shinywidgets`, `py-shinywidgets`, or supported Jupyter widget showcases, read [references/widget-showcases.md](references/widget-showcases.md) and use the [widget starter](assets/widget-starter/). Default to one app-led video per widget. Open on the working app, keep setup brief, and return from one short source excerpt to the live result. Reuse editorial framing and tools instead of the 45-second component quotas.
 
 ### Idea only
 

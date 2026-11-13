@@ -1,6 +1,6 @@
 # Shiny Component Shorts
 
-Make short videos about [Shiny](https://shiny.posit.co) features. Component shorts focus on a single behavior. Widget showcases explain one shinywidgets integration in 60 to 90 seconds. Release and blog videos explain one feature in detail, usually in 60 to 120 seconds.
+Make short videos about [Shiny](https://shiny.posit.co) features. Component shorts focus on a single behavior. Widget showcases follow a real task built with shinywidgets. Release and blog videos explain one feature in detail, usually in 60 to 120 seconds.
 
 This repo is an agent skill for Claude Code, Codex, Google Antigravity, and OpenCode. Describe the video you want, and the agent builds a small Shiny app, records the browser, adds narration, and validates the output.
 
@@ -65,13 +65,13 @@ For pull requests and commits in `rstudio/shiny`, `posit-dev/py-shiny`, `posit-d
 
 For changelogs and blog posts, the pipeline creates an editorial video for each feature. Set `style: editorial` in `reel.yaml` and run `stitch_reel.py --reel-dir <directory> --separate`. Outputs include vertical and horizontal videos, thumbnails, chapter markers, and review sheets in `artifacts/series/`.
 
-Widget showcases use the same editorial pipeline. Each video shows the working widget, its installation command, the relevant imports and rendering function, and recorded interaction with a visible result. Use still images for setup and code. Record cursor movement, hover, clicks, and the widget's response as real browser footage. Plotly, Altair, Bokeh, ipyleaflet, and other compatible widgets use their own dependencies and renderer. See the [widget workflow](.agents/skills/shiny-component-shorts/references/widget-showcases.md) and [starter](.agents/skills/shiny-component-shorts/assets/widget-starter/).
+Widget showcases use the same editorial pipeline. Each video opens in the working app, shows the install and run commands, and uses one short source excerpt to explain a visible result. A separate cover highlights the app evidence. Use still images for setup and code. Record cursor movement, hover, clicks, and the widget's response as real browser footage. Plotly, Altair, Bokeh, ipyleaflet, and other compatible widgets use their own dependencies and renderer. See the [widget workflow](.agents/skills/shiny-component-shorts/references/widget-showcases.md) and [starter](.agents/skills/shiny-component-shorts/assets/widget-starter/).
 
-Blog, release, and widget videos automatically get context posters and brief opening titles in both orientations.
+The renderer makes a cover for each exported orientation. Blog and release videos also get a brief opening title. Widget showcases can use `context.layout: showcase` to open on full-frame footage.
 Each poster combines a real app capture with a specific title and a short outcome sentence.
 Set `context.label`, `context.title`, and `context.summary` in `source-shots.yaml`.
 `prepare_editorial.py` builds the posters before narration exists.
-`stitch_reel.py` uses them as thumbnails and clears the opening title after three seconds without delaying the app or narration.
+`stitch_reel.py` uses the covers as thumbnails. For a vertical-only showcase, set `orientations: [vertical]` and pass `--orientation vertical` to the export and validation commands.
 Posters and editable HTML are saved under `artifacts/context/`.
 
 Every script ends on a short conclusion, and every narrated video ends on a silent end card with the next step.

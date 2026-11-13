@@ -515,3 +515,21 @@ def test_normalize_sets_an_explicit_output_frame_rate(tmp_path, monkeypatch):
     reel._normalize(tmp_path / 'in.mp4', tmp_path / 'out.mp4', 'vertical')
     command = calls[0]
     assert command[command.index('-r') + 1] == str(reel.FPS)
+
+
+def test_vertical_showcase_opens_at_full_size_without_a_title_overlay(segment, monkeypatch):
+    monkeypatch.setattr(reel, "SIZES", {"vertical": (144, 256), "horizontal": (256, 144)})
+    change(segment, lambda c: c.update(orientations=["vertical"], context={"layout": "showcase"}))
+    change(segment, lambda c: [shot["views"].pop("horizontal") for shot in c["shots"]])
+    change(segment, lambda c: c["shots"][0]["views"]["vertical"].update(fit="cover"))
+    (segment / "reel.yaml").write_text("""style: editorial
+title: A chart in action
+features:
+- {title: Evidence, dir: .}
+""")
+    result = reel.build(segment, "vertical")
+    assert pixel(Path(result["reel"]), 0.5, (0.03, 0.03))[0] > 220
+    assert pixel(Path(result["reel"]), 0.5, (0.03, 0.03))[1] < 30
+    assert (segment / "artifacts/context/poster-vertical.jpg").is_file()
+    with pytest.raises(ValueError, match="horizontal"):
+        reel.editorial_plan(segment, "horizontal")

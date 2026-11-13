@@ -102,6 +102,8 @@ Outputs under `artifacts/context/` include `poster-<orientation>.jpg`, `opening-
 The summary appears only on the poster.
 During playback, the short title and label appear above the app in portrait and beside it in landscape.
 The title clears after three seconds, without adding a shot, delaying narration, or freezing footage.
+
+For a showcase that opens directly on the app, set `context.layout: showcase`. The builder makes a separate cover from `context.captures` and keeps the opening footage at its authored size. Use a close crop of actual app evidence that preserves labels, values, and attribution. Preview the cover and the first encoded frame independently.
 The app remains visible and plays at its original speed.
 The renderer refuses text that overlaps the evidence.
 Inspect both posters and encoded openings at phone size before delivery.
@@ -157,6 +159,8 @@ Before rendering, review all authored panel `label` and shot `source` fields and
 - `kind: output`: exact saved output in a monospace face, with no fabricated terminal chrome. Use this when the literal output is the evidence; use an authored, evidence-backed summary image for formatted explanatory results.
 - `kind: text`: verbatim source prose or a saved explanation. Keep quotations short and retain attribution.
 - `kind: image`: an actual clean capture or source figure. Crop deliberately before supplying it; never cut out an error or a relevant limitation.
+
+Set `code_wrap: false` on a view to keep whole code lines, remove common leading indentation, and reject an overflowing line with its file and line number. These stills stay fixed. Use `code_theme: dark` for GitHub dark syntax on a charcoal card. Keep line breaks in the source file itself. For a shell command, use actual shell continuation syntax when needed. Set `label: ""` to omit the filename when the command needs no label.
 
 Common panels reflow independently in the two orientations. For different captures or excerpts, set `views.vertical.panels` and `views.horizontal.panels` explicitly. Keep excerpts short. The builder refuses vertical overflow and horizontal scrolling rather than shrinking code until it fits. The optional per-view `font_size` is in logical pixels (default 26 portrait, 32 landscape); do not lower it to rescue an overloaded shot.
 
@@ -216,7 +220,7 @@ For one feature, use the starter's `reel.yaml`. For a series, list one directory
 <python> <skill>/scripts/validate_editorial.py --reel-dir <project>
 ```
 
-For a series, run `stitch_reel.py --reel-dir <series> --separate`, then the same validator on `<series>`. Both orientations are required unless the user requests one; use `--orientation` consistently in both commands in that case.
+For a series, run `stitch_reel.py --reel-dir <series> --separate`, then the same validator on `<series>`. Both orientations are required unless the user requests one. In that case, declare it in the feature file with `orientations: [vertical]` or `orientations: [horizontal]`, and use the corresponding `--orientation` in both commands.
 
 For an exact duration, add `target_seconds: 50` to the overview's `source-shots.yaml` (or hand-authored `editorial.yaml`). The narration plus its normal final hold must already fit. The renderer extends only the final still, at 30 fps, with no voice speed change, word trimming, or frozen footage. Use that hold for meaningful evidence that needs reading time. If it would become a long empty ending, revise the script and regenerate instead of padding a weak overview.
 

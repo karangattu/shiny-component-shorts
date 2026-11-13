@@ -439,7 +439,7 @@ class BatchProcessTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             project = make_project(Path(temp_dir))
             artifacts = project / "artifacts"
-            for name in ("narration.wav", "narration-timing.json", "timing-approval.json"):
+            for name in ("demo.mp4", "narration.wav", "narration-timing.json", "timing-approval.json"):
                 (artifacts / name).write_text(name, encoding="utf-8")
             narration_inputs = batch_process.narration_inputs(project)
             recording_inputs = batch_process.recording_inputs(project)
@@ -450,7 +450,15 @@ class BatchProcessTest(unittest.TestCase):
             self.assertIn(project / "app.py", recording_inputs)
             self.assertIn(artifacts / "narration.wav", recording_inputs)
             self.assertIn(artifacts / "narration.wav", merge_inputs)
-            self.assertNotIn(project / "actions.yaml", merge_inputs)
+            # The merger reads the outro from actions.yaml, including when a card is removed.
+            self.assertIn(project / "actions.yaml", merge_inputs)
+
+            merged = artifacts / "final_with_audio.mp4"
+            merged.write_bytes(b"merged video")
+            build_cache.update_cache(project, "merge", merge_inputs)
+            self.assertTrue(build_cache.check_cache(project, "merge", merge_inputs, [merged]))
+            (project / "actions.yaml").write_text("actions: []\noutro: true\n", encoding="utf-8")
+            self.assertFalse(build_cache.check_cache(project, "merge", merge_inputs, [merged]))
 
     def test_failure_or_blocked_stage_causes_batch_failure(self) -> None:
         result = batch_process.new_result(Path("video"))

@@ -920,6 +920,9 @@ def editorial_plan(segment: Path, orientation: str) -> dict:
         or not config["shots"]
     ):
         raise ValueError("editorial.yaml needs a non-empty shots list")
+    orientations = context_cards.orientations(config)
+    if orientation not in orientations:
+        raise ValueError(f"editorial.yaml does not include the {orientation} orientation")
     manifest_key = None
     if config.get("source_manifest"):
         manifest = segment / str(config["source_manifest"])
@@ -984,9 +987,9 @@ def editorial_plan(segment: Path, orientation: str) -> dict:
         previous_cue = moment
         views = shot.get("views")
         if not isinstance(views, dict):
-            raise ValueError(f"Shot {number} needs vertical and horizontal views")
+            raise ValueError(f"Shot {number} needs views for {', '.join(orientations)}")
         resolved = {}
-        for view_name in SIZES:
+        for view_name in orientations:
             view = views.get(view_name)
             if not isinstance(view, dict) or not isinstance(view.get("file"), str):
                 raise ValueError(
@@ -1215,7 +1218,7 @@ def render_editorial(
                 last = "composed"
                 intro_remaining = min(duration, context_cards.INTRO_SECONDS - shot["start"])
                 next_input = 2
-                if intro_remaining > 0:
+                if "overlay" in cards and intro_remaining > 0:
                     inputs += ["-loop", "1", "-framerate", str(FPS), "-i", str(cards["overlay"])]
                     x, y, w, h = context_cards.MEDIA_RECTS[orientation]
                     rect_width, rect_height = (max(2, round(width*w/2)*2), max(2, round(height*h/2)*2))
