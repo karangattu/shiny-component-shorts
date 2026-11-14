@@ -52,3 +52,15 @@ Do not spend time on install commands or setup. Viewers who want to try the app 
 - End on what the viewer can now do, in one or two plain sentences, with no call to action (the end card carries that).
 
 Install walkthroughs are optional. Include an install card only when the user asks for one.
+
+## Open on an integration poster
+
+Every vertical short opens on a poster before any footage, so a viewer knows what the video is about in the first second:
+
+- Title: the integration's name as the website lists it, followed by "in Shiny", such as "Altair in Shiny", "ipycanvas in Shiny", "K3D in Shiny". Use the exact capitalization from the integration's page under `website/widgets/`.
+- Summary: one line stating what the demo shows, taken from that page's description where it fits.
+- Evidence: a clean frame from the recorded app, supplied through `context.captures` so the poster shows the real app, not a stock graphic.
+- Timing: the poster is the first shot, cued to the first narration sentence. Footage begins after that sentence, so the poster holds for the first sentence and the title overlay on footage never starts before three seconds.
+- The first narration sentence names the same integration as the poster title.
+
+Keep the poster in both the captioned and clean exports. The end card stays the closing call to action.

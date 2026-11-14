@@ -19,6 +19,8 @@ Existing productions with audio/video under `artifacts/` keep a snapshot of thei
 
 Every vertical video for social media gets burned-in captions from measured word timing (`scripts/burn_captions.py`, see [social captions](references/social-captions.md)). Use one of the six caption styles, and rotate styles, opening order, and code-card theme across a series so the videos do not share one structure. Do not add an install walkthrough unless the user asks for one: open on the code or the app and show the integration directly, naming the package and shinywidgets in the first sentence.
 
+Open every vertical short on an integration poster, before any footage: the title is the integration's name from its page under `website/widgets/` plus "in Shiny", with a clean app frame as evidence and the poster cued to the first narration sentence (see [social captions](references/social-captions.md#open-on-an-integration-poster)).
+
 ## Core contract
 
 **Release, changelog, and blog requests default to one detailed editorial video per distinct feature or idea.**
