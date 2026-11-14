@@ -15,6 +15,10 @@ Read the returned `.video-skill/SKILL.md`, then use that snapshot's references, 
 
 Existing productions with audio/video under `artifacts/` keep a snapshot of their current tools. Do not delete their lock or update them midway. If a download fails, retry once and report the concrete failure if it persists; never silently fall back to older tools. Use `--local` only for explicitly requested local-development or offline work. See [version management](references/version-management.md) for recovery and provenance. Idea-only requests and skill maintenance do not need a production snapshot.
 
+## Vertical social shorts
+
+Every vertical video for social media gets burned-in captions from measured word timing (`scripts/burn_captions.py`, see [social captions](references/social-captions.md)). Use one of the six caption styles, and rotate styles, opening order, and code-card theme across a series so the videos do not share one structure. Do not add an install walkthrough unless the user asks for one: open on the code or the app and show the integration directly, naming the package and shinywidgets in the first sentence.
+
 ## Core contract
 
 **Release, changelog, and blog requests default to one detailed editorial video per distinct feature or idea.**
