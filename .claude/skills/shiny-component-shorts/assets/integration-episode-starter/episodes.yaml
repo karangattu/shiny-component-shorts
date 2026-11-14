@@ -1,0 +1,169 @@
+# Catalog for the "You Can Build This with Shiny" series.
+# One entry per episode, in release order. Read references/widget-integration-episodes.md first.
+#
+# Every entry was checked against posit-dev/py-shinywidgets at commit 71162da (2026-11-13).
+# The gallery changes: before you plan an episode, open its app.py and confirm that the
+# accessor, the renderer, and each control named in `demo` still exist.
+#
+# Source:  website/gallery/<gallery>/app.py in posit-dev/py-shinywidgets
+# Page:    https://posit-dev.github.io/py-shinywidgets/gallery/<gallery>/index.html
+# install: taken from the example's requirements.txt. It also goes on the end card, where a line
+#          holds 32 characters: keep every word at or under that length, so no word breaks.
+series: You Can Build This with Shiny
+gallery_repo: posit-dev/py-shinywidgets
+gallery_root: website/gallery
+gallery_url: https://posit-dev.github.io/py-shinywidgets/gallery
+checked_at: 71162da
+episodes:
+  - id: plotly-lasso
+    gallery: templates/plotly-lasso-explorer
+    example: Lasso explorer
+    integration: [Plotly, ITables]
+    label: Shiny for Python · Plotly
+    title: Draw on a chart to filter a table
+    renderers: [render_plotly, render_itables]
+    accessor: plot.selected_rows(df)
+    also: [plot.clicked()]
+    install: pip install 'shinywidgets[plotly,itables]'
+    hook: Lasso a handful of points in the scatter plot. The table below keeps only those rows.
+    demo:
+      - Show GDP per person against life expectancy.
+      - Lasso a cluster of countries and show the matching rows.
+      - Click one country to open its detail card.
+    payoff: An existing Plotly chart becomes the filter for the rest of the app.
+    audience: Exploratory data analysis
+    complexity: easy
+
+  - id: lonboard-city-map
+    gallery: templates/lonboard-city-explorer
+    example: World city explorer
+    integration: [Lonboard, ITables]
+    label: Shiny for Python · Lonboard
+    title: Select a region on a map to filter a table
+    renderers: [render_lonboard, render_itables]
+    accessor: map.selected_bounds()
+    also: [map.selected()]
+    install: pip install 'shinywidgets[lonboard,itables]' geopandas shapely
+    hook: Drag the Select BBox tool across part of Europe. The table fills with the cities inside the box.
+    demo:
+      - Click one city to show its name, country, and population.
+      - Drag a selection box over a second region and show the table change.
+    payoff: A selection on the map is the only filter the app needs.
+    audience: Geospatial data, such as transport, public health, and environmental monitoring
+    complexity: easy
+    notes: Keep the map attribution visible.
+
+  - id: k3d-terrain
+    gallery: showcases/terrain-explorer
+    example: Terrain explorer
+    integration: [K3D]
+    label: Shiny for Python · K3D
+    title: Click a 3D landscape to read its elevation
+    renderers: [render_k3d]
+    accessor: terrain.camera()
+    install: pip install 'shinywidgets[k3d]' matplotlib numpy
+    hook: Orbit the terrain, then click a peak. The elevation at that point appears.
+    demo:
+      - Click two more locations and read their elevations.
+      - Press "Fly to highest point" and let the camera finish moving.
+      - Turn on the Wireframe checkbox to show the surface geometry.
+    payoff: The app reads the camera and the clicked point, and Python changes the scene without rebuilding it.
+    audience: Elevation models, geoscience, and engineering simulations
+    complexity: medium
+    notes: The clicked point arrives through the plot's click_callback, not through an accessor. Do not show a picked-point accessor.
+
+  - id: perspective-trading-desk
+    gallery: showcases/trading-desk
+    example: Live trading desk
+    integration: [Perspective]
+    label: Shiny for Python · Perspective
+    title: Filter a live table and the dashboard follows
+    renderers: [render_perspective]
+    accessor: grid.view_config()
+    install: pip install 'shinywidgets[perspective]' pandas numpy
+    hook: Trades stream into the table. Filter the table to one sector, and the value boxes recompute.
+    demo:
+      - Switch the left viewer between Blotter, Pivot, and Heatmap.
+      - Open the viewer settings and filter to the technology sector.
+      - Show the treemap and the value boxes following the filter while trades keep arriving.
+    payoff: The filters a person sets inside the table are reactive values in Python.
+    audience: Real-time analytics and operations dashboards
+    complexity: medium
+    notes: The data is simulated. Say so once in narration. Streaming numbers differ between takes, so do not narrate exact values.
+
+  - id: jscatter-single-cell
+    gallery: showcases/single-cell-atlas
+    example: 300,000 cells -- lasso to explore
+    integration: [jupyter-scatter]
+    label: Shiny for Python · jupyter-scatter
+    title: Lasso 300,000 points across two linked plots
+    renderers: [render_jscatter]
+    accessor: umap.selected()
+    install: pip install 'shinywidgets[jscatter]' pandas numpy
+    hook: Lasso a group in one scatter plot. The same cells light up in the second plot.
+    demo:
+      - Lasso one cluster and show the composition percentages update.
+      - Press "Find the top 1% CD3E cells" and show both plots select them.
+    payoff: A selection travels to Python as row numbers, so the app does not resend the points.
+    audience: Computational biology, genomics, and embeddings
+    complexity: medium
+    notes: The cells are synthetic. Say so once in narration.
+
+  - id: ipycytoscape-network
+    gallery: showcases/les-miserables-network
+    example: Les Misérables network
+    integration: [ipycytoscape, NetworkX]
+    label: Shiny for Python · ipycytoscape
+    title: Click a network to see who connects to whom
+    renderers: [render_ipycytoscape]
+    accessor: network.clicked_node()
+    also: [network.selected_nodes(), network.clicked_edge()]
+    install: pip install 'shinywidgets[ipycytoscape]' networkx
+    hook: Click one character. The rest of the network fades and that character's direct connections stay.
+    demo:
+      - Click Valjean and show his strongest connections.
+      - Choose two characters under "Shortest path between" and show the path through the graph.
+    payoff: NetworkX computes, ipycytoscape draws, and a click joins the two.
+    audience: Dependencies, organizations, and knowledge graphs
+    complexity: medium
+
+  - id: mols2grid-chemistry
+    gallery: showcases/chemical-explorer
+    example: Chemical explorer
+    integration: [mols2grid, RDKit, Plotly]
+    label: Shiny for Python · mols2grid
+    title: Filter a grid of molecules with sliders and a lasso
+    renderers: [render_mols2grid, render_plotly]
+    accessor: grid.clicked()
+    also: [grid.selected(), scatter.selected_rows(MOLS)]
+    install: pip install 'shinywidgets[mols2grid,plotly]' matplotlib pandas
+    hook: Move the molecular weight slider. Dozens of structures leave the grid.
+    demo:
+      - Lasso a group in the Plotly scatter to narrow the grid further.
+      - Click one molecule to open its properties.
+      - Select several molecules and show the "Download as SDF" button.
+    payoff: The structure grid takes part in the same filters as the chart and the sliders.
+    audience: Compound screening and chemical research
+    complexity: specialized
+    notes: RDKit installs as a mols2grid dependency.
+
+  - id: ipyleaflet-map-chat
+    gallery: showcases/map-chart-chat
+    example: Map + chart + chat
+    integration: [ipyleaflet, Plotly, shinychat, chatlas]
+    label: Shiny for Python · ipyleaflet
+    title: Ask a chat panel to move the map
+    renderers: [render_ipyleaflet, render_plotly]
+    accessor: map.bounds()
+    install: pip install 'shinywidgets[ipyleaflet]' 'shinywidgets[plotly]' shinychat chatlas anthropic pandas
+    hook: Type "Fly to the West Island" in the chat. The map moves and the bar chart updates.
+    demo:
+      - Pan the map to a new area and show the bar chart change.
+      - Ask the chat what is visible on the map and show an answer that matches the chart.
+    payoff: The chart and the chat tools read the same map bounds, so they always agree.
+    audience: Apps where a language model inspects and controls components through tools
+    complexity: advanced
+    notes: >-
+      A video never calls a real LLM. Record a production copy whose chat replies and tool calls
+      are scripted, keep map.bounds() and the fly_to code path real, and say "simulated reply" once
+      in narration. State that the gallery app needs an LLM provider and credentials.

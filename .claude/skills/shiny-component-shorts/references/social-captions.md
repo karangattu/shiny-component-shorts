@@ -55,7 +55,7 @@ Install walkthroughs are optional. Include an install card only when the user as
 
 ## Open on an integration poster
 
-Every vertical short opens on a poster before any footage, so a viewer knows what the video is about in the first second:
+Every vertical short opens on a poster before any footage, so a viewer knows what the video is about in the first second. The one exception is a [gallery integration episode](widget-integration-episodes.md): it opens on the interaction itself, names the package in its third beat, and keeps the poster as the thumbnail.
 
 - Title: the integration's name as the website lists it, followed by "in Shiny", such as "Altair in Shiny", "ipycanvas in Shiny", "K3D in Shiny". Use the exact capitalization from the integration's page under `website/widgets/`.
 - Summary: one line stating what the demo shows, taken from that page's description where it fits.

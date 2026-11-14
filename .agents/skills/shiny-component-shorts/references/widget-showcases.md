@@ -2,6 +2,8 @@
 
 Use this workflow for a short video about one [shinywidgets](https://github.com/posit-dev/py-shinywidgets) integration. Start from the [official Jupyter Widgets guide](https://shiny.posit.co/py/docs/jupyter-widgets.html) and the chosen library's documentation. `py-shinywidgets` is the repository name. The package to install and import is `shinywidgets`.
 
+For an app from the [shinywidgets gallery](https://posit-dev.github.io/py-shinywidgets/gallery/), or a video about how a widget drives other outputs, use [widget integration episodes](widget-integration-episodes.md). That guide sets the story and the beats, and this guide still covers installation, capture, and assembly.
+
 Choose one widget and one useful task. If the user names several widgets, make one independently understandable video for each, unless they request a comparison. If none is named, Plotly is a useful starting point: a Shiny input changes a chart, and the chart retains its own hover and legend controls. Other candidates include a linked Altair selection, an ipyleaflet map control, or a Bokeh chart update. Verify the specific behavior before writing narration.
 
 Give each video a `context` label, specific title, and short outcome sentence in `source-shots.yaml`.

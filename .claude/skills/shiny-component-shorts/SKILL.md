@@ -19,7 +19,7 @@ Existing productions with audio/video under `artifacts/` keep a snapshot of thei
 
 Every vertical video for social media gets burned-in captions from measured word timing (`scripts/burn_captions.py`, see [social captions](references/social-captions.md)). Use one of the six caption styles, and rotate styles, opening order, and code-card theme across a series so the videos do not share one structure. Do not add an install walkthrough unless the user asks for one: open on the code or the app and show the integration directly, naming the package and shinywidgets in the first sentence.
 
-Open every vertical short on an integration poster, before any footage: the title is the integration's name from its page under `website/widgets/` plus "in Shiny", with a clean app frame as evidence and the poster cued to the first narration sentence (see [social captions](references/social-captions.md#open-on-an-integration-poster)).
+Open every vertical short on an integration poster, before any footage (a [gallery integration episode](references/widget-integration-episodes.md) opens on its hook footage instead and keeps the cover as the thumbnail): the title is the integration's name from its page under `website/widgets/` plus "in Shiny", with a clean app frame as evidence and the poster cued to the first narration sentence (see [social captions](references/social-captions.md#open-on-an-integration-poster)).
 
 ## Core contract
 
@@ -85,7 +85,7 @@ Every turn re-reads the whole session, so a long one keeps paying for its own hi
 - Read a file once. When you need it again, re-read the range you need instead of the whole script.
 
 ## Choose the workflow
-Create only what the user requested. For `shinywidgets`, `py-shinywidgets`, or supported Jupyter widget showcases, read [references/widget-showcases.md](references/widget-showcases.md) and use the [widget starter](assets/widget-starter/). Default to one app-led video per widget. Open on the working app, keep setup brief, and return from one short source excerpt to the live result. Reuse editorial framing and tools instead of the 45-second component quotas.
+Create only what the user requested. For `shinywidgets`, `py-shinywidgets`, or supported Jupyter widget showcases, read [references/widget-showcases.md](references/widget-showcases.md) and use the [widget starter](assets/widget-starter/). Default to one app-led video per widget. Open on the working app, keep setup brief, and return from one short source excerpt to the live result. Reuse editorial framing and tools instead of the 45-second component quotas. For an app from the shinywidgets gallery, a widget integration video, or the "You Can Build This with Shiny" series, read [references/widget-integration-episodes.md](references/widget-integration-episodes.md) first. Take the episode from the catalog in the [integration episode starter](assets/integration-episode-starter/) and confirm it against the gallery `app.py`. Each episode runs 45–55 seconds in four beats: the interaction and its result in the first three seconds, the working app, the libraries and what shinywidgets connects, then one highlighted accessor line and the name of the gallery example. Name no package before the third beat.
 
 ### Idea only
 Return:

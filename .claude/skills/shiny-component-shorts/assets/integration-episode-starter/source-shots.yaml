@@ -1,0 +1,30 @@
+# Integration episode stills: the cover and the one line of code.
+# The cover stays out of playback (layout: showcase), so the video opens on the hook footage.
+# Take label and title from the episode's entry in episodes.yaml.
+context:
+  layout: showcase
+  label: Shiny for Python · Plotly
+  title: Draw on a chart to filter a table
+  summary: Lasso points in a Plotly chart and the table keeps only those rows.
+  captures:
+    vertical: sources/result-vertical.png
+    horizontal: sources/result-horizontal.png
+shots:
+  # Get started: a few whole lines from the gallery app.py, with the accessor line highlighted.
+  # Find the lines by searching app.py for the accessor. Do not copy these numbers.
+  - cue: One line reads the selection
+    chapter: The connection
+    views:
+      vertical:
+        code_theme: dark
+        code_wrap: false
+        font_size: 32
+        panels:
+          - {kind: code, file: app.py, lines: [61, 64], highlight: 63}
+      horizontal:
+        layout: columns
+        code_theme: dark
+        code_wrap: false
+        panels:
+          - {kind: code, file: app.py, lines: [61, 64], highlight: 63}
+          - {kind: image, file: sources/app-horizontal-code.png}

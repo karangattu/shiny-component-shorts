@@ -1,0 +1,26 @@
+# Integration episode footage: four beats, in this order.
+#   hook (0-3 s) -> demo (3-20 s) -> integration (20-37 s) -> [code still] -> result
+# Place the code still from source-shots.yaml between the integration clip and the result clip.
+# Replace each cue with words from the final transcript. Cut on measured words.
+# Keep real interactions at original speed.
+shots:
+  - cue: I lasso a few points
+    chapter: The hook
+    views:
+      vertical: {file: sources/hook-vertical.mp4, fit: contain, in: 0}
+      horizontal: {file: sources/hook-horizontal.mp4, fit: contain, in: 0}
+  - cue: Each point is a country
+    chapter: The demo
+    views:
+      vertical: {file: sources/demo-vertical.mp4, fit: contain, in: 0}
+      horizontal: {file: sources/demo-horizontal.mp4, fit: contain, in: 0}
+  - cue: The chart is Plotly
+    chapter: The integration
+    views:
+      vertical: {file: sources/integration-vertical.mp4, fit: contain, in: 0}
+      horizontal: {file: sources/integration-horizontal.mp4, fit: contain, in: 0}
+  - cue: So a chart you already have
+    chapter: The result
+    views:
+      vertical: {file: sources/result-vertical.mp4, fit: contain, in: 0}
+      horizontal: {file: sources/result-horizontal.mp4, fit: contain, in: 0}

@@ -87,6 +87,14 @@ Show installation, imports, and a small Shiny Express app.
 Record real hover and legend clicks. Export portrait and landscape videos.
 ```
 
+To make an episode about an app in the [shinywidgets gallery](https://posit-dev.github.io/py-shinywidgets/gallery/), ask:
+
+```text
+/shiny-component-shorts Make the Plotly lasso episode of "You Can Build This with Shiny".
+```
+
+A gallery episode runs 45 to 55 seconds. It opens on the interaction, shows the working app, names the libraries and what shinywidgets connects, then shows one accessor line and names the gallery example. The [catalog](.agents/skills/shiny-component-shorts/assets/integration-episode-starter/episodes.yaml) lists eight planned episodes, and the [episode workflow](.agents/skills/shiny-component-shorts/references/widget-integration-episodes.md) explains how to add one for any other gallery app.
+
 ## Narration
 
 - Local voice: uses the cloned voice `karan` by default. See the [TTS reference](.agents/skills/shiny-component-shorts/references/tts-and-costs.md#use-local-voice-cloning) for setup.

@@ -1,0 +1,11 @@
+style: editorial
+orientation: vertical
+title: Draw on a chart to filter a table
+features:
+  - title: Draw on a chart to filter a table
+    dir: .
+# The end card carries the starting point: the tested install command and the gallery.
+outro:
+  title: Try it yourself
+  command: pip install 'shinywidgets[plotly,itables]'
+  link: posit-dev.github.io/py-shinywidgets/gallery
