@@ -19,7 +19,7 @@ This repo generates short Shiny component demo apps and 30-second video concepts
 - Narration sounds like a developer explaining something to a coworker, never like an ad: no hype words, pitch questions, exclamation marks, or spoken calls to action.
 - Every script ends on a conclusion: one or two plain sentences on what the viewer now knows and when it matters to them.
 - Every narrated video ends on a silent end card with the one call to action: a title such as “Try Shiny 1.9 today”, the install command, and “Learn more at shiny.posit.co”. Name a version only for a release that has shipped.
-- A shinywidgets gallery app or widget integration request is an episode of “You Can Build This with Shiny”: open on the interaction, not on a poster or a package name, show one accessor line, and name the gallery example; the end card links to the gallery.
+- A shinywidgets gallery app or widget integration request is an episode of “You Can Build This with Shiny”: open on the interaction, not on a poster or a package name, show one accessor line, and name the gallery example. Its last sentence is spoken over the end card: “To try this integration, go to the py-shinywidgets website.” This is the only spoken call to action in any video.
 - Never include laughing, giggling, chuckling, or other non-speech vocalizations in narration.
 - Every generated video ships in both orientations (vertical and horizontal) from the same actions and narration; build apps that fill the frame in both.
 - In horizontal videos, show code beside the live app rather than over it.

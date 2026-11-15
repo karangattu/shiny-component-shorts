@@ -1,30 +1,34 @@
 # Integration episode stills: the cover and the one line of code.
 # The cover stays out of playback (layout: showcase), so the video opens on the hook footage.
 # Take label and title from the episode's entry in episodes.yaml.
+# Build this file before the narration takes: the batch tool finds the episode by its editorial.yaml.
 context:
   layout: showcase
-  label: Shiny for Python · Plotly
-  title: Draw on a chart to filter a table
-  summary: Lasso points in a Plotly chart and the table keeps only those rows.
+  label: Shiny for Python · Lonboard
+  title: Filter a table from a map
+  summary: Draw a box and the table keeps the cities inside.
   captures:
-    vertical: sources/result-vertical.png
-    horizontal: sources/result-horizontal.png
+    vertical: sources/cover-vertical.png
+    horizontal: sources/cover-horizontal.png
 shots:
-  # Get started: a few whole lines from the gallery app.py, with the accessor line highlighted.
-  # Find the lines by searching app.py for the accessor. Do not copy these numbers.
+  # The accessor line and the lines that lead to it, from the gallery app.py. Find the lines by
+  # searching app.py for the accessor. Do not copy these numbers.
+  # Gallery lines are long and you cannot re-break them, so keep whole lines (code_wrap: false)
+  # and cut the excerpt until it fits at these sizes. Wrapping splits a name in the middle.
   - cue: One line reads the selection
-    chapter: The connection
+    chapter: Read the box in Python
     views:
       vertical:
         code_theme: dark
         code_wrap: false
-        font_size: 32
+        font_size: 24
         panels:
-          - {kind: code, file: app.py, lines: [61, 64], highlight: 63}
+          - {kind: code, file: app.py, lines: [62, 64], highlight: 64}
       horizontal:
         layout: columns
         code_theme: dark
         code_wrap: false
+        font_size: 20
         panels:
-          - {kind: code, file: app.py, lines: [61, 64], highlight: 63}
+          - {kind: code, file: app.py, lines: [62, 64], highlight: 64}
           - {kind: image, file: sources/app-horizontal-code.png}

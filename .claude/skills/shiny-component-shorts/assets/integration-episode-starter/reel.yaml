@@ -1,11 +1,14 @@
 style: editorial
 orientation: vertical
-title: Draw on a chart to filter a table
+title: Filter a table from a map
 features:
-  - title: Draw on a chart to filter a table
+  - title: Filter a table from a map
     dir: .
-# The end card carries the starting point: the tested install command and the gallery.
+# The narration speaks the last line over this card, so `spoken` names the phrase it appears on.
+# While episodes.yaml says released: false, keep the command empty. After the release, use the
+# entry's install command and confirm it in a new environment.
 outro:
-  title: Try it yourself
-  command: pip install 'shinywidgets[plotly,itables]'
-  link: posit-dev.github.io/py-shinywidgets/gallery
+  title: Try this integration
+  command: ""
+  link: posit-dev.github.io/py-shinywidgets
+  spoken: To try this integration

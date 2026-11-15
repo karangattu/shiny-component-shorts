@@ -93,7 +93,7 @@ To make an episode about an app in the [shinywidgets gallery](https://posit-dev.
 /shiny-component-shorts Make the Plotly lasso episode of "You Can Build This with Shiny".
 ```
 
-A gallery episode runs 45 to 55 seconds. It opens on the interaction, shows the working app, names the libraries and what shinywidgets connects, then shows one accessor line and names the gallery example. The [catalog](.agents/skills/shiny-component-shorts/assets/integration-episode-starter/episodes.yaml) lists eight planned episodes, and the [episode workflow](.agents/skills/shiny-component-shorts/references/widget-integration-episodes.md) explains how to add one for any other gallery app.
+A gallery episode runs 45 to 55 seconds. It opens on the interaction, shows the working app, names the libraries and what shinywidgets connects, then shows one accessor line and names the gallery example. The closing line, “To try this integration, go to the py-shinywidgets website,” is spoken over the end card. The [catalog](.agents/skills/shiny-component-shorts/assets/integration-episode-starter/episodes.yaml) lists eight planned episodes, and the [episode workflow](.agents/skills/shiny-component-shorts/references/widget-integration-episodes.md) explains how to add one for any other gallery app.
 
 ## Narration
 

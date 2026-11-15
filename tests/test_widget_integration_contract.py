@@ -16,7 +16,7 @@ KEYS = {'id', 'gallery', 'example', 'integration', 'label', 'title', 'renderers'
 class WidgetIntegrationContractTest(unittest.TestCase):
     def test_both_copies_carry_the_same_episode_files(self) -> None:
         names = [REFERENCE] + [f'{STARTER}/{n}' for n in
-                               ('episodes.yaml', 'source-shots.yaml', 'interaction-shot.yaml', 'reel.yaml')]
+                               ('episodes.yaml', 'source-shots.yaml', 'capture.yaml', 'capture.py', 'assemble.py', 'reel.yaml')]
         for name in names:
             with self.subTest(file=name):
                 self.assertEqual((SKILLS[0] / name).read_text(encoding='utf-8'),
@@ -35,6 +35,7 @@ class WidgetIntegrationContractTest(unittest.TestCase):
                 self.assertTrue(episode['install'].startswith("pip install 'shinywidgets["))
                 self.assertLessEqual(max(map(len, episode['install'].split())), 32)
                 self.assertFalse(episode['title'].endswith('?'))
+                self.assertLessEqual(len(episode['title']), 32)
                 self.assertTrue(episode['demo'])
 
     def test_starter_opens_on_footage_and_shows_one_highlighted_line(self) -> None:
@@ -43,11 +44,17 @@ class WidgetIntegrationContractTest(unittest.TestCase):
         self.assertEqual(len(stills['shots']), 1)
         for view in stills['shots'][0]['views'].values():
             self.assertIn('highlight', view['panels'][0])
-        clips = yaml.safe_load((SKILLS[0] / STARTER / 'interaction-shot.yaml').read_text(encoding='utf-8'))
-        self.assertEqual([s['chapter'] for s in clips['shots']],
-                         ['The hook', 'The demo', 'The integration', 'The result'])
+        self.assertFalse(stills['shots'][0]['views']['vertical']['code_wrap'])
+        clips = yaml.safe_load((SKILLS[0] / STARTER / 'capture.yaml').read_text(encoding='utf-8'))
+        self.assertEqual([c['name'] for c in clips['clips']], ['hook', 'demo', 'integration', 'result'])
+        self.assertLessEqual(clips['clips'][0]['actions'][0]['at'], 2)
+        self.assertEqual(set(clips['points']), {'vertical', 'horizontal'})
+        catalog = yaml.safe_load((SKILLS[0] / STARTER / 'episodes.yaml').read_text(encoding='utf-8'))
         outro = yaml.safe_load((SKILLS[0] / STARTER / 'reel.yaml').read_text(encoding='utf-8'))['outro']
-        self.assertIn('py-shinywidgets/gallery', outro['link'])
+        self.assertIn('py-shinywidgets', outro['link'])
+        self.assertTrue(catalog['closing_line'].startswith(outro['spoken']))
+        if not catalog['released']:
+            self.assertEqual(outro['command'], '')
 
     def test_skills_route_gallery_requests_to_the_episode_guide(self) -> None:
         for skill in SKILLS:
@@ -57,8 +64,21 @@ class WidgetIntegrationContractTest(unittest.TestCase):
                 self.assertIn(STARTER, text)
                 guide = (skill / REFERENCE).read_text(encoding='utf-8')
                 for phrase in ('The hook is footage', 'Show one accessor', 'Never call a real LLM',
-                               'never asks a pitch question'):
+                               'never asks a pitch question', 'speak the closing line', '--stop-at'):
                     self.assertIn(phrase, guide)
+
+
+
+class SpokenEndCardTest(unittest.TestCase):
+    def test_captions_stop_before_the_closing_line_and_keep_short_words(self) -> None:
+        import sys
+        sys.path.insert(0, str(SKILLS[0] / 'scripts'))
+        import burn_captions
+        words = [{'word': w} for w in 'I draw a box. To try this integration, go'.split()]
+        kept = burn_captions.words_before(words, 'To try this')
+        self.assertEqual([w['word'] for w in kept], ['I', 'draw', 'a', 'box.'])
+        with self.assertRaises(SystemExit):
+            burn_captions.words_before(words, 'not spoken')
 
 
 if __name__ == '__main__':

@@ -1,0 +1,51 @@
+# Verified actions for the Lonboard episode (World city explorer).
+# points: CSS pixels in each view's own viewport. A canvas has no selectors, so read them from a
+#         preflight screenshot, and read them again after any layout change.
+# setup:  runs before every clip, off camera. Put the tab switch and the armed tool here so the
+#         hook starts on the interaction.
+# Each action is one of: click (selector), point (one press), box (press, move, press).
+#   at: seconds from the clip start. A clip that opens on a box with `at` gets its first corner
+#       pressed off camera, so the recording starts with the box about to stretch.
+#   phrase + lead: press `lead` seconds before the spoken phrase.
+#   expect: a JavaScript condition that must come true after the press.
+ready: canvas.maplibregl-canvas
+urls: {vertical: "http://127.0.0.1:8762", horizontal: "http://127.0.0.1:8761"}
+points:
+  vertical:   {europe_a: [270, 113], europe_b: [410, 216], reykjavik: [238, 90], samerica_a: [65, 321], samerica_b: [190, 449]}
+  horizontal: {europe_a: [290, 240], europe_b: [440, 345], reykjavik: [257, 227], samerica_a: [85, 480], samerica_b: [210, 580]}
+# Printed after each checked action in preflight, so you can read the real values before you write narration.
+report: "({table: [...document.querySelectorAll('#table table tbody tr')].slice(0, 6).map(r => r.innerText.replace(/\\s+/g, ' ').trim()), detail: document.querySelector('#detail')?.innerText.replace(/\\s+/g, ' ').trim()})"
+setup:
+  - {click: "role=tab[name='In selection']"}
+  - {click: "role=button[name='Select BBox']"}
+clips:
+  - name: hook
+    chapter: Draw a box, get a table
+    cue: I draw a box
+    end: Each dot is a city
+    actions:
+      - {box: [europe_a, europe_b], at: 1.0, expect: "document.querySelector('#table').innerText.includes('Paris')"}
+  - name: demo
+    chapter: Click one city
+    cue: Each dot is a city
+    end: The map is Lonboard
+    resume: [hook]
+    actions:
+      - {click: "role=tab[name='Detail']", phrase: One click, lead: 0.3}
+      - {point: reykjavik, phrase: single dot, lead: 0, expect: "document.querySelector('#detail').innerText.includes('Reykjav')"}
+  - name: integration
+    chapter: Lonboard, ITables, and shinywidgets
+    cue: The map is Lonboard
+    end: One line reads
+    resume: [hook, demo]
+    actions:
+      - {click: "role=tab[name='In selection']", phrase: the table is, lead: 0.2}
+      - {click: "role=button[name='Clear bounding box']", phrase: Shiny Widgets sends, lead: 0.7}
+      - {click: "role=button[name='Select BBox']", phrase: Shiny Widgets sends, lead: -0.1}
+      - {box: [samerica_a, samerica_b], phrase: to Python, lead: 0, expect: "!document.querySelector('#table').innerText.includes('Paris') && document.querySelector('#table').innerText.includes('Brazil')"}
+  - name: result
+    chapter: World city explorer
+    cue: This app is
+    end: To try this integration
+    resume: [hook, demo, integration]
+    actions: []
