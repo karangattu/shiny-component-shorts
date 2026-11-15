@@ -84,11 +84,14 @@ def verify(root: Path, expected: str | None = None) -> str:
 
 def variant_for(source: Path) -> str:
     metadata = source / "release.json"
-    variant = (
-        json.loads(metadata.read_text())["variant"]
-        if metadata.is_file()
-        else ("claude" if ".claude" in source.parts else "codex")
-    )
+    lock = source.parent / LOCK
+    if metadata.is_file():
+        variant = json.loads(metadata.read_text())["variant"]
+    elif source.name == SNAPSHOT and lock.is_file():
+        # A --local snapshot has no release.json; its production lock records the variant.
+        variant = json.loads(lock.read_text()).get("variant")
+    else:
+        variant = "claude" if ".claude" in source.parts else "codex"
     if variant not in {"codex", "claude"}:
         raise ValueError("Unknown skill variant")
     return variant
