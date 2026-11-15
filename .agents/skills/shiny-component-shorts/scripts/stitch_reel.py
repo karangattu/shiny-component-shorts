@@ -1383,6 +1383,7 @@ def build_editorial(reel_dir: Path, config: dict, orientation: str, *, output_di
     suffix = "" if orientation == config["orientation"] else f"-{orientation}"
     chapters, shots, pieces, segments, elapsed = [], [], [], [], 0.0
     warnings: list[str] = []
+    last_plan: dict | None = None
     with tempfile.TemporaryDirectory(
         prefix="editorial-reel-"
     ) as temporary, sync_playwright() as playwright:
@@ -1408,6 +1409,7 @@ def build_editorial(reel_dir: Path, config: dict, orientation: str, *, output_di
                 pieces.append((normalized, duration, "cut"))
                 segments.append({"path": str(feature["path"]), "plan_key": cache_key(plan)})
                 warnings += highlight_warnings(plan, orientation)
+                last_plan = plan
                 marked = [(shot["start"], shot["chapter"]) for shot in plan["shots"] if shot["chapter"]]
                 if not marked or marked[0][0] != 0:
                     marked.insert(0, (0.0, feature["title"]))
@@ -1435,7 +1437,7 @@ def build_editorial(reel_dir: Path, config: dict, orientation: str, *, output_di
             )
             if card and card["spoken"]:
                 # The narration speaks over this card, so it is the last shot, not an added tail.
-                if len(config["features"]) != 1 or plan["shots"][-1]["cue"].get("phrase") != card["spoken"]:
+                if len(config["features"]) != 1 or last_plan is None or last_plan["shots"][-1]["cue"].get("phrase") != card["spoken"]:
                     raise ValueError(
                         "outro.spoken needs one feature whose last shot is the end card, "
                         f'cued on "{card["spoken"]}"'
