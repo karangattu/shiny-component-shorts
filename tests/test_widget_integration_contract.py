@@ -13,10 +13,20 @@ KEYS = {'id', 'gallery', 'example', 'integration', 'label', 'title', 'renderers'
         'install', 'hook', 'demo', 'payoff', 'audience', 'complexity'}
 
 
+def load_look():
+    """look.py lives in the starter, outside the type checker's search path, so load it by file."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location('look', SKILLS[0] / STARTER / 'look.py')
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 class WidgetIntegrationContractTest(unittest.TestCase):
     def test_both_copies_carry_the_same_episode_files(self) -> None:
         names = [REFERENCE] + [f'{STARTER}/{n}' for n in
-                               ('episodes.yaml', 'source-shots.yaml', 'capture.yaml', 'capture.py', 'assemble.py', 'reel.yaml')]
+                               ('episodes.yaml', 'source-shots.yaml', 'capture.yaml', 'capture.py', 'assemble.py', 'look.py', 'reel.yaml')]
         for name in names:
             with self.subTest(file=name):
                 self.assertEqual((SKILLS[0] / name).read_text(encoding='utf-8'),
@@ -67,6 +77,39 @@ class WidgetIntegrationContractTest(unittest.TestCase):
                                'never asks a pitch question', 'speak the closing line', '--stop-at'):
                     self.assertIn(phrase, guide)
 
+    def test_every_episode_has_a_planned_look_unlike_its_neighbours(self) -> None:
+        import copy, sys
+        look = load_look()
+        catalog = yaml.safe_load((SKILLS[0] / STARTER / 'episodes.yaml').read_text(encoding='utf-8'))
+        episodes = catalog['episodes']
+        self.assertEqual(look.problems(episodes), [])
+        # The stored looks are what the seed draws, so the catalog can be rebuilt.
+        self.assertEqual(look.assign(episodes, catalog['look_seed']), [e['look'] for e in episodes])
+        for key in ('captions', 'code_theme', 'order', 'code_side'):
+            self.assertEqual({e['look'][key] for e in episodes}, set(look.OPTIONS[key]))
+        # A new episode draws a look that fits, and the older looks stay.
+        more = copy.deepcopy(episodes) + [{'id': f'extra-{n}'} for n in range(17)]
+        looks = look.assign(more, catalog['look_seed'])
+        self.assertEqual(looks[:len(episodes)], [e['look'] for e in episodes])
+        self.assertEqual(look.problems([{'id': str(n), 'look': one} for n, one in enumerate(looks)]), [])
+        twin = copy.deepcopy(episodes)
+        twin[1]['look'] = dict(twin[0]['look'])
+        self.assertTrue(look.problems(twin))
+
+    def test_a_look_is_applied_to_the_production_files(self) -> None:
+        import shutil, sys, tempfile
+        look = load_look()
+        with tempfile.TemporaryDirectory() as tmp:
+            for name in ('source-shots.yaml', 'reel.yaml'):
+                shutil.copy(SKILLS[0] / STARTER / name, tmp)
+            wanted = {'captions': 'bar', 'code_theme': 'light', 'order': 'code-integration',
+                      'code_side': 'right', 'card_title': 'Run this app yourself'}
+            look.apply(Path(tmp), {'id': 'x', 'look': wanted})
+            views = yaml.safe_load((Path(tmp) / 'source-shots.yaml').read_text())['shots'][0]['views']
+            self.assertEqual({v['code_theme'] for v in views.values()}, {'light'})
+            self.assertEqual([p['kind'] for p in views['horizontal']['panels']], ['image', 'code'])
+            self.assertEqual(yaml.safe_load((Path(tmp) / 'reel.yaml').read_text())['outro']['title'], 'Run this app yourself')
+            self.assertEqual(yaml.safe_load((Path(tmp) / 'look.yaml').read_text())['order'], 'code-integration')
 
 
 class SpokenEndCardTest(unittest.TestCase):
@@ -79,6 +122,43 @@ class SpokenEndCardTest(unittest.TestCase):
         self.assertEqual([w['word'] for w in kept], ['I', 'draw', 'a', 'box.'])
         with self.assertRaises(SystemExit):
             burn_captions.words_before(words, 'not spoken')
+
+    def test_a_second_pointer_arrow_stops_the_recording(self) -> None:
+        import sys
+        sys.path.insert(0, str(SKILLS[0] / 'scripts'))
+        import record_demo
+
+        class Frame:
+            def __init__(self, shown): self.shown = shown
+            def evaluate(self, _):
+                if self.shown is None:
+                    raise RuntimeError('detached')
+                return self.shown
+
+        class Page:
+            def __init__(self, *shown): self.frames = [Frame(s) for s in shown]
+
+        record_demo.assert_one_cursor(Page(True, False, None))
+        with self.assertRaises(RuntimeError):
+            record_demo.assert_one_cursor(Page(True, True))
+        # The overlay hides its arrow while the pointer is over another document.
+        self.assertIn("addEventListener('mouseleave', hide)", record_demo.CURSOR_OVERLAY_JS)
+        self.assertIn("framed(event) ? '0' : '1'", record_demo.CURSOR_OVERLAY_JS)
+        for skill in SKILLS:
+            capture = (skill / STARTER / 'capture.py').read_text(encoding='utf-8')
+            self.assertGreaterEqual(capture.count('assert_one_cursor'), 2)
+            self.assertIn('assert_one_cursor', (skill / 'scripts/record_demo.py').read_text(encoding='utf-8'))
+
+    def test_every_boxed_caption_style_draws_its_box(self) -> None:
+        import sys
+        sys.path.insert(0, str(SKILLS[0] / 'scripts'))
+        import burn_captions
+        for name, style in burn_captions.STYLES.items():
+            if style['border_style'] == 3:
+                with self.subTest(style=name):
+                    # &HAABBGGRR: alpha FF is transparent, and white text then has nothing behind it.
+                    self.assertLess(int(style['outline'][2:4], 16), 0x80)
+                    self.assertNotEqual(style['outline'][4:], style['primary'][4:])
 
 
 if __name__ == '__main__':

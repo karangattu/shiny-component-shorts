@@ -30,15 +30,16 @@ INK = "&H001D1F21"        # Shiny text colour on light surfaces
 SHINY_BLUE = "&H00C27B00"  # #007BC2
 BLACK_TRANS = "&H66000000"
 YELLOW = "&H0040C9FF"      # #FFC940, karaoke highlight
-WHITE_CARD = "&HFFFFFFFF"
+WHITE_CARD = "&H00FFFFFF"
 
 FONT = "Avenir Next"
 
 # Each style: ASS style fields. BorderStyle 1 = outline + shadow, 3 = opaque box.
+# With BorderStyle 3 the box takes the outline colour, so a transparent outline leaves no box.
 STYLES = {
     "clean": dict(
         desc="White text on a translucent black box",
-        size=60, bold=-1, primary=WHITE, secondary=YELLOW, outline=WHITE_CARD,
+        size=60, bold=-1, primary=WHITE, secondary=YELLOW, outline=BLACK_TRANS,
         back=BLACK_TRANS, border_style=3, outline_w=14, shadow=0, karaoke=False,
     ),
     "pill": dict(

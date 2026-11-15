@@ -1,6 +1,7 @@
 # Integration episode stills: the cover and the one line of code.
 # The cover stays out of playback (layout: showcase), so the video opens on the hook footage.
 # Take label and title from the episode's entry in episodes.yaml.
+# `look.py apply` sets code_theme and the order of the horizontal panels. Do not set them by hand.
 # Build this file before the narration takes: the batch tool finds the episode by its editorial.yaml.
 context:
   layout: showcase

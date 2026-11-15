@@ -3,12 +3,17 @@
 #         preflight screenshot, and read them again after any layout change.
 # setup:  runs before every clip, off camera. Put the tab switch and the armed tool here so the
 #         hook starts on the interaction.
-# Each action is one of: click (selector), point (one press), box (press, move, press).
-#   at: seconds from the clip start. A clip that opens on a box with `at` gets its first corner
-#       pressed off camera, so the recording starts with the box about to stretch.
+# ready:  a selector that must be visible. ready_when: a JavaScript condition for a canvas or a
+#         widget frame that finishes later. settle: seconds to wait after both (default 5).
+# Each action is one of: click (selector), point (one press), box (press, move, press),
+#   drag (hold the button along the named points, then release: a lasso, an orbit, or a pan).
+#   A selector does not reach inside a widget's iframe. Use a point there.
+#   at: seconds from the clip start. A clip that opens on a box or a drag with `at` gets its first point
+#       pressed off camera, so the recording starts with the shape about to grow.
 #   phrase + lead: press `lead` seconds before the spoken phrase.
 #   expect: a JavaScript condition that must come true after the press.
 ready: canvas.maplibregl-canvas
+ready_when: "document.querySelector('canvas.maplibregl-canvas').width > 0"
 urls: {vertical: "http://127.0.0.1:8762", horizontal: "http://127.0.0.1:8761"}
 points:
   vertical:   {europe_a: [270, 113], europe_b: [410, 216], reykjavik: [238, 90], samerica_a: [65, 321], samerica_b: [190, 449]}
