@@ -9,7 +9,7 @@ Use this guide for every vertical (9:16) video meant for social media. Many view
 - Write the SRT sidecar too. Platforms that accept uploaded captions can use it instead of the burned-in copy.
 - Captions stay in the lower band of the frame, above the bottom 18–20% that social apps overlay with their own controls. Never cover code, a control, or a key app state. Check each caption frame at phone size.
 - Use short phrases: two lines maximum, seven words or fewer per caption, broken at punctuation and long pauses. The script does this automatically.
-- Do not caption the end card. Captions follow the narration, and the card has none.
+- Do not caption the end card. Captions follow the narration, and the card has none. When a gallery episode speaks its closing line over the card, pass `--stop-at` with the first words of that line.
 
 ```bash
 python3 .claude/skills/shiny-component-shorts/scripts/burn_captions.py \

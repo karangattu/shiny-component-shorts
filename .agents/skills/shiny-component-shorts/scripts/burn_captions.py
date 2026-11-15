@@ -92,13 +92,24 @@ def _norm(token: str) -> str:
     return re.sub(r"[^a-z0-9]", "", token.lower())
 
 
+def words_before(words: list[dict], phrase: str) -> list[dict]:
+    """The words spoken before `phrase`. The end card shows its own text, so captions stop there."""
+    wanted = [_norm(token) for token in phrase.split() if _norm(token)]
+    spoken = [_norm(word["word"]) for word in words]
+    for index in range(len(spoken) - len(wanted) + 1):
+        if wanted and spoken[index:index + len(wanted)] == wanted:
+            return words[:index]
+    raise SystemExit(f'--stop-at phrase is not in the narration: "{phrase}"')
+
+
 def load_words(timing: Path) -> tuple[list[dict], float]:
     """Timed words for display. Casing and punctuation come from the transcript where they line up."""
     from difflib import SequenceMatcher
 
     data = json.loads(timing.read_text(encoding="utf-8"))
     offset = float(data.get("narration_offset_seconds", 0.15))
-    words = [w for w in data["words"] if w.get("end", 0) > w.get("start", 0)]
+    # Short words such as "a" can be timed with no duration. They are still spoken, so keep them.
+    words = [w for w in data["words"] if w.get("end", 0) >= w.get("start", 0)]
     if not words:
         raise SystemExit(f"{timing}: no timed words")
     script = timing.parent / "narration.txt"
@@ -297,6 +308,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--timing", required=True, type=Path, help="narration-timing.json")
     parser.add_argument("--style", required=True, choices=sorted(STYLES))
     parser.add_argument("--out-video", required=True, type=Path)
+    parser.add_argument("--stop-at", help="Narration phrase where captions end, such as the line spoken over the end card")
     parser.add_argument("--out-srt", type=Path, help="SRT sidecar path (default: beside the output)")
     parser.add_argument("--out-ass", type=Path, help="ASS path (default: beside the output)")
     args = parser.parse_args(argv)
@@ -307,6 +319,8 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     words, offset = load_words(args.timing)
+    if args.stop_at:
+        words = words_before(words, args.stop_at)
     phrases = group_phrases(words)
     style = STYLES[args.style]
     out_dir = args.out_video.parent
