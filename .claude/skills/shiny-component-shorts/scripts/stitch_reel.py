@@ -1433,7 +1433,15 @@ def build_editorial(reel_dir: Path, config: dict, orientation: str, *, output_di
                 release=config.get("release"),
                 language=end_card.language_of(*(feature["path"] for feature in config["features"])),
             )
-            if card:
+            if card and card["spoken"]:
+                # The narration speaks over this card, so it is the last shot, not an added tail.
+                if len(config["features"]) != 1 or plan["shots"][-1]["cue"].get("phrase") != card["spoken"]:
+                    raise ValueError(
+                        "outro.spoken needs one feature whose last shot is the end card, "
+                        f'cued on "{card["spoken"]}"'
+                    )
+                end_card.render(browser, card, orientation, still, SCALE)
+            elif card:
                 end_card.render(browser, card, orientation, still, SCALE)
                 width, height = SIZES[orientation]
                 previous = end_card.last_frame(pieces[-1][0], work / "before-end-card.png")

@@ -33,8 +33,9 @@ def resolved(outro: object, **options) -> dict:
 def test_defaults_follow_the_release_and_language():
     assert resolved(None, release="1.9.0") == {
         "title": "Try Shiny 1.9 today", "command": "pip install shiny --upgrade",
-        "link": "shiny.posit.co", "seconds": 4.0,
+        "link": "shiny.posit.co", "seconds": 4.0, "spoken": "",
     }
+    assert resolved({"spoken": "To try this"})["spoken"] == "To try this"
     assert resolved(None, release="1.9.1")["title"] == "Try Shiny 1.9.1 today"
     # The upgrade command would not install an unreleased feature.
     unreleased = resolved(None, release="Unreleased")

@@ -34,7 +34,7 @@ DISSOLVE_SECONDS = 0.3
 SECONDS_RANGE = (2.0, 8.0)
 LINK = "shiny.posit.co"
 COMMANDS = {"python": "pip install shiny --upgrade", "r": 'install.packages("shiny")'}
-KEYS = ("title", "command", "link", "seconds")
+KEYS = ("title", "command", "link", "seconds", "spoken")
 LOGO_PATH = Path(__file__).resolve().parent.parent / "assets" / "shiny-logo.png"
 VERSION_RE = re.compile(r"(?:shiny\s+)?v?(\d+(?:\.\d+)*)", re.IGNORECASE)
 
@@ -76,7 +76,10 @@ def resolve(outro: object, *, release: object = None, language: str = "python") 
         "link": outro.get("link", LINK) or "",
         "seconds": outro.get("seconds", SECONDS),
     }
-    for key in ("title", "command", "link"):
+    # `spoken` names the narration phrase the card appears on. The card is then a shot inside
+    # the video, with the voice over it, and no silent card is added after the narration.
+    card["spoken"] = outro.get("spoken", "") or ""
+    for key in ("title", "command", "link", "spoken"):
         if not isinstance(card[key], str):
             raise ValueError(f"outro.{key} must be text")
         card[key] = card[key].strip()

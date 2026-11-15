@@ -114,6 +114,7 @@ Every editorial video ends on a silent end card after the last spoken word.
 `stitch_reel.py` dissolves into it over 0.3 seconds, inside the card's own length. It does not move a shot, a cue, or the narration.
 The card shows the Shiny wordmark, a title, an install command, and “Learn more at” with a link.
 It is the only call to action in the video, so the narration does not repeat it.
+A shinywidgets gallery episode is the exception: its last sentence is spoken over the card. Set `outro.spoken` to the first words of that sentence, and add the rendered card as the last shot in `editorial.yaml`, cued on the same words. `stitch_reel.py` then adds no silent card. The [integration episode starter](../assets/integration-episode-starter/) does this in `assemble.py`.
 
 Set it in `reel.yaml`:
 
