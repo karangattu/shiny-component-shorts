@@ -197,11 +197,17 @@ CURSOR_OVERLAY_JS = r"""(() => {
         const render = () => {
             cursor.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${pressed ? .88 : 1})`;
         };
+        // A widget can draw in its own iframe, and every document on the page gets this cursor.
+        // Each one hides while the pointer is over another document, so only one arrow shows.
+        const framed = event => /^I?FRAME$/.test(event.target.tagName || '');
+        const hide = () => { cursor.style.opacity = '0'; };
         window.addEventListener('mousemove', event => {
             x = event.clientX; y = event.clientY;
-            cursor.style.opacity = '1';
+            cursor.style.opacity = framed(event) ? '0' : '1';
             render();
         }, true);
+        window.addEventListener('mouseover', event => { if (framed(event)) hide(); }, true);
+        document.documentElement.addEventListener('mouseleave', hide);
         window.addEventListener('mousedown', () => {
             pressed = true;
             render();
@@ -849,6 +855,7 @@ def preview_actions(page, actions: list[dict], project_dir: Path, orientation: s
 
     def capture(kind: str) -> None:
         assert_no_shiny_client_errors(page)
+        assert_one_cursor(page)
         path = output_dir / f'{len(frames):03d}-{kind}.png'
         page.screenshot(path=str(path))
         frames.append({'kind': kind, 'path': str(path), 'elapsed_seconds': round(time.monotonic()-preview_zero, 3), 'warnings': []})
@@ -918,6 +925,22 @@ def assert_no_shiny_client_errors(page) -> None:
         raise RuntimeError(
             "Shiny client error panel detected; refusing to record. "
             f"Fix the app and restart the recording. Panel text: {summary}"
+        )
+
+
+def assert_one_cursor(page) -> None:
+    """Refuse a frame with two arrows: a widget's iframe holds a second demo cursor."""
+    shown = 0
+    for frame in page.frames:
+        try:
+            shown += bool(frame.evaluate(
+                "document.getElementById('__demo_cursor__')?.style.opacity === '1'"))
+        except Exception:
+            continue  # A frame that left the page draws nothing.
+    if shown > 1:
+        raise RuntimeError(
+            f"{shown} demo cursors are visible at once; one is stale inside or outside a "
+            "widget's iframe. Refusing to record a video with two arrows."
         )
 
 
@@ -1518,6 +1541,7 @@ def record_project(
             rest_cursor(page, width, height)
             wait_for_shiny_ready(page)
             assert_no_shiny_client_errors(page)
+            assert_one_cursor(page)
             missing = [
                 selector
                 for selector in collect_selectors(config["actions"])
@@ -1545,6 +1569,7 @@ def record_project(
                 video_zero=recording_started + trim_seconds,
             )
             assert_no_shiny_client_errors(page)
+            assert_one_cursor(page)
             assert_branding_visible(page)
             if screencast is not None:
                 screencast.stop()

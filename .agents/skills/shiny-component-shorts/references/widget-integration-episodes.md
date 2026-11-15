@@ -136,5 +136,6 @@ Then follow the capture, narration, alignment, and validation steps in [widget s
 - The end card appears on the first word of the closing line and stays until the video ends.
 - The end card shows the py-shinywidgets address. It shows an install command only when the release has shipped and you tested the command. On the vertical card, the command breaks only at spaces.
 - In the captioned portrait video, no caption covers the widget or the output it drives.
+- Every frame shows one pointer arrow. A widget that draws in its own iframe gets its own demo cursor, and a second arrow left on screen makes the recording look fake. The recorder and `capture.py` stop when two show, so do not work around that error. Still look for it in the review frames, with any other mark the app did not draw: a stale tooltip, a leftover selection box, or a cursor that jumps.
 - The caption style, code theme, beat order, code side, and end card title match the episode's `look`.
 - The production index records the gallery commit, any layout-only changes, and any scripted chat.

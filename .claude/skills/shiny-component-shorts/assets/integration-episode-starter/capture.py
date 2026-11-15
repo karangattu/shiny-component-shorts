@@ -37,6 +37,7 @@ def open_app(browser, view, config):
 
 def check(page):
     record_demo.assert_no_shiny_client_errors(page)
+    record_demo.assert_one_cursor(page)
     assert not page.locator(".shiny-output-error").count(), page.locator(".shiny-output-error").first.inner_text()
     assert not page.evaluate("document.documentElement.scrollWidth > innerWidth + 1")
 
@@ -88,6 +89,7 @@ def act(page, step, points, press_at=None, started=False):
         glide(page, b, 0.65)
         record_demo.wait_until(page, press_at)
         pressed = time.monotonic(); press(page)
+    record_demo.assert_one_cursor(page)
     shown = None
     if step.get("expect"):
         page.wait_for_function(step["expect"], timeout=15000)

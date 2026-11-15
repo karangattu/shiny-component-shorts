@@ -115,6 +115,32 @@ class SpokenEndCardTest(unittest.TestCase):
         with self.assertRaises(SystemExit):
             burn_captions.words_before(words, 'not spoken')
 
+    def test_a_second_pointer_arrow_stops_the_recording(self) -> None:
+        import sys
+        sys.path.insert(0, str(SKILLS[0] / 'scripts'))
+        import record_demo
+
+        class Frame:
+            def __init__(self, shown): self.shown = shown
+            def evaluate(self, _):
+                if self.shown is None:
+                    raise RuntimeError('detached')
+                return self.shown
+
+        class Page:
+            def __init__(self, *shown): self.frames = [Frame(s) for s in shown]
+
+        record_demo.assert_one_cursor(Page(True, False, None))
+        with self.assertRaises(RuntimeError):
+            record_demo.assert_one_cursor(Page(True, True))
+        # The overlay hides its arrow while the pointer is over another document.
+        self.assertIn("addEventListener('mouseleave', hide)", record_demo.CURSOR_OVERLAY_JS)
+        self.assertIn("framed(event) ? '0' : '1'", record_demo.CURSOR_OVERLAY_JS)
+        for skill in SKILLS:
+            capture = (skill / STARTER / 'capture.py').read_text(encoding='utf-8')
+            self.assertGreaterEqual(capture.count('assert_one_cursor'), 2)
+            self.assertIn('assert_one_cursor', (skill / 'scripts/record_demo.py').read_text(encoding='utf-8'))
+
     def test_every_boxed_caption_style_draws_its_box(self) -> None:
         import sys
         sys.path.insert(0, str(SKILLS[0] / 'scripts'))
