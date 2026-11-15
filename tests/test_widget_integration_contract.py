@@ -13,6 +13,16 @@ KEYS = {'id', 'gallery', 'example', 'integration', 'label', 'title', 'renderers'
         'install', 'hook', 'demo', 'payoff', 'audience', 'complexity'}
 
 
+def load_look():
+    """look.py lives in the starter, outside the type checker's search path, so load it by file."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location('look', SKILLS[0] / STARTER / 'look.py')
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 class WidgetIntegrationContractTest(unittest.TestCase):
     def test_both_copies_carry_the_same_episode_files(self) -> None:
         names = [REFERENCE] + [f'{STARTER}/{n}' for n in
@@ -69,8 +79,7 @@ class WidgetIntegrationContractTest(unittest.TestCase):
 
     def test_every_episode_has_a_planned_look_unlike_its_neighbours(self) -> None:
         import copy, sys
-        sys.path.insert(0, str(SKILLS[0] / STARTER))
-        import look
+        look = load_look()
         catalog = yaml.safe_load((SKILLS[0] / STARTER / 'episodes.yaml').read_text(encoding='utf-8'))
         episodes = catalog['episodes']
         self.assertEqual(look.problems(episodes), [])
@@ -89,8 +98,7 @@ class WidgetIntegrationContractTest(unittest.TestCase):
 
     def test_a_look_is_applied_to_the_production_files(self) -> None:
         import shutil, sys, tempfile
-        sys.path.insert(0, str(SKILLS[0] / STARTER))
-        import look
+        look = load_look()
         with tempfile.TemporaryDirectory() as tmp:
             for name in ('source-shots.yaml', 'reel.yaml'):
                 shutil.copy(SKILLS[0] / STARTER / name, tmp)
