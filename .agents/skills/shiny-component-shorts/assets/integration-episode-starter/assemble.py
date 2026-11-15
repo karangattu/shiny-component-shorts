@@ -23,9 +23,12 @@ views = ("vertical", "horizontal")
 shots = [{"cue": clip["cue"], "chapter": clip["chapter"], "views": {
     view: {"file": f'sources/{clip["name"]}-{view}.mp4', "in": 0, "fit": "contain"}
     for view in views}} for clip in clips]
-# The code still sits before the last clip, so the video returns to the app.
-editorial["shots"] = shots[:-1] + [still] + shots[-1:]
-
+# The code still sits before the last clip, so the video returns to the app. When the episode's
+# look says code-integration, it sits before the integration clip instead.
+look = project / "look.yaml"
+order = yaml.safe_load(look.read_text())["order"] if look.is_file() else "integration-code"
+at = [clip["name"] for clip in clips].index("integration") if order == "code-integration" else len(shots) - 1
+editorial["shots"] = shots[:at] + [still] + shots[at:]
 card = end_card.resolve(yaml.safe_load((project / "reel.yaml").read_text()).get("outro"))
 if card and card["spoken"]:
     with sync_playwright() as playwright:
@@ -35,4 +38,10 @@ if card and card["spoken"]:
         browser.close()
     editorial["shots"].append({"cue": card["spoken"], "chapter": card["title"], "views": {
         view: {"file": f"sources/end-card-{view}.png", "fit": "contain"} for view in views}})
+# Each clip must end where the next shot starts, or the narration and the picture drift apart.
+ends = {id(shot): clip.get("end") for shot, clip in zip(shots, clips)}
+for shot, after in zip(editorial["shots"], editorial["shots"][1:]):
+    cue = after["cue"]["phrase"] if isinstance(after["cue"], dict) else after["cue"]
+    end = ends.get(id(shot)) or cue
+    assert cue.startswith(end) or end.startswith(cue), f'A clip ends on "{end}" but the next shot starts on "{cue}"'
 path.write_text(yaml.safe_dump(editorial, sort_keys=False, allow_unicode=True))

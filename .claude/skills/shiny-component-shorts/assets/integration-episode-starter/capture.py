@@ -26,10 +26,11 @@ def open_app(browser, view, config):
     page = context.new_page()
     page.goto(config["urls"][view], wait_until="domcontentloaded")
     record_demo.wait_for_shiny_ready(page)
-    page.locator(config["ready"]).wait_for(state="visible")
-    # Tiles and the WebGL layer finish after the page does.
-    page.wait_for_function("document.querySelector('canvas.maplibregl-canvas').width > 0")
-    page.wait_for_timeout(5000)
+    page.locator(config["ready"]).first.wait_for(state="visible")
+    # Map tiles, a WebGL layer, and a widget's own frame finish after the page does.
+    if config.get("ready_when"):
+        page.wait_for_function(config["ready_when"], timeout=30000)
+    page.wait_for_timeout(config.get("settle", 5) * 1000)
     check(page)
     return context, page
 
@@ -60,6 +61,21 @@ def act(page, step, points, press_at=None, started=False):
         glide(page, points[step["point"]], 0.7 if press_at else None)
         record_demo.wait_until(page, press_at)
         pressed = time.monotonic(); press(page)
+    elif "drag" in step:
+        # Hold the button along the path and release at the end: a lasso, an orbit, or a pan.
+        path = [points[name] for name in step["drag"]]
+        seconds = step.get("seconds", 1.2)
+        if not started:
+            if press_at is not None:
+                record_demo.wait_until(page, press_at - seconds - 0.95)
+            glide(page, path[0], 0.6 if press_at else None)
+            page.wait_for_timeout(120); page.mouse.down(); page.wait_for_timeout(120)
+        elif press_at is not None:
+            record_demo.wait_until(page, press_at - seconds - 0.1)
+        for point in path[1:]:
+            glide(page, point, seconds / (len(path) - 1))
+        record_demo.wait_until(page, press_at)
+        pressed = time.monotonic(); page.mouse.up()
     else:
         a, b = (points[name] for name in step["box"])
         if not started:
@@ -126,12 +142,14 @@ def record(browser, project, config, view, only=None):
                 act(page, step, points)
         page.wait_for_timeout(1500)
         first = clip["actions"][0] if clip["actions"] else None
-        # A box needs about two seconds of pointer travel. For a clip that opens on one, press its
-        # first corner off camera, so the recording starts with the box about to stretch.
-        started = bool(first and "box" in first and "at" in first)
+        # A box or a drag needs about two seconds of pointer travel. For a clip that opens on one,
+        # press its first point off camera, so the recording starts with the shape about to grow.
+        started = bool(first and ("box" in first or "drag" in first) and "at" in first)
         if started:
-            glide(page, points[first["box"][0]])
-            page.wait_for_timeout(120); press(page); page.wait_for_timeout(200)
+            glide(page, points[(first.get("box") or first["drag"])[0]])
+            page.wait_for_timeout(120)
+            press(page) if "box" in first else page.mouse.down()
+            page.wait_for_timeout(200)
         start = max(0.0, cut(clip["cue"]))
         end = cut(clip["end"]) if "end" in clip else math.ceil(
             (timing["duration_seconds"] + align_narration.NARRATION_OFFSET_SECONDS + 1.5) * FPS) / FPS
@@ -146,7 +164,7 @@ def record(browser, project, config, view, only=None):
                 for step in clip["actions"]:
                     when = step["at"] if "at" in step else spoken(step["phrase"]) - start - step.get("lead", 0)
                     pressed, shown = act(page, step, points, clock + when, started and step is first)
-                    trace.append({"step": step.get("click") or step.get("point") or step.get("box"),
+                    trace.append({"step": step.get("click") or step.get("point") or step.get("box") or step.get("drag"),
                                   "planned": round(when, 2), "pressed": round(pressed - clock, 2),
                                   "shown": round(shown - clock, 2) if shown else None})
                 record_demo.wait_until(page, clock + end - start + 0.4)
