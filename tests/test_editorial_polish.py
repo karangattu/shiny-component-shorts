@@ -116,6 +116,54 @@ def test_wrapped_code_keeps_a_hanging_indent_and_a_highlight_around_all_of_it(tm
     assert x * 720 < left and y * 1280 < top and (x + w) * 720 > right and (y + h) * 1280 > bottom
 
 
+def test_smart_wrap_dedents_and_keeps_tokens_whole(tmp_path):
+    long = '    return f"{where} and a long enough phrase to wrap at a space in a narrow code card"'
+    (tmp_path / "app.py").write_text(
+        "    def stat():\n        where = atlas.predicate()\n" + long.replace("    return", "        return", 1) + "\n"
+    )
+    (tmp_path / "reel.yaml").write_text("title: Smart\n")
+    (tmp_path / "source-shots.yaml").write_text("""orientations: [vertical]
+shots:
+- cue: The code
+  views:
+    vertical:
+      code_wrap: smart
+      panels:
+      - {kind: code, file: app.py, lines: [1, 3], highlight: 2}
+""")
+    prepare_editorial.prepare(tmp_path)
+    html = (tmp_path / "artifacts/editorial-sources/shot-001-vertical.html").read_text()
+    assert 'class="code github-light smart-wrap"' in html
+    assert 'class="code github-light whole-lines"' not in html
+    assert 'padding-left:4ch;text-indent:-4ch' in html
+    assert '.smart-wrap .text{overflow-wrap:normal}' in html
+    from playwright.sync_api import sync_playwright
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page(viewport={"width": 720, "height": 1280})
+        page.set_content(html)
+        texts = page.locator(".smart-wrap .line .text").all_text_contents()
+        browser.close()
+    assert texts == ["def stat():", "    where = atlas.predicate()", long]
+
+
+def test_smart_wrap_rejects_an_unbreakable_line(tmp_path):
+    (tmp_path / "app.py").write_text("token = " + "A" * 140 + "\n")
+    (tmp_path / "reel.yaml").write_text("title: Smart\n")
+    (tmp_path / "source-shots.yaml").write_text("""orientations: [vertical]
+shots:
+- cue: The code
+  views:
+    vertical:
+      code_wrap: smart
+      panels:
+      - {kind: code, file: app.py, lines: [1, 1], highlight: 1}
+""")
+    with pytest.raises(ValueError, match="does not fit"):
+        prepare_editorial.prepare(tmp_path)
+
+
 def test_end_card_dissolves_in_without_changing_its_length(tmp_path):
     Image.new("RGB", (144, 256), "red").save(tmp_path / "previous.png")
     Image.new("RGB", (144, 256), "blue").save(tmp_path / "card.png")

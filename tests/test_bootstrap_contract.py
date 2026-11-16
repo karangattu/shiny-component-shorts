@@ -155,6 +155,21 @@ class BootstrapTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.pin()
 
+    def test_variant_override_reuses_a_series_pin_after_the_skill_moves(self):
+        series = self.root / "series"
+        with patch.object(self.module, "fetch", side_effect=AssertionError("local pin")):
+            pinned = self.module.ensure_pin(series, self.source, variant="claude", local=True)
+        child = series / "episode"
+        with patch.object(self.module, "fetch", side_effect=AssertionError("child inherits")):
+            with self.assertRaisesRegex(ValueError, "pins variant 'claude'"):
+                self.module.ensure_pin(child, self.source, variant="codex")
+            self.assertEqual(
+                self.module.ensure_pin(child, self.source, variant="claude"), pinned
+            )
+        argv = ["bootstrap_skill.py", "--project-dir", str(child), "--variant", "claude"]
+        with patch.object(sys, "argv", argv):
+            self.assertEqual(self.module.main(), 0)
+
     def test_local_override_and_legacy_adoption_do_not_fetch_or_overwrite(self):
         self.project.mkdir()
         (self.project / "artifacts").mkdir()
