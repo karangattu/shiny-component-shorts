@@ -33,6 +33,20 @@ Every gallery example has the same four files. Read them in this order:
 
 Choose the one accessor that carries the `pattern`. Then add an entry to `episodes.yaml` with the same keys as the others. Write `hook` as an action and its visible result. Write `title` as a plain statement of the effect, in 32 characters or fewer. The portrait cover rejects a longer title. Then run `look.py assign` to give the new entry a look.
 
+### Draft a new episode from a gallery link
+
+`assets/integration-episode-starter/make_episode.py` writes a reviewable production skeleton. It is specific to py-shinywidgets: it reads a local clone's `website/gallery/<gallery>/app.py`, `requirements.txt`, and the `index.md` front matter when present. Copy it beside the production's `.video-skill` directory, then run:
+
+```bash
+python make_episode.py --project-dir generated/you-can-build-this/<episode-id> \
+  --url "https://posit-dev.github.io/py-shinywidgets/gallery/templates/<example>/" \
+  --repo ../py-shinywidgets
+```
+
+`--gallery` can replace or override the gallery path in the URL. Pass `--id`, `--title`, `--widgets`, `--accessor`, and `--install` when front matter is missing. The script detects renderers and a likely accessor from `app.py`, copies the source with its `data/` and `img/` folders, writes a draft `episode.yaml`, `episodes.yaml`, `source-shots.yaml`, `reel.yaml`, `capture.yaml`, and a local-voice `tts-settings.json`, and lists the checks in `PRODUCTION.md`. It never overwrites a non-empty directory without `--force`, and it makes no network calls.
+
+A link to a component page, pull request, or commit is accepted as provenance, but those pages carry no gallery front matter. The draft marks the gallery, accessor, and hook as TODO instead of guessing; confirm the example from the gallery before planning. A changeset still follows [changeset-sourcing.md](changeset-sourcing.md).
+
 ## The four beats
 
 Aim for 45–55 seconds before the end card, and about 60 seconds in total. That is about 125–140 spoken words. Measure the narration; do not estimate it. The times below are targets. The order of the beats matters more than the exact second each one starts.
@@ -109,6 +123,18 @@ Use the gallery `app.py` as the evidence. The code on screen comes from that fil
 
 The tooling has no click magnifier and no free text overlay. Make the action readable through the capture size and the cut. The cover label, the highlighted code line, and the burned-in captions carry the package and method names.
 
+### Browser flags and idle footage
+
+Some widget canvases need browser flags. Put them in `capture.yaml` as an opt-in list; the starter forwards them to Chromium:
+
+```yaml
+browser_args: ["--enable-unsafe-webgpu", "--use-angle=metal"]
+```
+
+Preflight then checks for a WebGPU adapter and for the widget's "WebGPU is unavailable" notice, and fails before recording if the canvas would be blank. The check only runs when a browser argument mentions WebGPU.
+
+The recorder prints `WARNING: long hold: ...` for a clip with more than seven seconds between visible actions. A hold on the final result is deliberate and is not reported; recut the others, add a real interaction, or shorten the narration beat.
+
 ## Assemble
 
 Bootstrap the production as [editorial production](editorial-production.md) describes. Copy the [integration episode starter](../assets/integration-episode-starter/) into the production directory:
@@ -122,6 +148,9 @@ Bootstrap the production as [editorial production](editorial-production.md) desc
 | `source-shots.yaml` | The cover and the single code still |
 | `assemble.py` | Places the recorded clips around the code still in `editorial.yaml`, in the look's order. It stops when a clip's `end` phrase is not where the next shot starts. |
 | `reel.yaml` | The end card. `outro.spoken` names the first words of the closing line, and `assemble.py` adds the card as the last shot on that phrase. |
+| `make_episode.py` | Optional py-shinywidgets scaffolder: drafts a reviewable production from a gallery link, a gallery id, or explicit metadata. |
+
+When a gallery line is too long for the card but splits a name under `code_wrap: false`, set `code_wrap: smart` on the view. It dedents the excerpt and wraps long lines at spaces with a four-character hanging indent. An unbreakable token still fails the overflow check rather than being split.
 
 Work in this order: apply the look, preflight both orientations, build the stills, write the narration from the values the preflight printed, generate and pin the takes, record, assemble, render, validate, then burn the captions with `--stop-at` set to the first words of the closing line. The end card shows its own text, so captions stop before it.
 

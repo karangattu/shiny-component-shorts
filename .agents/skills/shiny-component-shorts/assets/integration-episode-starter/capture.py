@@ -16,6 +16,7 @@ import record_demo
 from stitch_reel import CUT_LEAD_SECONDS
 
 FPS = 30
+LONG_HOLD_SECONDS = 7.0  # flag a wait this long with no visible action
 
 
 def open_app(browser, view, config):
@@ -31,8 +32,31 @@ def open_app(browser, view, config):
     if config.get("ready_when"):
         page.wait_for_function(config["ready_when"], timeout=30000)
     page.wait_for_timeout(config.get("settle", 5) * 1000)
+    check_webgpu(page, config)
     check(page)
     return context, page
+
+
+def check_webgpu(page, config):
+    """A WebGPU widget can render its chrome while its canvas stays blank."""
+    if not any("webgpu" in arg.lower() for arg in config.get("browser_args", [])):
+        return
+    result = page.evaluate("""async () => {
+      let adapter = false;
+      try { adapter = navigator.gpu ? !!(await navigator.gpu.requestAdapter()) : false; } catch (error) {}
+      let notice = false;
+      const visit = root => {
+        if (/WebGPU is unavailable/i.test(root.textContent || '')) notice = true;
+        for (const el of root.querySelectorAll('*')) if (el.shadowRoot) visit(el.shadowRoot);
+      };
+      visit(document);
+      return {adapter, notice};
+    }""")
+    if not result["adapter"] or result["notice"]:
+        raise ValueError(
+            "WebGPU is unavailable or the widget reports a blank canvas. "
+            "Use browser_args: ['--enable-unsafe-webgpu', '--use-angle=metal'] in capture.yaml."
+        )
 
 
 def check(page):
@@ -102,6 +126,37 @@ def state(page, config):
     return page.evaluate(config["report"]) if config.get("report") else None
 
 
+def long_hold_warnings(config, spoken, duration):
+    """Report stretches of footage with no action, so the editor can recut them."""
+    warnings = []
+    for clip in config["clips"]:
+        steps = clip.get("actions") or []
+        if not steps:
+            continue  # A result hold is deliberate.
+        start = spoken.get(clip["cue"])
+        if start is None:
+            continue
+        marks = []
+        for step in steps:
+            if "at" in step:
+                marks.append(start + step["at"])
+            elif step.get("phrase") in spoken:
+                marks.append(spoken[step["phrase"]] - step.get("lead", 0))
+        if not marks:
+            continue
+        end = spoken.get(clip.get("end", ""), duration)
+        marks.sort()
+        gaps = [("before the first action", marks[0] - start)]
+        gaps += [(f"after action {index}", b - a)
+                 for index, (a, b) in enumerate(zip(marks, marks[1:]), start=1)]
+        if end is not None and end > marks[-1]:
+            gaps.append(("after the last action", end - marks[-1]))
+        for label, seconds in gaps:
+            if seconds > LONG_HOLD_SECONDS:
+                warnings.append(f'{clip["name"]}: {seconds:.1f}s {label} (> {LONG_HOLD_SECONDS:.0f}s)')
+    return warnings
+
+
 def preflight(browser, project, config, view):
     context, page = open_app(browser, view, config)
     points = config["points"][view]
@@ -132,6 +187,18 @@ def record(browser, project, config, view, only=None):
         return math.ceil((spoken(phrase) - CUT_LEAD_SECONDS) * FPS) / FPS
 
     by_name = {clip["name"]: clip for clip in config["clips"]}
+    spoken_times = {}
+    for clip in config["clips"]:
+        phrases = [clip["cue"], clip.get("end")]
+        phrases += [step.get("phrase") for step in clip["actions"]]
+        for phrase in phrases:
+            if phrase and phrase not in spoken_times:
+                spoken_times[phrase] = spoken(phrase)
+    for warning in long_hold_warnings(
+        config, spoken_times,
+        timing["duration_seconds"] + align_narration.NARRATION_OFFSET_SECONDS + 1.5,
+    ):
+        print(f"WARNING: long hold: {warning}", file=sys.stderr)
     for clip in config["clips"]:
         if only and clip["name"] != only:
             continue
@@ -192,7 +259,9 @@ def main():
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(args=[
             "--force-device-scale-factor=2", "--disable-background-timer-throttling",
-            "--disable-renderer-backgrounding", "--disable-backgrounding-occluded-windows"])
+            "--disable-renderer-backgrounding", "--disable-backgrounding-occluded-windows",
+            # Opt in per episode in capture.yaml, e.g. WebGPU flags for a canvas widget.
+            *config.get("browser_args", [])])
         if args.mode == "preflight":
             preflight(browser, project, config, args.view)
         else:

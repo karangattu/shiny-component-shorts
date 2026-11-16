@@ -38,9 +38,16 @@ LANGUAGES = {
 
 
 def panel_html(
-    project: Path, panel: dict, sources: dict, *, code_wrap: bool = True, code_theme: str = "light"
+    project: Path, panel: dict, sources: dict, *,
+    code_wrap: bool | str = True, code_theme: str = "light",
 ) -> str:
-    """Read exact source text or embed a clean capture without manufacturing content."""
+    """Read exact source text or embed a clean capture without manufacturing content.
+
+    ``code_wrap=True`` keeps the source indentation and wraps under it;
+    ``code_wrap=False`` dedents and refuses any wrapping; ``code_wrap="smart"`` dedents
+    and wraps long lines at spaces with a short hanging indent, so gallery code that
+    cannot fit on one line still shows whole identifiers.
+    """
     path = (project / panel["file"]).resolve()
     raw = path.read_bytes()
     sources[str(path)] = {"file": str(path), "sha256": hashlib.sha256(raw).hexdigest()}
@@ -89,22 +96,28 @@ def panel_html(
         else "plaintext"
     )
     code_lines = [line.expandtabs(4) for line in lines[first - 1 : last]]
-    if kind == "code" and not code_wrap:
+    if kind == "code" and code_wrap is not True:
         code_lines = textwrap.dedent("\n".join(code_lines)).split("\n")
     rows = []
     for number, text in enumerate(code_lines, start=first):
         marked = ' data-highlight="true"' if number == highlight else ""
         # A wrapped code line continues past its own indentation, so it still reads as one line.
-        hang = len(text) - len(text.lstrip(" ")) + CONTINUATION_INDENT if kind == "code" and code_wrap else 0
+        if kind == "code" and code_wrap is True:
+            hang = len(text) - len(text.lstrip(" ")) + CONTINUATION_INDENT
+        elif kind == "code" and code_wrap == "smart":
+            hang = CONTINUATION_INDENT
+        else:
+            hang = 0
         style = f' style="padding-left:{hang}ch;text-indent:-{hang}ch"' if hang else ""
         rows.append(
             f'<div class="line"{marked}><span class="number">{number}</span><span class="text"{style}>{html.escape(text)}</span></div>'
         )
     theme = f"github-{code_theme}" if kind == "code" else "github-light"
-    whole_lines = " whole-lines" if kind == "code" and not code_wrap else ""
+    whole_lines = " whole-lines" if kind == "code" and code_wrap is False else ""
+    smart_wrap = " smart-wrap" if kind == "code" and code_wrap == "smart" else ""
     return (
         head
-        + f'<div class="code {theme}{whole_lines}" data-file="{html.escape(panel["file"], quote=True)}" data-language="{html.escape(language,quote=True)}">'
+        + f'<div class="code {theme}{whole_lines}{smart_wrap}" data-file="{html.escape(panel["file"], quote=True)}" data-language="{html.escape(language,quote=True)}">'
         + "".join(rows)
         + "</div>"
     )
@@ -160,8 +173,8 @@ def prepare(project: Path) -> dict:
                         )
                     code_wrap = view.get("code_wrap", True)
                     code_theme = view.get("code_theme", "light")
-                    if type(code_wrap) is not bool or code_theme not in ("light", "dark"):
-                        raise ValueError("code_wrap must be a boolean and code_theme must be light or dark")
+                    if not (isinstance(code_wrap, bool) or code_wrap == "smart") or code_theme not in ("light", "dark"):
+                        raise ValueError("code_wrap must be a boolean or 'smart', and code_theme must be light or dark")
                     content = "".join(
                         "<section>"
                         + panel_html(project, panel, sources, code_wrap=code_wrap, code_theme=code_theme)
@@ -181,6 +194,7 @@ main{{width:100%}}section+section{{margin-top:28px}}.filename{{font-size:20px;co
 .code.github-dark{{background:#1D1F21;color:#FFFFFF;border-radius:16px;padding:24px 20px}}
 .github-dark .number{{color:#CDD4DA}}
 .whole-lines .text{{white-space:pre;overflow-wrap:normal}}
+.smart-wrap .text{{overflow-wrap:normal}}
 """
                     )
                     if orientation == "vertical" and result["context"]["layout"] == "showcase":
@@ -221,7 +235,7 @@ main{{width:100%}}section+section{{margin-top:28px}}.filename{{font-size:20px;co
                         )
                         page.evaluate("document.fonts.ready")
                         overflow = page.evaluate("""() => {
- const row = [...document.querySelectorAll('.whole-lines .line')].find(
+ const row = [...document.querySelectorAll('.whole-lines .line, .smart-wrap .line')].find(
    row => { const text = row.querySelector('.text'); return text.scrollWidth > text.clientWidth; });
  return row ? row.closest('.code').dataset.file + ':' + row.querySelector('.number').textContent : null;
 }""")
