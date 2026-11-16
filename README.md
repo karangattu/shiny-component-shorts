@@ -90,8 +90,15 @@ Record real hover and legend clicks. Export portrait and landscape videos.
 To make an episode about an app in the [shinywidgets gallery](https://posit-dev.github.io/py-shinywidgets/gallery/), ask:
 
 ```text
-/shiny-component-shorts Make the Plotly lasso episode of "You Can Build This with Shiny".
+/shiny-component-shorts Using the shiny-component-shorts skill, make a vertical video with local
+cloned voice and burned-in captions for this py-shinywidgets gallery example:
+https://posit-dev.github.io/py-shinywidgets/gallery/templates/embedding-atlas-explorer/
+Use the clone at ~/Documents/GitHub/py-shinywidgets as the source, read that example's index.md
+front matter for the title, widgets, and summary, and put the production in
+generated/you-can-build-this/embedding-atlas-explorer.
 ```
+
+The gallery URL matters: the episode scaffolder parses it to find the example and reads `index.md`, `app.py`, and `requirements.txt` from the local clone (or from `PY_SHINYWIDGETS_DIR`). A component docs, PR, or commit link does not name a gallery example, so the draft leaves the gallery, accessor, and hook as TODO. The agent still verifies the accessor and controls against `app.py` and the running app.
 
 A gallery episode runs 45 to 55 seconds. It opens on the interaction, shows the working app, names the libraries and what shinywidgets connects, then shows one accessor line and names the gallery example. The closing line, “To try this integration, go to the py-shinywidgets website,” is spoken over the end card. The [catalog](.agents/skills/shiny-component-shorts/assets/integration-episode-starter/episodes.yaml) lists eight planned episodes, and the [episode workflow](.agents/skills/shiny-component-shorts/references/widget-integration-episodes.md) explains how to add one for any other gallery app.
 
