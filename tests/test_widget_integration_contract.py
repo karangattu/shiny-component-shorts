@@ -105,12 +105,12 @@ class WidgetIntegrationContractTest(unittest.TestCase):
             for name in ('source-shots.yaml', 'reel.yaml'):
                 shutil.copy(SKILLS[0] / STARTER / name, tmp)
             wanted = {'captions': 'bar', 'code_theme': 'light', 'order': 'code-integration',
-                      'code_side': 'right', 'card_title': 'Run this app yourself'}
-            look.apply(Path(tmp), {'id': 'x', 'look': wanted})
+                      'code_side': 'right'}
+            look.apply(Path(tmp), {'id': 'x', 'look': wanted, 'integration': ['K3D', 'NumPy']})
             views = yaml.safe_load((Path(tmp) / 'source-shots.yaml').read_text())['shots'][0]['views']
             self.assertEqual({v['code_theme'] for v in views.values()}, {'light'})
             self.assertEqual([p['kind'] for p in views['horizontal']['panels']], ['image', 'code'])
-            self.assertEqual(yaml.safe_load((Path(tmp) / 'reel.yaml').read_text())['outro']['title'], 'Run this app yourself')
+            self.assertEqual(yaml.safe_load((Path(tmp) / 'reel.yaml').read_text())['outro']['widget'], 'K3D')
             self.assertEqual(yaml.safe_load((Path(tmp) / 'look.yaml').read_text())['order'], 'code-integration')
 
 
@@ -257,6 +257,9 @@ class MakeEpisodeTest(unittest.TestCase):
             "pattern: brush -> table\n---\n\n# Fake\n"
         )
         (example / "requirements.txt").write_text("shinywidgets[embedding_atlas]\nduckdb\n")
+        widget = self.repo / "website/widgets/embedding-atlas"
+        widget.mkdir(parents=True)
+        (widget / "index.md").write_text("---\ntitle: Embedding Atlas\n---\n")
 
     def test_gallery_front_matter_produces_a_reviewable_draft(self):
         project = self.root / "episode"
@@ -278,6 +281,8 @@ class MakeEpisodeTest(unittest.TestCase):
         self.assertEqual(entry["renderers"], ["render_embedding_atlas", "render_text"])
         self.assertIn("duckdb", entry["install"])
         self.assertIn("index.md", entry["notes"])
+        outro = yaml.safe_load((project / "reel.yaml").read_text())["outro"]
+        self.assertEqual(outro["widget"], "Embedding Atlas")
         views = yaml.safe_load((project / "source-shots.yaml").read_text())["shots"][0]["views"]
         panel = views["vertical"]["panels"][0]
         self.assertEqual(panel["highlight"], 9)

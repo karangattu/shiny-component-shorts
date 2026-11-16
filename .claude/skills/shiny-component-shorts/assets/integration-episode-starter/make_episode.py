@@ -156,6 +156,11 @@ def draft(args: argparse.Namespace) -> dict[str, Any]:
 
     widgets = args.widgets.split(",") if args.widgets else front.get("widgets") or []
     widgets = [str(widget).strip() for widget in widgets if str(widget).strip()]
+    display_names = [
+        str(front_matter(repo / "website" / "widgets" / widget / "index.md").get("title") or widget)
+        if repo and re.fullmatch(r"[a-z0-9-]+", widget) else widget
+        for widget in widgets
+    ]
     accessor, accessor_line, candidates = detect_accessor(app)
     if args.accessor:
         accessor = args.accessor
@@ -168,7 +173,7 @@ def draft(args: argparse.Namespace) -> dict[str, Any]:
                 accessor_line = number
                 break
     identifier = args.id or (gallery.rsplit("/", 1)[-1] if gallery else "new-shinywidgets-episode")
-    label_widget = widgets[0] if widgets else "TODO"
+    label_widget = display_names[0] if display_names else "TODO: widget name"
     summary = str(front.get("summary") or "TODO: one sentence on what the interaction changes.")
     pattern = str(front.get("pattern") or "TODO")
     notes = [
@@ -190,7 +195,7 @@ def draft(args: argparse.Namespace) -> dict[str, Any]:
         "id": identifier,
         "gallery": gallery or "TODO: templates/... or showcases/...",
         "example": args.example or front.get("title") or title_from(args, front),
-        "integration": widgets or ["TODO: libraries in the integration"],
+        "integration": display_names or [label_widget],
         "label": f"Shiny for Python · {label_widget}",
         "title": title_from(args, front),
         "renderers": [f"render_{name}" for name in renderers] or ["TODO"],
@@ -268,7 +273,7 @@ def scaffold(args: argparse.Namespace) -> Path:
     write_still_config(project, data)
     reel = yaml.safe_load((project / "reel.yaml").read_text(encoding="utf-8"))
     reel["title"] = entry["title"]
-    reel["outro"]["title"] = entry["title"]
+    reel["outro"]["widget"] = entry["integration"][0]
     (project / "reel.yaml").write_text(
         yaml.safe_dump(reel, sort_keys=False, allow_unicode=True, width=1000), encoding="utf-8"
     )

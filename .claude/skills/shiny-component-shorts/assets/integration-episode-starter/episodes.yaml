@@ -14,8 +14,8 @@
 #          (PyPI had 0.8.2 on 2026-11-14). Until that changes, install shinywidgets from the
 #          repository to record, and leave the command off the end card.
 # look:    the planned variety for this episode: caption style, code theme, the order of the two
-#          middle beats, the side the code sits on in landscape, and the end card title. look.py
-#          assigns it and applies it. Do not choose these by hand.
+#          middle beats, and the side the code sits on in landscape. look.py assigns it
+#          and applies it. Do not choose these by hand.
 # closing_line: every episode ends on this sentence, spoken over the end card. Change only the
 #          word "integration" to "widget" when the episode shows one library.
 series: You Can Build This with Shiny
@@ -35,7 +35,7 @@ episodes:
     integration: [Plotly, ITables]
     label: Shiny for Python · Plotly
     title: Lasso a chart to filter a table
-    look: {captions: bar, code_theme: light, order: code-integration, code_side: right, card_title: Run this app yourself}
+    look: {captions: bar, code_theme: light, order: code-integration, code_side: right}
     renderers: [render_plotly, render_itables]
     accessor: plot.selected_rows(df)
     also: [plot.clicked()]
@@ -55,7 +55,7 @@ episodes:
     integration: [Lonboard, ITables]
     label: Shiny for Python · Lonboard
     title: Filter a table from a map
-    look: {captions: outline, code_theme: dark, order: integration-code, code_side: left, card_title: Try this integration}
+    look: {captions: outline, code_theme: dark, order: integration-code, code_side: left}
     renderers: [render_lonboard, render_itables]
     accessor: map.selected_bounds()
     also: [map.selected()]
@@ -75,7 +75,7 @@ episodes:
     integration: [K3D]
     label: Shiny for Python · K3D
     title: Click terrain to read elevation
-    look: {captions: clean, code_theme: dark, order: code-integration, code_side: right, card_title: Start from this example}
+    look: {captions: clean, code_theme: dark, order: code-integration, code_side: right}
     renderers: [render_k3d]
     accessor: terrain.camera()
     install: pip install 'shinywidgets[k3d]' matplotlib numpy
@@ -95,7 +95,7 @@ episodes:
     integration: [Perspective]
     label: Shiny for Python · Perspective
     title: A live table filters a dashboard
-    look: {captions: pill, code_theme: light, order: integration-code, code_side: left, card_title: Build this with Shiny}
+    look: {captions: pill, code_theme: light, order: integration-code, code_side: left}
     renderers: [render_perspective]
     accessor: grid.view_config()
     install: pip install 'shinywidgets[perspective]' pandas numpy
@@ -115,7 +115,7 @@ episodes:
     integration: [jupyter-scatter]
     label: Shiny for Python · jupyter-scatter
     title: Lasso 300,000 linked points
-    look: {captions: karaoke, code_theme: dark, order: code-integration, code_side: left, card_title: Start from this example}
+    look: {captions: karaoke, code_theme: dark, order: code-integration, code_side: left}
     renderers: [render_jscatter]
     accessor: umap.selected()
     install: pip install 'shinywidgets[jscatter]' pandas numpy
@@ -134,7 +134,7 @@ episodes:
     integration: [ipycytoscape, NetworkX]
     label: Shiny for Python · ipycytoscape
     title: Click a network to see who links
-    look: {captions: card, code_theme: light, order: integration-code, code_side: right, card_title: Run this app yourself}
+    look: {captions: card, code_theme: light, order: integration-code, code_side: right}
     renderers: [render_ipycytoscape]
     accessor: network.clicked_node()
     also: [network.selected_nodes(), network.clicked_edge()]
@@ -153,7 +153,7 @@ episodes:
     integration: [mols2grid, RDKit, Plotly]
     label: Shiny for Python · mols2grid
     title: Filter molecules with a lasso
-    look: {captions: clean, code_theme: light, order: code-integration, code_side: right, card_title: Build this with Shiny}
+    look: {captions: clean, code_theme: light, order: code-integration, code_side: right}
     renderers: [render_mols2grid, render_plotly]
     accessor: grid.clicked()
     also: [grid.selected(), scatter.selected_rows(MOLS)]
@@ -176,7 +176,7 @@ episodes:
     integration: [ipyleaflet, Plotly, shinychat, chatlas]
     label: Shiny for Python · ipyleaflet
     title: Ask a chat to move the map
-    look: {captions: bar, code_theme: dark, order: integration-code, code_side: left, card_title: Try this integration}
+    look: {captions: bar, code_theme: dark, order: integration-code, code_side: left}
     renderers: [render_ipyleaflet, render_plotly]
     accessor: map.bounds()
     install: pip install 'shinywidgets[ipyleaflet]' 'shinywidgets[plotly]' shinychat chatlas anthropic pandas

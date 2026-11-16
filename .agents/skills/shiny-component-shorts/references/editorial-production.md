@@ -134,7 +134,7 @@ With no `release`, the title is “Try it yourself”.
 `outro: false` removes the card; use it only when the user asks for no end card.
 
 Name a version on the card only after you verify that the release has shipped.
-For a widget video, give the tested command that also installs the widget package.
+For a py-shinywidgets video, set `outro.widget` to the featured integration's display name (for example, `Embedding Atlas`). Omit `title` to use “Use the Embedding Atlas integration in Shiny apps,” followed by “using” and the [shinywidgets wordmark](../assets/shinywidgets-logo.png). The wordmark comes from the dark navbar on [Why shinywidgets?](https://posit-dev.github.io/py-shinywidgets/guide/why/). The card links to the py-shinywidgets site by default. Add a `command` only after you test that it installs the integration shown in the video.
 Keep the title to a few words; the renderer refuses text that does not fit.
 
 A series uses the same `outro` for every video.

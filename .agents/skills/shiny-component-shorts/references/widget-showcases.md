@@ -8,7 +8,7 @@ Choose one widget and one useful task. If the user names several widgets, make o
 
 Give each video a `context` label, specific title, and short outcome sentence in `source-shots.yaml`.
 Use `context.layout: showcase` for a cover built from one strong piece of app evidence. Supply a dedicated capture of the result, such as a chart or map with its labels and attribution. Use a short title that fits in two lines on a phone. The cover stays out of playback so the app can fill the opening frame. See [context posters and opening titles](editorial-production.md#context-posters-and-opening-titles).
-Set `outro.command` in `reel.yaml` to the tested installation command, so the [end card](editorial-production.md#end-card) shows what the viewer needs to install.
+Set `outro.widget` in `reel.yaml` to the integration's display name from its page under `website/widgets/`. The [end card](editorial-production.md#end-card) names the package and uses the shinywidgets wordmark in both orientations. Set `outro.command` to the tested installation command when the integration has shipped.
 
 ## Plan the explanation
 

@@ -57,7 +57,7 @@ Aim for 45–55 seconds before the end card, and about 60 seconds in total. That
 | 3–20 s | Demo | The working app: what the data is, then one or two more real interactions | Why each result matters, not where the mouse moves |
 | 20–37 s | Integration | The app, still in use | Name each library and its job, then say what shinywidgets connects |
 | 37–50 s | Get started | A few whole lines of `app.py` with the accessor line highlighted, then the app result | What the line returns, the gallery example's name, and the conclusion |
-| Last 5 s | End card | The Shiny wordmark, the title from the episode's look, and the py-shinywidgets address | The closing line: "To try this integration, go to the py-shinywidgets website." |
+| Last 5 s | End card | The featured integration name, the shinywidgets wordmark, and the py-shinywidgets address | The closing line: "To try this integration, go to the py-shinywidgets website." |
 
 Rules for the beats:
 
@@ -85,7 +85,7 @@ A question can still be the text of the social post that carries the video. Writ
 
 ## Planned variety
 
-A series of 20 or more episodes must not look like one video made 20 times. Each catalog entry has a `look` that sets five things:
+A series of 20 or more episodes must not look like one video made 20 times. Each catalog entry has a `look` that sets four things:
 
 | Key | Values | Where it shows |
 | --- | --- | --- |
@@ -93,11 +93,10 @@ A series of 20 or more episodes must not look like one video made 20 times. Each
 | `code_theme` | `dark`, `light` | The code still |
 | `order` | `integration-code`, `code-integration` | The order of the two middle beats |
 | `code_side` | `left`, `right` | The side the code sits on in the landscape video |
-| `card_title` | Four titles, listed in `look.py` | The end card |
 
-Do not choose these values yourself, and do not draw them at render time. `look.py assign` draws each look from the catalog's `look_seed` and the episode id, and stores it in `episodes.yaml`. A rerender then gives the same video, and a new episode never changes an older one. The script keeps neighbours apart: a caption style does not repeat within two episodes, and two episodes in a row never share an end card title or share both the order and the code theme. `look.py check` reports a catalog that breaks these rules.
+Do not choose these values yourself, and do not draw them at render time. `look.py assign` draws each look from the catalog's `look_seed` and the episode id, and stores it in `episodes.yaml`. A rerender then gives the same video, and a new episode never changes an older one. The script keeps neighbours apart: a caption style does not repeat within two episodes, and adjacent episodes never share both the order and the code theme. `look.py check` reports a catalog that breaks these rules.
 
-`look.py apply <project> <episode>` writes the look into the production: the code theme and the panel order in `source-shots.yaml`, the title in `reel.yaml`, and a `look.yaml` that `assemble.py` reads for the order. Burn the captions with the style in `look.yaml`.
+`look.py apply <project> <episode>` writes the look into the production: the code theme and the panel order in `source-shots.yaml`, `outro.widget` in `reel.yaml` from the first package in `integration`, and a `look.yaml` that `assemble.py` reads for the order. Burn the captions with the style in `look.yaml`.
 
 The look does not cover words. Write a different opening sentence and conclusion for each episode, and run `check_narration_voice.py` across the series to find phrasing the scripts share.
 
@@ -163,8 +162,8 @@ Then follow the capture, narration, alignment, and validation steps in [widget s
 - Exactly one code still appears, and its highlighted line contains the catalog `accessor`.
 - The narration names the gallery example and asks no question. Its only instruction to the viewer is the closing line.
 - The end card appears on the first word of the closing line and stays until the video ends.
-- The end card shows the py-shinywidgets address. It shows an install command only when the release has shipped and you tested the command. On the vertical card, the command breaks only at spaces.
+- The end card reads “Use the <package> integration in Shiny apps using” and ends the sentence with the shinywidgets wordmark. It shows the py-shinywidgets address. It shows an install command only when the release has shipped and you tested the command. On the vertical card, the command breaks only at spaces.
 - In the captioned portrait video, no caption covers the widget or the output it drives.
 - Every frame shows one pointer arrow. A widget that draws in its own iframe gets its own demo cursor, and a second arrow left on screen makes the recording look fake. The recorder and `capture.py` stop when two show, so do not work around that error. Still look for it in the review frames, with any other mark the app did not draw: a stale tooltip, a leftover selection box, or a cursor that jumps.
-- The caption style, code theme, beat order, code side, and end card title match the episode's `look`.
+- The caption style, code theme, beat order, and code side match the episode's `look`.
 - The production index records the gallery commit, any layout-only changes, and any scripted chat.

@@ -65,6 +65,26 @@ def test_card_fits_both_orientations_and_refuses_overflow(tmp_path):
         browser.close()
 
 
+def test_widget_card_names_the_integration_and_renders_the_mint_wordmark(tmp_path):
+    from PIL import Image
+    from playwright.sync_api import sync_playwright
+
+    card = resolved({"widget": "Embedding Atlas"})
+    assert card["title"] == "Use the Embedding Atlas integration in Shiny apps"
+    assert card["command"] == ""
+    assert card["link"] == "posit-dev.github.io/py-shinywidgets"
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        for orientation in end_card.SIZES:
+            output = end_card.render(
+                browser, {**card, "link": ""}, orientation, tmp_path / f"{orientation}.png", 1
+            )
+            with Image.open(output) as frame:
+                colors = frame.convert("RGB").getcolors(maxcolors=frame.width * frame.height)
+                assert any(color == (124, 242, 201) for _, color in colors or [])
+        browser.close()
+
+
 def test_editorial_video_ends_on_the_card_after_the_narrated_timeline(segment, monkeypatch):  # noqa: F811
     monkeypatch.setattr(end_card, "resolve", REAL_RESOLVE)
     monkeypatch.setattr(reel, "SIZES", {"vertical": (144, 256), "horizontal": (256, 144)})

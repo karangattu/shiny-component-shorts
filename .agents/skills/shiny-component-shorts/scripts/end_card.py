@@ -34,8 +34,10 @@ DISSOLVE_SECONDS = 0.3
 SECONDS_RANGE = (2.0, 8.0)
 LINK = "shiny.posit.co"
 COMMANDS = {"python": "pip install shiny --upgrade", "r": 'install.packages("shiny")'}
-KEYS = ("title", "command", "link", "seconds", "spoken")
+KEYS = ("title", "command", "link", "seconds", "spoken", "widget")
 LOGO_PATH = Path(__file__).resolve().parent.parent / "assets" / "shiny-logo.png"
+WIDGET_LOGO_PATH = LOGO_PATH.with_name("shinywidgets-logo.png")
+WIDGET_LINK = "posit-dev.github.io/py-shinywidgets"
 VERSION_RE = re.compile(r"(?:shiny\s+)?v?(\d+(?:\.\d+)*)", re.IGNORECASE)
 
 
@@ -70,12 +72,19 @@ def resolve(outro: object, *, release: object = None, language: str = "python") 
         title, command = "Learn more about Shiny", ""
     else:
         title, command = "Try it yourself", COMMANDS[language]
+    widget = outro.get("widget")
+    if "widget" in outro:
+        if not isinstance(widget, str) or not widget.strip():
+            raise ValueError("outro.widget must be a widget name")
+        title, command = f"Use the {widget.strip()} integration in Shiny apps", ""
     card = {
         "title": outro.get("title", title),
         "command": outro.get("command", command) or "",
-        "link": outro.get("link", LINK) or "",
+        "link": outro.get("link", WIDGET_LINK if widget else LINK) or "",
         "seconds": outro.get("seconds", SECONDS),
     }
+    if widget:
+        card["widget"] = widget.strip()
     # `spoken` names the narration phrase the card appears on. The card is then a shot inside
     # the video, with the voice over it, and no silent card is added after the narration.
     card["spoken"] = outro.get("spoken", "") or ""
@@ -107,7 +116,14 @@ def for_project(project_dir: Path) -> dict | None:
 def render(browser, card: dict, orientation: str, output: Path, scale: float = 2) -> Path:
     """Draw the card as one still; refuse text that does not fit the safe margins."""
     width, height = SIZES[orientation]
-    logo = "data:image/png;base64," + base64.b64encode(LOGO_PATH.read_bytes()).decode("ascii")
+    widget = card.get("widget")
+    logo_path = WIDGET_LOGO_PATH if widget else LOGO_PATH
+    logo = "data:image/png;base64," + base64.b64encode(logo_path.read_bytes()).decode("ascii")
+    title = f'<h1>{html.escape(card["title"])}</h1>'
+    if widget:
+        heading = title + f'<p class="wordmark">using <img src="{logo}" alt="shinywidgets"></p>'
+    else:
+        heading = f'<img src="{logo}" alt="Shiny">' + title
     command = (
         f'<pre><code>{html.escape(card["command"])}</code></pre>' if card["command"] else ""
     )
@@ -128,13 +144,23 @@ pre{{margin-top:44px;max-width:100%;padding:18px 28px;background:#FFFFFF;border:
 code{{font:inherit}}
 .link{{margin-top:44px;font-size:30px;line-height:1.4;color:#48505F}}
 .link b{{color:#007BC2;font-weight:700}}
+.widget{{background:#07080C;color:#EEF0F6}}
+.widget h1{{font-size:56px;text-wrap:balance}}
+.wordmark{{margin-top:24px;display:flex;gap:16px;align-items:center;font-size:34px}}
+.wordmark img{{width:360px;margin:0}}
+.widget pre{{background:#16181D;border-color:#48505F}}
+.widget .link{{color:#EEF0F6}}
+.widget .link b{{color:#7CF2C9}}
+@media (orientation:portrait){{
+  .widget h1{{font-size:50px}}
+  .widget .link b{{display:block}}
+}}
 """
     page = browser.new_page(viewport={"width": width, "height": height}, device_scale_factor=scale)
     try:
         page.set_content(
             '<!doctype html><meta charset="utf-8"><style>' + css + "</style>"
-            f'<main><img src="{logo}" alt="Shiny"><h1>{html.escape(card["title"])}</h1>'
-            f"{command}{link}</main>"
+            f'<body class="{"widget" if widget else ""}"><main>{heading}{command}{link}</main>'
         )
         page.evaluate("document.fonts.ready")
         page.evaluate("Promise.all([...document.images].map(i => i.decode()))")

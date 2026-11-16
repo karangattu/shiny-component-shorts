@@ -22,7 +22,6 @@ OPTIONS = {
     # The two middle orders: the libraries then the code line, or the code line then the libraries.
     "order": ["integration-code", "code-integration"],
     "code_side": ["left", "right"],
-    "card_title": ["Try this integration", "Build this with Shiny", "Start from this example", "Run this app yourself"],
 }
 
 
@@ -40,8 +39,6 @@ def clash(looks: list, index: int, look: dict) -> str | None:
                 continue
             if near["captions"] == look["captions"]:
                 return f"caption style {look['captions']} repeats within two episodes"
-            if distance == 1 and near["card_title"] == look["card_title"]:
-                return "the end card title repeats"
             if distance == 1 and (near["order"], near["code_theme"]) == (look["order"], look["code_theme"]):
                 return "the order and the code theme both repeat"
     return None
@@ -115,7 +112,7 @@ def apply(project: Path, episode: dict) -> None:
                     view["panels"].sort(key=lambda panel: (panel["kind"] == "code") != (look["code_side"] == "left"))
 
     rewrite(project / "source-shots.yaml", stills)
-    rewrite(project / "reel.yaml", lambda data: data["outro"].update(title=look["card_title"]))
+    rewrite(project / "reel.yaml", lambda data: data["outro"].update(widget=episode["integration"][0]))
     (project / "look.yaml").write_text(
         "# Written by look.py apply. assemble.py reads `order`; burn captions with --style <captions>.\n"
         + yaml.safe_dump({"episode": episode["id"], **look}, sort_keys=False), encoding="utf-8")

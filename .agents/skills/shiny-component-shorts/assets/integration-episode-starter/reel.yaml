@@ -5,10 +5,10 @@ features:
   - title: Filter a table from a map
     dir: .
 # The narration speaks the last line over this card, so `spoken` names the phrase it appears on.
-# `look.py apply` sets the title. While episodes.yaml says released: false, keep the command empty. After the release, use the
+# `look.py apply` sets the featured widget. While episodes.yaml says released: false, keep the command empty. After the release, use the
 # entry's install command and confirm it in a new environment.
 outro:
-  title: Try this integration
+  widget: Lonboard
   command: ""
   link: posit-dev.github.io/py-shinywidgets
   spoken: To try this integration
