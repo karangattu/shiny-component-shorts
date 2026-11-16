@@ -190,13 +190,15 @@ def ensure_pin(
         lock_path = parent / LOCK
         if lock_path.is_file():
             lock = json.loads(lock_path.read_text())
-            if (
-                lock.get("schema") != 1
-                or lock.get("variant") != variant
-                or lock.get("snapshot") != SNAPSHOT
-            ):
+            if lock.get("schema") != 1 or lock.get("snapshot") != SNAPSHOT:
                 raise ValueError(
-                    "Production lock schema, variant, or snapshot is incompatible"
+                    f"{lock_path}: production lock schema or snapshot is incompatible"
+                )
+            if lock.get("variant") != variant:
+                raise ValueError(
+                    f"{lock_path} pins variant {lock.get('variant')!r}, but the installed skill "
+                    f"resolves to {variant!r}. Pass --variant {lock.get('variant')!r} when "
+                    "bootstrapping a child production, or start a new top-level production."
                 )
             pinned = parent / SNAPSHOT
             verify(pinned, lock["manifest_sha256"])
@@ -318,10 +320,16 @@ def main() -> int:
         action="store_true",
         help="Explicitly pin local tools for development/offline work; never an automatic fallback",
     )
+    parser.add_argument(
+        "--variant",
+        choices=("codex", "claude"),
+        help="Variant recorded by an existing series lock, when the skill moved directories",
+    )
     args = parser.parse_args()
     try:
         pinned = ensure_pin(
-            args.project_dir, Path(__file__).resolve().parent.parent, local=args.local
+            args.project_dir, Path(__file__).resolve().parent.parent,
+            variant=args.variant, local=args.local,
         )
     except (OSError, ValueError, KeyError, zipfile.BadZipFile) as exc:
         print(

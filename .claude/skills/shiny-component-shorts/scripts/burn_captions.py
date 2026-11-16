@@ -93,14 +93,19 @@ def _norm(token: str) -> str:
     return re.sub(r"[^a-z0-9]", "", token.lower())
 
 
-def words_before(words: list[dict], phrase: str) -> list[dict]:
-    """The words spoken before `phrase`. The end card shows its own text, so captions stop there."""
+def phrase_index(words: list[dict], phrase: str) -> int:
+    """Where `phrase` starts in the timed words."""
     wanted = [_norm(token) for token in phrase.split() if _norm(token)]
     spoken = [_norm(word["word"]) for word in words]
     for index in range(len(spoken) - len(wanted) + 1):
         if wanted and spoken[index:index + len(wanted)] == wanted:
-            return words[:index]
+            return index
     raise SystemExit(f'--stop-at phrase is not in the narration: "{phrase}"')
+
+
+def words_before(words: list[dict], phrase: str) -> list[dict]:
+    """The words spoken before `phrase`. The end card shows its own text, so captions stop there."""
+    return words[:phrase_index(words, phrase)]
 
 
 def load_words(timing: Path) -> tuple[list[dict], float]:
@@ -234,7 +239,10 @@ def srt_time(seconds: float) -> str:
     return f"{hours:02d}:{minutes:02d}:{secs:02d},{ms:03d}"
 
 
-def write_ass(phrases: list[list[dict]], offset: float, style: dict, path: Path) -> list[tuple[float, float, str]]:
+def write_ass(
+    phrases: list[list[dict]], offset: float, style: dict, path: Path,
+    limit: float | None = None,
+) -> list[tuple[float, float, str]]:
     lines = [
         "[Script Info]",
         "ScriptType: v4.00+",
@@ -265,6 +273,11 @@ def write_ass(phrases: list[list[dict]], offset: float, style: dict, path: Path)
         end = max(end + 0.25, start + MIN_HOLD)
         if nxt is not None:
             end = min(end, nxt - 0.02)
+        # The closing line is spoken over the end card, so its caption cannot run into the card.
+        if limit is not None:
+            end = min(end, limit)
+        if end <= start:
+            continue
         text = phrase_text(words, style["karaoke"])
         plain = " ".join(display_word(w) for w in words)
         cues.append((start, end, plain))
@@ -320,15 +333,18 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     words, offset = load_words(args.timing)
+    limit = None
     if args.stop_at:
-        words = words_before(words, args.stop_at)
+        stop = phrase_index(words, args.stop_at)
+        limit = words[stop]["start"] + offset
+        words = words[:stop]
     phrases = group_phrases(words)
     style = STYLES[args.style]
     out_dir = args.out_video.parent
     out_dir.mkdir(parents=True, exist_ok=True)
     ass_path = args.out_ass or out_dir / f"{args.out_video.stem}.ass"
     srt_path = args.out_srt or out_dir / f"{args.out_video.stem}.srt"
-    cues = write_ass(phrases, offset, style, ass_path)
+    cues = write_ass(phrases, offset, style, ass_path, limit)
     write_srt(cues, srt_path)
     burn(args.video, ass_path, args.out_video)
     print(f"style={args.style} ({style['desc']})")
