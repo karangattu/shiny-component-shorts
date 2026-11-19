@@ -27,6 +27,7 @@ import check_narration_voice  # noqa: E402
 import companion  # noqa: E402
 import thumbnail  # noqa: E402
 import merge_audio  # noqa: E402
+import pronunciations  # noqa: E402
 from generate_local_voice import (  # noqa: E402
     MAX_SPEAKING_RATE,
     MIN_SPEAKING_RATE,
@@ -152,6 +153,8 @@ def narration_inputs(project_dir: Path) -> list[Path]:
         SCRIPTS_DIR / "generate_tts.py",
         SCRIPTS_DIR / "validate_demo.py",
         SCRIPTS_DIR / "align_narration.py",
+        SCRIPTS_DIR / "pronunciations.py",
+        *pronunciations.lexicon_files(project_dir),
     ]
     settings_path = project_dir / "tts-settings.json"
     if settings_path.is_file():
@@ -512,8 +515,9 @@ TAKE_ATTEMPTS = 3
 
 
 def take_fingerprint(narration: Path, settings: dict) -> str:
-    """Raw takes are stale as soon as their script or their settings change."""
-    payload = narration.read_bytes() + json.dumps(settings, sort_keys=True).encode()
+    """Raw takes depend on their script, settings, and spoken pronunciations."""
+    lexicon = pronunciations.load_lexicon(pronunciations.project_for_artifact(narration))
+    payload = narration.read_bytes() + json.dumps([settings, lexicon["spoken"]], sort_keys=True).encode()
     return hashlib.sha256(payload).hexdigest()
 
 

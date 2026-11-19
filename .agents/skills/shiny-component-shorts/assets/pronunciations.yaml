@@ -1,0 +1,75 @@
+spoken:
+  py-shinywidgets: pie shiny widgets
+  shinywidgets: Shiny Widgets
+  Shinywidgets: Shiny Widgets
+  ipywidgets: eye pie widgets
+  ipycytoscape: eye pee cytoscape
+  ipyleaflet: eye pee leaflet
+  ipysigma: eye pee sigma
+  pythreejs: pie three J S
+  jupyter-scatter: jupyter scatter
+  mols2grid: mols to grid
+  rioxarray: rio x array
+  NiiVue: nee voo
+  NGLView: N G L view
+  nglview: N G L view
+  RDKit: R D Kit
+  MDTraj: M D traj
+  GeoPandas: geo pandas
+  NetworkX: network X
+  localtileserver: local tile server
+  shinychat: shiny chat
+  chatlas: chat lass
+  scikit-learn: sci kit learn
+  stdlib: standard lib
+  AAL: A A L
+  MNI: M N I
+  RMSD: R M S D
+  UMAP: U map
+  K3D: K 3 D
+  CD3E: C D 3 E
+  CD14: C D 14
+  LogP: log P
+  LogS: log S
+  P&L: P and L
+  AOI: A O I
+
+display:
+  pie shiny widgets: py-shinywidgets
+  py shiny widgets: py-shinywidgets
+  Shiny Widgets: shinywidgets
+  shiny widgets: shinywidgets
+  eye pie widgets: ipywidgets
+  eye pee cytoscape: ipycytoscape
+  ippy-cytoscape: ipycytoscape
+  eye pee leaflet: ipyleaflet
+  eye pee sigma: ipysigma
+  pie three J S: pythreejs
+  jupyter scatter: jupyter-scatter
+  mols to grid: mols2grid
+  rio x array: rioxarray
+  Rio xarray: rioxarray
+  rio xarray: rioxarray
+  nee voo: NiiVue
+  N G L view: nglview
+  R D Kit: RDKit
+  R D kit: RDKit
+  M D traj: MDTraj
+  geo pandas: GeoPandas
+  network X: NetworkX
+  local tile server: localtileserver
+  shiny chat: shinychat
+  chat lass: chatlas
+  sci kit learn: scikit-learn
+  S T D lib: stdlib
+  A A L: AAL
+  M N I: MNI
+  R M S D: RMSD
+  U map: UMAP
+  K 3 D: K3D
+  C D 3 E: CD3E
+  C D 14: CD14
+  log P: LogP
+  log S: LogS
+  P and L: P&L
+  A O I: AOI

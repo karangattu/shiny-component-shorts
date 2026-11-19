@@ -49,26 +49,29 @@ A link to a component page, pull request, or commit is accepted as provenance, b
 
 ## The four beats
 
-Aim for 45–55 seconds before the end card, and about 60 seconds in total. That is about 125–140 spoken words. Measure the narration; do not estimate it. The times below are targets. The order of the beats matters more than the exact second each one starts.
+Aim for 35–45 seconds in total (~85–115 spoken words) including the end card, keeping continuous UI motion throughout with no frozen hold longer than 5 seconds (`--max-static-hold 6.0` in `validate_editorial.py`). Measure the narration; do not estimate it. The order of the beats matters more than the exact second each one starts.
 
 | Time | Beat | On screen | Narration |
 | --- | --- | --- | --- |
-| 0–3 s | Hook | The interaction and its result in another component | One short sentence that says what just happened |
-| 3–20 s | Demo | The working app: what the data is, then one or two more real interactions | Why each result matters, not where the mouse moves |
-| 20–37 s | Integration | The app, still in use | Name each library and its job, then say what shinywidgets connects |
-| 37–50 s | Get started | A few whole lines of `app.py` with the accessor line highlighted, then the app result | What the line returns, the gallery example's name, and the conclusion |
-| Last 5 s | End card | The featured integration name, the shinywidgets wordmark, and the py-shinywidgets address | The closing line: "To try this integration, go to the py-shinywidgets website." |
+| 0–3 s | Hook | Live app in motion + compact 2.8 s top-band `hook_badge` pill | Match the episode's `hook_style`: `outcome-first`, `scale-lead`, `two-way`, or `direct-action` |
+| 3–16 s | Demo | Real interactions continuously updating the widget and linked outputs | Why each result matters (fold any simulated-data note briefly after the payoff, never stalling beat 2) |
+| 16–28 s | Integration | Live app still reacting while explaining the pipeline | Name each library's visible job while demonstrating it, then how shinywidgets links widget to Python |
+| 28–38 s | Get started | Floating `app.py` code card (`overlay_card: true`) over live footage, then final payoff | What the accessor returns, the gallery example's name, and the plain conclusion |
+| Last 4.5 s | End card | The featured integration name, the shinywidgets wordmark, and the py-shinywidgets address | The closing line: "To try this integration, go to the py-shinywidgets website." |
 
 Rules for the beats:
 
-- **The hook is footage.** The first frame is the app with the interaction about to happen. Finish the action and show its result inside three seconds. Do not open on a poster, a title, a package name, or the words "shinywidgets".
+- **The hook is footage.** The first frame is the app clean and ready with the interaction about to happen (never mid-drag or under a stuck tooltip). Finish the action and show its result inside three seconds. Do not open on a poster, a title, a package name, or the words "shinywidgets". Add a compact `hook_badge` pill in the top ~8% band for the first 2.8 seconds so muted autoplay viewers immediately see the integration context without obscuring the app.
+- **Rotate hook structures across a series.** Never start adjacent videos—or more than 30% of a series—with `"I <verb> ..."`. Use the catalog's `hook_style` (`outcome-first`, `scale-lead`, `two-way`, `direct-action`), and check across siblings with `check_narration_voice.py --series --portrait`.
+- **Keep the app moving through every beat.** Never hold a static frame while lecturing on libraries or conclusions (`LONG_HOLD_SECONDS = 5.0` in `capture.py`). Name libraries *while* triggering a real control or selection, and attach the floating `code_overlay` card (`overlay_card: true` in `source-shots.yaml`) above or below the active widget (`code_position: top | bottom`) so live UI state remains visible behind the code.
+- **Never stall beat 2 on disclaimers.** Do not spend seconds 4–8 explaining synthetic or simulated data; mention simulated data briefly after demonstrating a real payoff.
 - **The cover stays out of playback.** Use `context.layout: showcase` with the `label` and `title` from the catalog. The cover becomes the thumbnail. This replaces the integration poster that other vertical shorts open on.
 - **Name the libraries in the integration beat, not before.** One job for each library in `integration`, then the link: "shinywidgets sends the selection to Python."
-- **Show one accessor.** Use the `accessor` from the catalog. Show the smallest run of whole lines around it from the real `app.py`, and set `highlight` to its line. Do not scroll the file and do not show a second excerpt. The names under `also` are for your own understanding of the app.
+- **Show one accessor.** Use the `accessor` from the catalog. Show the smallest run of whole lines around it from the real `app.py` (never `app_portrait.py` or `portrait.py`), and set `highlight` to its line. Do not scroll the file and do not show a second excerpt. The names under `also` are for your own understanding of the app.
 - **Name the starting point as a fact.** Say which gallery example the app is, such as "This app is the Lasso explorer in the shinywidgets gallery."
-- **End on the conclusion, then speak the closing line.** Give one or two plain sentences on what the viewer now knows and when it matters. Use the entry's `payoff` and `audience` as the source. Then pause, and say the catalog's `closing_line` over the end card. This series is the one place where the narration speaks a call to action, and it speaks only that sentence.
-- **Follow the order in the look.** `integration-code` is the order in the table. `code-integration` shows the code line straight after the demo and names the libraries after it, so the integration beat runs to about 37 s and the last beat keeps the app result, the gallery example's name, and the conclusion. In both orders, speak no library name before the integration beat.
-- **Put a pause between beats.** Write a `[pause 1s]` tag after the hook, between the beats, and before the closing line. Without them the local voice runs past the 160 words-per-minute gate and every take is rejected.
+- **End on the conclusion, then speak the closing line.** Give one or two plain sentences on what the viewer now knows and when it matters. Use the entry's `payoff` and `audience` as the source. Then pause briefly, and say the catalog's `closing_line` over the end card. This series is the one place where the narration speaks a call to action, and it speaks only that sentence.
+- **Follow the order in the look.** `integration-code` keeps the library action before the code overlay; `code-integration` places the code overlay straight after `demo` and before `integration`. In both orders, speak no library name before the integration beat.
+- **Synthesize as one continuous take.** Use natural punctuation and `[short pause]` tags inside a single local-voice request so prosody flows across beats without dead-air splices, and set `bed: default` in `reel.yaml` for a soft ducked ambient bed (`-34 LUFS`). Never split beats with `[pause 1s]` blocks; keep sentences concise so the voice stays naturally under the 160 WPM gate.
 
 ### Keep the house voice
 
@@ -85,20 +88,22 @@ A question can still be the text of the social post that carries the video. Writ
 
 ## Planned variety
 
-A series of 20 or more episodes must not look like one video made 20 times. Each catalog entry has a `look` that sets four things:
+A long series should feel cohesive without repeating one template. Each catalog entry has a `look` that sets six things:
 
 | Key | Values | Where it shows |
 | --- | --- | --- |
-| `captions` | `clean`, `pill`, `karaoke`, `outline`, `card`, `bar` | The burned-in captions in the portrait video |
-| `code_theme` | `dark`, `light` | The code still |
-| `order` | `integration-code`, `code-integration` | The order of the two middle beats |
-| `code_side` | `left`, `right` | The side the code sits on in the landscape video |
+| `captions` | `series` | Unified dark-glass karaoke caption bar across the series |
+| `accent` | `#03C7E8`, `#00BF7F`, `#F9B928`, `#66B2FF`, `#F45100`, `#E879F9` | Highlighted karaoke words, badge dot, and code-card accent |
+| `hook_style` | `outcome-first`, `scale-lead`, `two-way`, `direct-action` | Opening hook sentence pattern |
+| `code_theme` | `dark`, `light` | The floating code card |
+| `order` | `integration-code`, `code-integration` | Order of the middle beats |
+| `code_side` | `left`, `right` | Side the code sits on in landscape video |
 
-Do not choose these values yourself, and do not draw them at render time. `look.py assign` draws each look from the catalog's `look_seed` and the episode id, and stores it in `episodes.yaml`. A rerender then gives the same video, and a new episode never changes an older one. The script keeps neighbours apart: a caption style does not repeat within two episodes, and adjacent episodes never share both the order and the code theme. `look.py check` reports a catalog that breaks these rules.
+Do not choose these values yourself, and do not draw them at render time. `look.py assign` draws each look from the catalog's `look_seed` and the episode id, and stores it in `episodes.yaml`. A rerender then gives the same video, and a new episode never changes an older one. The script keeps neighbours apart: an `accent` never repeats within two episodes, and adjacent episodes never share the same `hook_style` or both `order` and `code_theme`. `look.py check` reports a catalog that breaks these rules.
 
-`look.py apply <project> <episode>` writes the look into the production: the code theme and the panel order in `source-shots.yaml`, `outro.widget` in `reel.yaml` from the first package in `integration`, and a `look.yaml` that `assemble.py` reads for the order. Burn the captions with the style in `look.yaml`.
+`look.py apply <project> <episode>` writes the look into the production: the `code_theme`, `accent`, and `overlay_card: true` in `source-shots.yaml`, `bed: default` and `outro.widget` in `reel.yaml`, and `look.yaml` for `assemble.py` and `burn_captions.py`. Pass `--style series --accent <accent> --reel-json artifacts/reel.json` to `burn_captions.py`.
 
-The look does not cover words. Write a different opening sentence and conclusion for each episode, and run `check_narration_voice.py` across the series to find phrasing the scripts share.
+The look does not cover words. Write a different opening sentence and conclusion for each episode, and run `check_narration_voice.py --series --portrait` across the series to catch shared openers or portrait layout mismatches.
 
 These parts stay the same in every episode, because they make it a series: the hook is footage, one accessor line, the gallery example's name, and the closing line over the end card.
 
@@ -109,13 +114,13 @@ Use the gallery `app.py` as the evidence. The code on screen comes from that fil
 - **Leave the caption band empty in portrait.** Captions sit about 18% above the bottom edge, and social apps cover what is below them. Add bottom padding to the portrait copy so the app ends about 75% of the way down the frame, such as `body { padding-bottom: 300px }` in a 720×1280 viewport. Without it, the captions cover the linked output.
 - **Give the linked output the height.** In the portrait copy, remove the page title and give the widget and its output equal rows, such as `row_heights=[1, 1]`. A table's own search and paging controls take most of a short card, so check that at least three rows show.
 - **Fill the phone frame with the component.** Record the vertical take in a portrait viewport. The widget and the output it drives must both be readable at phone size in the same frame, or in two frames joined by a hard cut on the action. Never shrink a desktop dashboard into a 9:16 frame.
-- **Change layout only when you must.** If the gallery app does not fit a portrait viewport, record a production copy that changes layout only: stack the widget above the linked output, and collapse or remove a sidebar the episode does not use. Keep the reactive code, the data, and the widget options as they are. List each change in the production index. The code still shows the gallery file, not the copy.
-- **Record real interactions.** A lasso, a box selection, an orbit, and a camera flight are drags and animations. Record them as continuous browser footage at original speed, and hold until the linked output has finished updating.
+- **Change layout only when you must.** If the gallery app does not fit a portrait viewport, record a production copy that adapts layout for portrait clarity: stack the widget above or beside the linked output cleanly, strip unused panels/controls or raw debug `repr` boxes that distract on a phone, rename orientation-specific labels (e.g., `"Left viewer"` -> `"Top viewer"`), set closer initial 3D camera zoom so small meshes fill their card, and avoid desktop terms like `"sidebar"` or `"beside"` in portrait narration. List each change in the production index. The code still always shows the gallery `app.py`, never the layout copy.
+- **Record real, clean interactions.** A lasso, a box selection, an orbit, and a camera flight are drags and animations. Record them at original speed, keep frame 0 clean (never mid-lasso), add `dismiss_hover: true` after Plotly clicks/lassos so sticky hover tooltips clear, assert `scroll_visible` when appending to scrollable containers such as chat, and use `expect_change` to guarantee every click produces a visible UI update.
 - **Set up the hook off camera.** Switch to the tab that shows the linked output and arm the selection tool before the recording starts. A box or lasso needs about two seconds of pointer travel, so `capture.py` presses its first corner off camera when the opening action has `at`. The recording then opens on the shape about to stretch, and the result lands at about two seconds.
 - **Use pixel points for a canvas or a widget frame.** A map, a 3D scene, and a WebGL scatter plot have no selectors, and a selector does not reach inside a widget's own iframe, such as the mols2grid grid. Give each orientation its own points in `capture.yaml`, read from a preflight screenshot. Every layout change moves them, so run the preflight again.
 - **Draw a lasso as a `drag`.** Name the corners of the lasso as points, and take them from the chart's axes when you can: in Plotly, `gd._fullLayout.xaxis.l2p(value)` plus the axis offset gives the pixel for a data value. Keep every point below the Plotly toolbar, which appears on hover and takes the press.
 - **Find the real click target.** Press the control in the preflight and read the result before you write the sentence about it. In the Chemical explorer the arrow button on a structure opens the card, and a click on the drawing does nothing.
-- **Write names the way they are said.** In the transcript, write "Shiny Widgets" for the spoken name, and keep "py-shinywidgets" as it is: the local voice says it as "pie shiny widgets". The recognizer hears "Lonboard" and "ITables" as other words, and that is not a defect when the audio is right.
+- **Write real package and technical names in `narration.txt`.** Use `shinywidgets`, `py-shinywidgets`, `RDKit`, `MDTraj`, `rioxarray`, `stdlib`, `AAL`, and numeric digits (`1,797`, `183`) cleanly in `narration.txt`. `assets/pronunciations.yaml` automatically feeds TTS-friendly pronunciations (`Shiny Widgets`, `R D Kit`, `M D traj`, etc.) to `generate_local_voice.py` and `align_narration.py` while `burn_captions.py` renders exact technical names and cardinal numbers cleanly in captions.
 - **Wait for the widget, not the page.** WebGL canvases, map tiles, and streaming tables finish loading after the page does. Reject a blank canvas, missing tiles, or a client error.
 - **Keep what the widget requires.** Map attribution stays visible. Read each entry's `notes` for simulated data, live values that differ between takes, and the chat rule.
 - **Never call a real LLM.** For an example with a chat, record a production copy with scripted replies and tool calls. Keep the widget accessor and the code path that moves the widget real.
@@ -132,7 +137,7 @@ browser_args: ["--enable-unsafe-webgpu", "--use-angle=metal"]
 
 Preflight then checks for a WebGPU adapter and for the widget's "WebGPU is unavailable" notice, and fails before recording if the canvas would be blank. The check only runs when a browser argument mentions WebGPU.
 
-The recorder prints `WARNING: long hold: ...` for a clip with more than seven seconds between visible actions. A hold on the final result is deliberate and is not reported; recut the others, add a real interaction, or shorten the narration beat.
+The recorder prints `WARNING: long hold: ...` for a clip with more than five seconds between visible actions. It skips the final result clip. If a clip holds too long, recut it, add a real interaction, or shorten the narration.
 
 ## Assemble
 
@@ -145,25 +150,28 @@ Bootstrap the production as [editorial production](editorial-production.md) desc
 | `capture.py` | Runs `capture.yaml`. `preflight` performs every action and prints the result. `record` times each action to the measured narration. Put it beside `.video-skill`. |
 | `look.py` | Assigns the planned look to each catalog entry, and applies one to a production. Put it beside `.video-skill`. |
 | `source-shots.yaml` | The cover and the single code still |
-| `assemble.py` | Places the recorded clips around the code still in `editorial.yaml`, in the look's order. It stops when a clip's `end` phrase is not where the next shot starts. |
+| `assemble.py` | Combines the recorded clips and the code shot in `editorial.yaml`. It stops when a clip's `end` phrase does not match the start of the next shot. |
 | `reel.yaml` | The end card. `outro.spoken` names the first words of the closing line, and `assemble.py` adds the card as the last shot on that phrase. |
 | `make_episode.py` | Optional py-shinywidgets scaffolder: drafts a reviewable production from a gallery link, a gallery id, or explicit metadata. |
 
 When a gallery line is too long for the card but splits a name under `code_wrap: false`, set `code_wrap: smart` on the view. It dedents the excerpt and wraps long lines at spaces with a four-character hanging indent. An unbreakable token still fails the overflow check rather than being split.
 
-Work in this order: apply the look, preflight both orientations, build the stills, write the narration from the values the preflight printed, generate and pin the takes, record, assemble, render, validate, then burn the captions with `--stop-at` set to the first words of the closing line. The end card shows its own text, so captions stop before it.
+For a floating portrait code card, name the clip `code` or set `code_overlay: true` on that clip in `capture.yaml`. Use the same narration cue for the recorded clip and the code shot. Landscape uses the prepared side-by-side view at that cue.
+
+Work in this order: apply the look, preflight both orientations, build the stills and floating code card (`overlay_card: true`), write the narration from the values the preflight printed using the assigned `hook_style`, generate and pin one continuous take from `--phase takes`, record with `capture.py`, assemble, render, burn captions with `--style series --accent <accent> --stop-at ... --reel-json artifacts/reel.json`, and validate with `validate_editorial.py --max-static-hold 6.0 --srt ...`. The end card shows its own text, so captions stop strictly before it.
 
 Then follow the capture, narration, alignment, and validation steps in [widget showcases](widget-showcases.md#capture-and-assemble). Ship both orientations from the same actions and narration. In the horizontal video, show the code beside the app. Burn captions into the vertical video as [social captions](social-captions.md) describes, with the caption style from the episode's look.
 
 ## Check before delivery
 
-- The result of the hook is visible by the three-second mark.
+- The result of the hook is visible by the three-second mark, with frame 0 clean (never mid-lasso) and the compact top-band `hook_badge` visible for the opening 2.8 s.
 - No library or package name is spoken before the integration beat.
-- Exactly one code still appears, and its highlighted line contains the catalog `accessor`.
+- Exactly one code excerpt appears (as a floating card overlay on live video or one still), and its highlighted line contains the catalog `accessor` from `app.py` (never `app_portrait.py`).
+- No live-footage hold stays static for longer than 5–6 seconds (`validate_editorial.py --max-static-hold 6.0` passes).
 - The narration names the gallery example and asks no question. Its only instruction to the viewer is the closing line.
-- The end card appears on the first word of the closing line and stays until the video ends.
+- The end card appears on the first word of the closing line and stays until the video ends, with the last caption cue ending strictly before it (`--reel-json`).
 - The end card reads “Use the <package> integration in Shiny apps using” and ends the sentence with the shinywidgets wordmark. It shows the py-shinywidgets address. It shows an install command only when the release has shipped and you tested the command. On the vertical card, the command breaks only at spaces.
-- In the captioned portrait video, no caption covers the widget or the output it drives.
+- In the captioned portrait video, no caption covers the widget or the output it drives, and numeric/package tokens match their canonical spelling.
 - Every frame shows one pointer arrow. A widget that draws in its own iframe gets its own demo cursor, and a second arrow left on screen makes the recording look fake. The recorder and `capture.py` stop when two show, so do not work around that error. Still look for it in the review frames, with any other mark the app did not draw: a stale tooltip, a leftover selection box, or a cursor that jumps.
-- The caption style, code theme, beat order, and code side match the episode's `look`.
+- The caption style, accent color, hook style, code theme, beat order, and code side match the episode's `look`.
 - The production index records the gallery commit, any layout-only changes, and any scripted chat.

@@ -27,8 +27,8 @@ def cue_time(cue: object, timing: dict, *, end: bool = False) -> float:
     options: dict = cue if isinstance(cue, dict) else {"phrase": cue}
     if "at" in options:
         return float(str(options["at"])) + offset
-    match = align_narration.find_phrase(
-        timing["words"], str(options["phrase"]), int(options.get("occurrence", 1))
+    match = align_narration.find_timed_phrase(
+        timing, str(options["phrase"]), int(options.get("occurrence", 1))
     )
     return float(match["end" if end else "start"]) + offset
 

@@ -41,6 +41,7 @@ from __future__ import annotations
 import argparse
 import base64
 import hashlib
+import html
 import json
 import math
 import re
@@ -97,6 +98,9 @@ MAX_CUT_LEAD_SECONDS = 0.5
 PUSH_IN = 0.03
 PUSH_IN_SETTLE_SECONDS = 4.0
 MAX_SEGMENT_SECONDS = 30.0
+BED_PATH_DEFAULT = Path(__file__).resolve().parent.parent / "assets" / "ambient-bed.wav"
+DEFAULT_BED_LUFS = -34.0
+HOOK_BADGE_SECONDS = 2.8
 
 PAGE_CSS = """
 * { box-sizing: border-box; margin: 0; }
@@ -963,7 +967,7 @@ def editorial_plan(segment: Path, orientation: str) -> dict:
         occurrence = cue.get("occurrence", 1)
         if type(occurrence) is not int or occurrence < 1:
             raise ValueError("Cue occurrence must be a positive integer")
-        found = align_narration.find_phrase(timing["words"], cue["phrase"], occurrence)
+        found = align_narration.find_timed_phrase(timing, cue["phrase"], occurrence)
         moment = found["start"]
         if not math.isfinite(moment) or not 0 <= moment < audio_duration:
             raise ValueError(f"Shot {number} cue is outside the narration")
@@ -1026,6 +1030,30 @@ def editorial_plan(segment: Path, orientation: str) -> dict:
             motion = view.get("motion", "push" if still else "none")
             if motion not in ("push", "none") or (motion == "push" and not still):
                 raise ValueError("motion must be push or none, and only a still can push in")
+            code_overlay = view.get("code_overlay")
+            overlay_path = None
+            if code_overlay is not None:
+                if not isinstance(code_overlay, str) or not code_overlay.strip():
+                    raise ValueError("code_overlay must be a path to a PNG card")
+                overlay_path = (segment / code_overlay).resolve()
+                if not overlay_path.is_file() or not overlay_path.stat().st_size:
+                    raise ValueError(f"Missing or empty code_overlay: {overlay_path}")
+            code_position = view.get("code_position", "bottom")
+            if code_position not in ("top", "bottom"):
+                raise ValueError("code_position must be top or bottom")
+            highlight_window = view.get("highlight_window")
+            if highlight_window is not None:
+                if (
+                    not isinstance(highlight_window, list)
+                    or len(highlight_window) != 2
+                    or any(isinstance(v, bool) or not isinstance(v, (int, float)) for v in highlight_window)
+                    or highlight_window[0] < 0
+                    or highlight_window[1] <= highlight_window[0]
+                ):
+                    raise ValueError("highlight_window must be [start, end] with 0 <= start < end")
+            highlight_color = str(view.get("highlight_color") or "#007BC2")
+            if not re.fullmatch(r"#?[0-9A-Fa-f]{6}", highlight_color):
+                raise ValueError(f"highlight_color must be a 6-digit hex color: {highlight_color!r}")
             resolved[view_name] = {
                 "file": str(path),
                 "sha256": file_digest(path),
@@ -1034,6 +1062,11 @@ def editorial_plan(segment: Path, orientation: str) -> dict:
                 "in": media_in,
                 "crop": editorial_rect(view.get("crop"), "crop"),
                 "highlight": editorial_rect(view.get("highlight"), "highlight"),
+                "highlight_window": highlight_window,
+                "highlight_color": highlight_color.lstrip("#"),
+                "code_overlay": str(overlay_path) if overlay_path else None,
+                "code_overlay_sha256": file_digest(overlay_path) if overlay_path else None,
+                "code_position": code_position,
                 "motion": motion,
                 "available": None if still else probe_duration(path) - media_in,
             }
@@ -1065,6 +1098,13 @@ def editorial_plan(segment: Path, orientation: str) -> dict:
                 raise ValueError(
                     f"Insufficient footage at original speed: {view['file']}"
                 )
+    hook_badge = (config.get("context") or {}).get("hook_badge")
+    if hook_badge is not None:
+        if not isinstance(hook_badge, dict) or not str(hook_badge.get("title") or "").strip():
+            raise ValueError("context.hook_badge must include a non-empty title")
+        sec = hook_badge.get("seconds", HOOK_BADGE_SECONDS)
+        if isinstance(sec, bool) or not isinstance(sec, (int, float)) or not 1.0 <= sec <= 6.0:
+            raise ValueError("context.hook_badge.seconds must be between 1 and 6")
     context = context_cards.resolve(segment, config)
     capture_hashes = {}
     for name, capture in context["captures"].items():
@@ -1075,6 +1115,7 @@ def editorial_plan(segment: Path, orientation: str) -> dict:
     return {
         "style": "editorial",
         "context": context,
+        "hook_badge": hook_badge,
         "context_capture_sha256": capture_hashes,
         "source_manifest_sha256": manifest_key,
         "orientation": orientation,
@@ -1083,6 +1124,52 @@ def editorial_plan(segment: Path, orientation: str) -> dict:
         "audio_sha256": file_digest(audio),
         "shots": shots,
     }
+
+
+def render_hook_badge(browser, badge: dict, orientation: str, output: Path) -> None:
+    """Render a translucent top-band pill badge for opening hook orientation context."""
+    width, height = SIZES[orientation]
+    accent = str(badge.get("accent") or "#03C7E8")
+    if not re.fullmatch(r"#[0-9A-Fa-f]{6}", accent):
+        accent = "#03C7E8"
+    label = html.escape(str(badge.get("label") or "").strip())
+    title = html.escape(str(badge["title"]).strip())
+    sep = '<span class="sep">·</span>' if label else ""
+    label_html = f'<span class="eyebrow">{label}</span>{sep}' if label else ""
+    page = browser.new_page(viewport={"width": width, "height": height}, device_scale_factor=SCALE)
+    try:
+        page.set_content(
+            "<style>"
+            + font_css()
+            + f"""
+*{{box-sizing:border-box}}html,body{{margin:0;width:{width}px;height:{height}px;background:transparent;font-family:'Open Sans',sans-serif}}
+.wrap{{position:absolute;top:1.8%;left:4%;right:4%;display:flex;justify-content:center}}
+.pill{{display:inline-flex;align-items:center;gap:10px;max-width:100%;padding:10px 20px;border-radius:999px;
+  background:rgba(29,31,33,0.90);border:1px solid rgba(255,255,255,0.16);box-shadow:0 8px 24px rgba(0,0,0,0.28)}}
+.dot{{width:10px;height:10px;border-radius:50%;background:{accent};flex:none}}
+.eyebrow{{font-size:17px;font-weight:700;color:{accent};white-space:nowrap}}
+.sep{{font-size:17px;color:#9DA7B3;font-weight:600}}
+.title{{font-size:18px;font-weight:700;color:#FFFFFF;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}
+</style><div class="wrap"><div class="pill"><span class="dot"></span>{label_html}<span class="title">{title}</span></div></div>"""
+        )
+        page.evaluate("document.fonts.ready")
+        page.screenshot(path=str(output), omit_background=True)
+    finally:
+        page.close()
+
+
+def resolve_bed(config: dict, reel_dir: Path) -> tuple[Path | None, float]:
+    """Resolve optional background audio bed from reel.yaml."""
+    raw = config.get("bed")
+    if raw in (None, False, ""):
+        return None, DEFAULT_BED_LUFS
+    bed_path = BED_PATH_DEFAULT if raw in (True, "default") else (reel_dir / str(raw)).resolve()
+    if not bed_path.is_file() or not bed_path.stat().st_size:
+        raise ValueError(f"Missing or empty audio bed: {bed_path}")
+    lufs = config.get("bed_lufs", DEFAULT_BED_LUFS)
+    if isinstance(lufs, bool) or not isinstance(lufs, (int, float)) or not math.isfinite(lufs):
+        raise ValueError("bed_lufs must be a finite number")
+    return bed_path, float(lufs)
 
 
 def editorial_overlay(
@@ -1129,7 +1216,8 @@ def editorial_overlay(
 
 
 def render_editorial(
-    browser, feature: dict, orientation: str, cache: Path, logo_seconds: float
+    browser, feature: dict, orientation: str, cache: Path, logo_seconds: float,
+    bed: Path | None = None, bed_lufs: float = DEFAULT_BED_LUFS,
 ) -> tuple[Path, dict]:
     plan = editorial_plan(feature["path"], orientation)
     first_view = plan["shots"][0]["views"][orientation]
@@ -1146,6 +1234,8 @@ def render_editorial(
         logo_seconds,
         (width, height),
         file_digest(LOGO_PATH),
+        file_digest(bed) if bed else "",
+        bed_lufs,
         *(file_digest(FONT_DIR / name) for name in FONTS.values()),
     )
     output = feature["path"] / "artifacts" / f"editorial-{orientation}.mp4"
@@ -1197,8 +1287,12 @@ def render_editorial(
                 if view["highlight"]:
                     x, y, w, h = view["highlight"]
                     focus = (x + w / 2, y + h / 2)
+                    enable = ""
+                    if view.get("highlight_window"):
+                        w0, w1 = view["highlight_window"]
+                        enable = f":enable='between(t,{w0:.3f},{w1:.3f})'"
                     filters.append(
-                        f"[{last}]drawbox=x=iw*{x}:y=ih*{y}:w=iw*{w}:h=ih*{h}:color=0x007BC2:t={max(2, round(width / 360))}[marked]"
+                        f"[{last}]drawbox=x=iw*{x}:y=ih*{y}:w=iw*{w}:h=ih*{h}:color=0x{view.get('highlight_color', '007BC2')}:t={max(2, round(width / 360))}{enable}[marked]"
                     )
                     last = "marked"
                 if view["motion"] == "push":
@@ -1232,6 +1326,30 @@ def render_editorial(
                     ]
                     last = "introduced"
                     next_input += 1
+                if view.get("code_overlay"):
+                    inputs += ["-loop", "1", "-framerate", str(FPS), "-i", str(view["code_overlay"])]
+                    fade_out_st = max(0.0, duration - 0.15)
+                    y_expr = "round(H*0.03)" if view.get("code_position") == "top" else "round(H*0.745-h)"
+                    filters += [
+                        f"[{next_input}:v]scale='min(iw,{width})':-1,format=rgba,"
+                        f"fade=t=in:st=0:d=0.18:alpha=1,fade=t=out:st={fade_out_st:.3f}:d=0.15:alpha=1[codecard]",
+                        f"[{last}][codecard]overlay=x=(W-w)/2:y={y_expr}:shortest=1[withcode]",
+                    ]
+                    last = "withcode"
+                    next_input += 1
+                if index == 0 and plan.get("hook_badge"):
+                    badge_layer = work / "hook-badge.png"
+                    render_hook_badge(browser(), plan["hook_badge"], orientation, badge_layer)
+                    badge_sec = min(duration, float(plan["hook_badge"].get("seconds", HOOK_BADGE_SECONDS)))
+                    if badge_sec > 0.3:
+                        inputs += ["-loop", "1", "-framerate", str(FPS), "-i", str(badge_layer)]
+                        filters += [
+                            f"[{next_input}:v]format=rgba,fade=t=in:st=0.05:d=0.20:alpha=1,"
+                            f"fade=t=out:st={max(0.2, badge_sec - 0.28):.3f}:d=0.25:alpha=1[badge]",
+                            f"[{last}][badge]overlay=0:0:enable='lt(t,{badge_sec:.3f})':shortest=1[badged]",
+                        ]
+                        last = "badged"
+                        next_input += 1
                 remaining = logo_seconds - shot["start"]
                 if remaining > 0:
                     editorial_overlay(browser(), logo_layer, orientation, "", "", True)
@@ -1300,7 +1418,7 @@ def render_editorial(
                 ],
                 check=True,
             )
-            merge(silent, Path(plan["audio"]), target, preserve_audio=True)
+            merge(silent, Path(plan["audio"]), target, preserve_audio=True, bed=bed, bed_lufs=bed_lufs)
 
     from_cache(cache, key, output, render)
     return output, plan
@@ -1384,6 +1502,7 @@ def build_editorial(reel_dir: Path, config: dict, orientation: str, *, output_di
     chapters, shots, pieces, segments, elapsed = [], [], [], [], 0.0
     warnings: list[str] = []
     last_plan: dict | None = None
+    bed, bed_lufs = resolve_bed(config, reel_dir)
     with tempfile.TemporaryDirectory(
         prefix="editorial-reel-"
     ) as temporary, sync_playwright() as playwright:
@@ -1403,6 +1522,8 @@ def build_editorial(reel_dir: Path, config: dict, orientation: str, *, output_di
                     orientation,
                     cache,
                     max(0, reel_logo_seconds(config) - elapsed),
+                    bed=bed,
+                    bed_lufs=bed_lufs,
                 )
                 normalized = work / f"segment-{number}.mp4"
                 duration = normalize(source, normalized, orientation, 0, cache)
@@ -1456,10 +1577,12 @@ def build_editorial(reel_dir: Path, config: dict, orientation: str, *, output_di
         join(pieces, output)
         total = probe_duration(output)
         chapters[-1]["end"] = total
-        if card:
+        if card and not card["spoken"]:
             start = shots[-1]["end"]
             shots.append({"label": "End card", "start": start, "end": total, "cue": None,
                           "cue_time": start, "source": str(still)})
+        elif card:
+            shots[-1]["end"] = total
         embed_chapters(output, chapters, work)
         review_sheet(output, shots, artifacts / f"reel-review{suffix}.png", work)
         shutil.copyfile(

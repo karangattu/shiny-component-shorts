@@ -77,6 +77,11 @@ CLOSING_CAVEAT_RE = re.compile(
 IN_THEN_OUT_RE = re.compile(r"\bin,\s*[^.!?]*\bout\b", re.IGNORECASE)
 SHORT_LIST_RE = re.compile(r"\b\w+,\s\w+,\s+and\s+\w+\b")
 SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
+I_OPENER_RE = re.compile(r"^\s*i(?:'ll|'m|'ve)?\s+[a-z]+\b", re.IGNORECASE)
+PORTRAIT_SPATIAL_RE = re.compile(
+    r"\b(?:left viewer|right viewer|left panel|right panel|left card|right card|beside the (?:scene|plot|chart|map)|sidebar)\b",
+    re.IGNORECASE,
+)
 
 FRAGMENT_MAX_WORDS = 5
 MIN_PAUSES_FOR_RHYTHM = 6
@@ -322,6 +327,7 @@ def series_problems(scripts: dict[str, str]) -> list[str]:
     if len(spoken_by_name) < 2:
         return problems
     openers: dict[str, list[str]] = {}
+    i_openers: list[str] = []
     closers: dict[str, list[str]] = {}
     phrases: dict[str, list[str]] = {}
     contrast_users = []
@@ -332,6 +338,8 @@ def series_problems(scripts: dict[str, str]) -> list[str]:
         if not sentences:
             continue
         openers.setdefault(_opening_words(sentences[0]), []).append(name)
+        if I_OPENER_RE.match(sentences[0]):
+            i_openers.append(name)
         closers.setdefault(_opening_words(sentences[-1]), []).append(name)
         if HANDOFF_RE.search(spoken):
             handoff_users.append(name)
@@ -347,6 +355,11 @@ def series_problems(scripts: dict[str, str]) -> list[str]:
     for words, names in sorted(openers.items()):
         if len(names) > 1:
             problems.append(f'{len(names)} scripts open with "{words} ...": {", ".join(names)}; rotate the opening move')
+    if len(i_openers) >= 3 or (len(spoken_by_name) >= 4 and len(i_openers) > len(spoken_by_name) * 0.30):
+        problems.append(
+            f'{len(i_openers)} of {len(spoken_by_name)} scripts open with "I <verb> ...": '
+            f'{", ".join(i_openers)}; vary hooks across outcome-first, scale-lead, and two-way openers'
+        )
     for words, names in sorted(closers.items()):
         if len(names) > 1:
             problems.append(f'{len(names)} scripts close with "{words} ...": {", ".join(names)}; vary the ending')
@@ -393,8 +406,25 @@ def voice_errors(prompt_text: str) -> list[str]:
     return errors
 
 
-def voice_warnings(prompt_text: str) -> list[str]:
-    return [message for message in voice_problems(prompt_text) if message not in voice_errors(prompt_text)]
+def portrait_spatial_warnings(prompt_text: str) -> list[str]:
+    """Flag desktop spatial terms that read wrong in a stacked portrait layout."""
+    transcript = transcript_of(prompt_text)
+    if transcript is None:
+        return []
+    spoken = TAG_RE.sub(" ", transcript)
+    hits = sorted({match.group(0).casefold() for match in PORTRAIT_SPATIAL_RE.finditer(spoken)})
+    if not hits:
+        return []
+    return [
+        "Portrait spatial wording: " + ", ".join(hits) + "; describe the vertical layout instead"
+    ]
+
+
+def voice_warnings(prompt_text: str, *, portrait: bool = False) -> list[str]:
+    warnings = [message for message in voice_problems(prompt_text) if message not in voice_errors(prompt_text)]
+    if portrait:
+        warnings.extend(portrait_spatial_warnings(prompt_text))
+    return warnings
 
 
 SALESY_PROMPT = """Synthesize this as a natural, curious tech explainer for a 45-second Shiny component video.
@@ -477,14 +507,14 @@ def self_test() -> int:
     return 1 if failures else 0
 
 
-def check_series(series_dir: Path) -> int:
+def check_series(series_dir: Path, *, portrait: bool = False) -> int:
     scripts = series_scripts(series_dir)
     if not scripts:
         print(f"{series_dir}: no */artifacts/narration.txt files found")
         return 1
     exit_code = 0
     for name, prompt in scripts.items():
-        for warning in voice_warnings(prompt):
+        for warning in voice_warnings(prompt, portrait=portrait):
             print(f"WARNING {name}: {warning}")
         for problem in voice_errors(prompt):
             print(f"- {name}: {problem}")
@@ -510,12 +540,13 @@ def main(argv: list[str] | None = None) -> int:
         "--series",
         help="check every <series>/*/artifacts/narration.txt and report shapes they share",
     )
+    parser.add_argument("--portrait", action="store_true", help="check portrait spatial wording")
     parser.add_argument("--self-test", action="store_true", help="run the built-in fixtures")
     args = parser.parse_args(argv)
     if args.self_test:
         return self_test()
     if args.series:
-        return check_series(Path(args.series))
+        return check_series(Path(args.series), portrait=args.portrait)
     if args.path:
         narration = Path(args.path)
     elif args.project_dir:
@@ -527,7 +558,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     prompt = narration.read_text(encoding="utf-8")
     problems = voice_errors(prompt)
-    for warning in voice_warnings(prompt):
+    for warning in voice_warnings(prompt, portrait=args.portrait):
         print(f"WARNING: {warning}")
     if problems:
         for problem in problems:

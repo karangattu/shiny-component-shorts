@@ -7,6 +7,7 @@ import base64
 import hashlib
 import html
 import json
+import re
 import textwrap
 from pathlib import Path
 from typing import Any
@@ -21,6 +22,7 @@ import context_cards
 SIZES = {"vertical": (720, 1280), "horizontal": (1280, 720)}
 CONTINUATION_INDENT = 4  # extra characters before the wrapped part of a code line
 HIGHLIGHT_PADDING = (6, 3)  # logical pixels between the glyphs and the outline
+LAYOUT_COPY_NAMES = {"app_portrait.py", "portrait.py"}
 LANGUAGES = {
     ".py": "python",
     ".r": "r",
@@ -52,7 +54,9 @@ def panel_html(
     raw = path.read_bytes()
     sources[str(path)] = {"file": str(path), "sha256": hashlib.sha256(raw).hexdigest()}
     kind = panel.get("kind", "code")
-    label = html.escape(str(panel.get("label", panel["file"])))
+    if kind == "code" and path.name in LAYOUT_COPY_NAMES and not panel.get("allow_layout_copy"):
+        raise ValueError(f"{panel['file']}: code cards must reference the real gallery file, not {path.name}")
+    label = html.escape(str(panel.get("label", path.name)))
     head = "" if panel.get("label") == "" or (kind == "image" and "label" not in panel) else (
         f'<p class="filename">{label}</p>'
     )
@@ -123,6 +127,60 @@ def panel_html(
     )
 
 
+def render_overlay_card(
+    browser, content: str, *, width: int, height: int, size: float,
+    code_theme: str, accent: str, output: Path,
+) -> None:
+    """Render a transparent floating code card for compositing over live video."""
+    dark = code_theme == "dark"
+    bg = "#1D1F21" if dark else "#FFFFFF"
+    fg = "#FFFFFF" if dark else "#1D1F21"
+    border = "#383E45" if dark else "#CDD4DA"
+    file_color = "#CDD4DA" if dark else "#48505F"
+    num_color = "#9DA7B3" if dark else "#707782"
+    hl_bg = f"{accent}26" if re.fullmatch(r"#[0-9A-Fa-f]{6}", accent) else "#007BC226"
+    hl_bar = accent if re.fullmatch(r"#[0-9A-Fa-f]{6}", accent) else "#007BC2"
+    css = (
+        code_style.font_css()
+        + code_style.stylesheet()
+        + f"""
+*{{box-sizing:border-box}}html,body{{margin:0;width:{width}px;background:transparent;color:{fg};font-family:'Open Sans',sans-serif}}
+.card-wrap{{width:{width}px;padding:24px 32px;background:transparent}}
+.card{{background:{bg};border:1.5px solid {border};border-radius:16px;padding:18px 20px 20px;box-shadow:0 14px 34px rgba(13,17,23,0.34)}}
+.filename{{font-size:18px;font-weight:700;color:{file_color};margin:0 0 12px;display:flex;align-items:center;gap:8px}}
+.filename::before{{content:'';width:9px;height:9px;border-radius:50%;background:{hl_bar};flex:none}}
+.code{{font-family:'Source Code Pro',monospace;font-size:{size}px;line-height:1.5;background:transparent;padding:0;border-radius:0}}
+.line{{display:grid;grid-template-columns:34px minmax(0,1fr);gap:14px;padding:2px 6px 2px 4px;border-radius:6px;border-left:4px solid transparent}}
+.line[data-highlight="true"]{{background:{hl_bg};border-left-color:{hl_bar}}}
+.number{{font-size:14px;color:{num_color};text-align:right;padding-top:6px}}
+.text{{white-space:pre-wrap;overflow-wrap:anywhere}}
+.whole-lines .text{{white-space:pre;overflow-wrap:normal}}
+.smart-wrap .text{{overflow-wrap:normal}}
+"""
+    )
+    page = browser.new_page(viewport={"width": width, "height": height}, device_scale_factor=2)
+    try:
+        page.set_content(
+            '<!doctype html><meta charset="utf-8"><style>'
+            + css
+            + '</style><div class="card-wrap"><div class="card">'
+            + content
+            + "</div></div>"
+        )
+        page.evaluate(code_style.browser_script())
+        page.evaluate(
+            """() => {for(const block of document.querySelectorAll('.code')){
+ const rows=[...block.querySelectorAll('.text')];
+ const painted=shinyHighlightLines(rows.map(el=>el.textContent).join('\\n'),block.dataset.language);
+ rows.forEach((row,index)=>row.innerHTML=painted[index]);
+}}"""
+        )
+        page.evaluate("document.fonts.ready")
+        page.locator(".card-wrap").screenshot(path=str(output), omit_background=True)
+    finally:
+        page.close()
+
+
 def prepare(project: Path) -> dict:
     """Prepare the requested views, refusing source mistakes and unreadable overflow."""
     project = project.resolve()
@@ -175,6 +233,8 @@ def prepare(project: Path) -> dict:
                     code_theme = view.get("code_theme", "light")
                     if not (isinstance(code_wrap, bool) or code_wrap == "smart") or code_theme not in ("light", "dark"):
                         raise ValueError("code_wrap must be a boolean or 'smart', and code_theme must be light or dark")
+                    accent = str(view.get("accent") or "#007BC2")
+                    overlay_card = bool(view.get("overlay_card", False))
                     content = "".join(
                         "<section>"
                         + panel_html(project, panel, sources, code_wrap=code_wrap, code_theme=code_theme)
@@ -189,7 +249,7 @@ def prepare(project: Path) -> dict:
 body{{font-family:'Open Sans',sans-serif;padding:12vh 5vw 7vh;display:flex;align-items:center}}
 main{{width:100%}}section+section{{margin-top:28px}}.filename{{font-size:20px;color:#48505F;margin:0 0 16px;overflow-wrap:anywhere}}
 .code,.prose{{font-size:{size}px;line-height:1.55}}.code{{font-family:'Source Code Pro',monospace}}
-.line{{display:grid;grid-template-columns:24px minmax(0,1fr);gap:12px}}.number{{font-size:14px;color:#707782;text-align:right;padding-top:8px}}
+.line{{display:grid;grid-template-columns:34px minmax(0,1fr);gap:16px}}.number{{font-size:14px;color:#707782;text-align:right;padding-top:8px}}
 .text,.prose{{white-space:pre-wrap;overflow-wrap:anywhere}}img{{display:block;max-width:100%;max-height:{height*.65}px;margin:auto;object-fit:contain}}
 .code.github-dark{{background:#1D1F21;color:#FFFFFF;border-radius:16px;padding:24px 20px}}
 .github-dark .number{{color:#CDD4DA}}
@@ -268,12 +328,14 @@ main{{width:100%}}section+section{{margin-top:28px}}.filename{{font-size:20px;co
                         if not code_wrap:
                             frame["motion"] = "none"
                         if marked.count():
-                            # Outline the characters, including a wrapped part, not the empty row.
+                            # Outline the characters, including a wrapped part, clamped past the line number gutter.
                             rect = marked.evaluate(
                                 """(node, [padX, padY]) => {
  const range = document.createRange(); range.selectNodeContents(node);
  const r = range.getBoundingClientRect();
- const x = Math.max(0, r.left - padX), y = Math.max(0, r.top - padY);
+ const num = node.previousElementSibling ? node.previousElementSibling.getBoundingClientRect().right : 0;
+ const x = Math.max(num ? num + 4 : 0, Math.max(0, r.left - padX));
+ const y = Math.max(0, r.top - padY);
  return {x, y, width: Math.min(innerWidth, r.right + padX) - x,
          height: Math.min(innerHeight, r.bottom + padY) - y};
 }""",
@@ -288,6 +350,19 @@ main{{width:100%}}section+section{{margin-top:28px}}.filename{{font-size:20px;co
                         path = project / frame["file"]
                         page.screenshot(path=str(path))
                         path.with_suffix(".html").write_text(page.content())
+                        if overlay_card:
+                            card_path = destination / f"shot-{index:03d}-{orientation}-card.png"
+                            render_overlay_card(
+                                browser,
+                                content,
+                                width=width,
+                                height=height,
+                                size=float(size),
+                                code_theme=code_theme,
+                                accent=accent,
+                                output=card_path,
+                            )
+                            frame["card_file"] = str(card_path.relative_to(project))
                         built["views"][orientation] = frame
                     finally:
                         page.close()

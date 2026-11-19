@@ -24,11 +24,17 @@ import subprocess
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import align_narration  # noqa: E402
+import pronunciations  # noqa: E402
+
 # ASS colours are &HAABBGGRR. Alpha 00 is opaque, FF is transparent.
 WHITE = "&H00FFFFFF"
 INK = "&H001D1F21"        # Shiny text colour on light surfaces
 SHINY_BLUE = "&H00C27B00"  # #007BC2
+SHINY_CYAN = "&H00E8C703"  # #03C7E8
 BLACK_TRANS = "&H66000000"
+DARK_GLASS = "&H44211F1D"  # Translucent obsidian #1D1F21
 YELLOW = "&H0040C9FF"      # #FFC940, karaoke highlight
 WHITE_CARD = "&H00FFFFFF"
 
@@ -66,6 +72,11 @@ STYLES = {
         desc="Two-line caption bar across the lower frame",
         size=54, bold=0, primary=WHITE, secondary=YELLOW, outline=BLACK_TRANS,
         back=BLACK_TRANS, border_style=3, outline_w=34, shadow=0, karaoke=False,
+    ),
+    "series": dict(
+        desc="Dark-glass karaoke box with per-episode Shiny accent highlight",
+        size=58, bold=-1, primary=SHINY_CYAN, secondary=WHITE, outline=DARK_GLASS,
+        back=DARK_GLASS, border_style=3, outline_w=18, shadow=0, karaoke=True,
     ),
 }
 
@@ -108,6 +119,14 @@ def words_before(words: list[dict], phrase: str) -> list[dict]:
     return words[:phrase_index(words, phrase)]
 
 
+def hex_to_ass_color(value: str, alpha: str = "00") -> str:
+    cleaned = value.strip().lstrip("#")
+    if not re.fullmatch(r"[0-9A-Fa-f]{6}", cleaned) or not re.fullmatch(r"[0-9A-Fa-f]{2}", alpha):
+        raise ValueError(f"Invalid hex color: {value!r}")
+    rr, gg, bb = cleaned[0:2].upper(), cleaned[2:4].upper(), cleaned[4:6].upper()
+    return f"&H{alpha.upper()}{bb}{gg}{rr}"
+
+
 def load_words(timing: Path) -> tuple[list[dict], float]:
     """Timed words for display. Casing and punctuation come from the transcript where they line up."""
     from difflib import SequenceMatcher
@@ -115,22 +134,23 @@ def load_words(timing: Path) -> tuple[list[dict], float]:
     data = json.loads(timing.read_text(encoding="utf-8"))
     offset = float(data.get("narration_offset_seconds", 0.15))
     # Short words such as "a" can be timed with no duration. They are still spoken, so keep them.
-    words = [w for w in data["words"] if w.get("end", 0) >= w.get("start", 0)]
+    words = [dict(w) for w in data["words"] if w.get("end", 0) >= w.get("start", 0)]
     if not words:
         raise SystemExit(f"{timing}: no timed words")
+    lexicon = data.get("pronunciations")
+    if lexicon is None:
+        lexicon = pronunciations.load_lexicon(pronunciations.project_for_artifact(timing))
     script = timing.parent / "narration.txt"
     if not script.is_file():
+        for word in words:
+            word["word"] = pronunciations.to_display(word["word"], lexicon)
         return words, offset
     tokens = transcript_tokens(script)
-    # The recognizer spells digits as words ("k3d" is heard as "k three d"), so match on the spoken pieces.
+    # Match align_narration tokenization so cardinal numbers and technical names align 1-to-1.
     spoken, origin, first = [], [], []
     for index, token in enumerate(tokens):
-        pieces: list[str] = []
-        for piece in re.findall(r"[A-Za-z]+(?:'[A-Za-z]+)?|\d+", token):
-            if piece.isdigit():
-                pieces += [DIGIT_WORDS[digit] if digit in DIGIT_WORDS else digit for digit in piece]
-            else:
-                pieces.append(piece)
+        spoken_token = pronunciations.to_spoken(token, lexicon)
+        pieces = align_narration.normalize_tokens(spoken_token)
         for position, piece in enumerate(pieces):
             spoken.append(_norm(piece))
             origin.append(index)
@@ -147,12 +167,17 @@ def load_words(timing: Path) -> tuple[list[dict], float]:
             for k in range(i2 - i1):
                 token_index = origin[j1 + k]
                 display[i1 + k] = tokens[token_index] if first[j1 + k] else ""
-    # Words the aligner split or merged keep their heard form, with sentence-start capitals restored.
+    protected = set((lexicon.get("display") or {}).values())
     last_sentence = None
     for index, word in enumerate(words):
         text = display[index]
-        if word.get("sentence") != last_sentence:
-            text = text[:1].upper() + text[1:]
+        if text:
+            text = pronunciations.to_display(text, lexicon)
+        if text and word.get("sentence") != last_sentence:
+            if text.strip(".,!?;:\"'()") not in protected:
+                text = text[:1].upper() + text[1:]
+            last_sentence = word.get("sentence")
+        elif word.get("sentence") != last_sentence:
             last_sentence = word.get("sentence")
         if text.lower() == "i":
             text = "I"
@@ -323,6 +348,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--style", required=True, choices=sorted(STYLES))
     parser.add_argument("--out-video", required=True, type=Path)
     parser.add_argument("--stop-at", help="Narration phrase where captions end, such as the line spoken over the end card")
+    parser.add_argument("--cut-lead", type=float, default=0.2, help="Cut lead seconds before --stop-at (default: 0.2)")
+    parser.add_argument("--reel-json", type=Path, help="Optional reel.json to clamp captions before end card start")
+    parser.add_argument("--accent", help="Optional #RRGGBB accent color for series/karaoke/pill styles")
     parser.add_argument("--out-srt", type=Path, help="SRT sidecar path (default: beside the output)")
     parser.add_argument("--out-ass", type=Path, help="ASS path (default: beside the output)")
     args = parser.parse_args(argv)
@@ -336,10 +364,26 @@ def main(argv: list[str] | None = None) -> int:
     limit = None
     if args.stop_at:
         stop = phrase_index(words, args.stop_at)
-        limit = words[stop]["start"] + offset
+        limit = max(0.0, words[stop]["start"] + offset - args.cut_lead - 0.03)
         words = words[:stop]
+    if args.reel_json and args.reel_json.is_file():
+        reel_data = json.loads(args.reel_json.read_text(encoding="utf-8"))
+        for shot in reel_data.get("shots", []):
+            if "end-card" in str(shot.get("source", "")) or shot.get("label") == "End card":
+                card_limit = max(0.0, float(shot["start"]) - 0.03)
+                limit = card_limit if limit is None else min(limit, card_limit)
+                break
     phrases = group_phrases(words)
-    style = STYLES[args.style]
+    style = dict(STYLES[args.style])
+    if args.accent:
+        ass_accent = hex_to_ass_color(args.accent)
+        if args.style == "series":
+            style["primary"] = ass_accent
+        elif style["karaoke"]:
+            style["secondary"] = ass_accent
+        elif args.style == "pill":
+            style["outline"] = ass_accent
+            style["back"] = ass_accent
     out_dir = args.out_video.parent
     out_dir.mkdir(parents=True, exist_ok=True)
     ass_path = args.out_ass or out_dir / f"{args.out_video.stem}.ass"

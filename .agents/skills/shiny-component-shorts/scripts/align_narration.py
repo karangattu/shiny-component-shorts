@@ -35,6 +35,9 @@ import sys
 import wave
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import pronunciations  # noqa: E402
+
 # The merge delays narration by this lead-in so the first word never lands on
 # frame zero; the recorder and validator add it when converting to video time.
 NARRATION_OFFSET_SECONDS = 0.15
@@ -175,13 +178,17 @@ def expand_heard(heard: list[dict]) -> list[dict]:
     return tokens
 
 
-def align(spoken: str, heard: list[dict], duration: float) -> dict:
+def align(
+    spoken: str, heard: list[dict], duration: float,
+    lexicon: dict[str, dict[str, str]] | None = None,
+) -> dict:
     """Time every transcript token from the recognizer's words."""
+    active_lexicon = pronunciations.load_lexicon() if lexicon is None else lexicon
     sentences = transcript_sentences(spoken)
     expected: list[tuple[str, int]] = [
         (token, index)
         for index, sentence in enumerate(sentences)
-        for token in normalize_tokens(sentence)
+        for token in normalize_tokens(pronunciations.to_spoken(sentence, active_lexicon))
     ]
     if not expected:
         raise ValueError("The transcript has no spoken words")
@@ -289,12 +296,18 @@ def peak_dbfs(audio: Path) -> float | None:
     return float(match.group(1)) if match else None
 
 
-def measure(audio: Path, prompt: str, model_name: str = DEFAULT_MODEL) -> dict:
+def measure(
+    audio: Path, prompt: str, model_name: str = DEFAULT_MODEL,
+    lexicon: dict[str, dict[str, str]] | None = None,
+) -> dict:
     """Full timing report for one narration WAV."""
+    active_lexicon = lexicon if lexicon is not None else pronunciations.load_lexicon(
+        pronunciations.project_for_artifact(audio)
+    )
     spoken = spoken_transcript(prompt)
     duration = wav_duration(audio)
     heard, heard_text = recognize(audio, model_name)
-    aligned = align(spoken, heard, duration)
+    aligned = align(spoken, heard, duration, lexicon=active_lexicon)
     vocalizations = sorted({m.group(0) for m in VOCALIZATION_RE.finditer(heard_text)})
     word_count = len(re.findall(r"\b[\w’'-]+\b", spoken))
     return {
@@ -302,6 +315,7 @@ def measure(audio: Path, prompt: str, model_name: str = DEFAULT_MODEL) -> dict:
         "duration_seconds": round(duration, 3),
         "alignment_method": f"faster-whisper word timestamps ({model_name})",
         "narration_offset_seconds": NARRATION_OFFSET_SECONDS,
+        "pronunciations": active_lexicon,
         "words": aligned["words"],
         "sentences": aligned["sentences"],
         "sentence_windows": [
@@ -349,16 +363,33 @@ def load_timing(project_dir: Path) -> dict | None:
     return report
 
 
-def find_phrase(words: list[dict], phrase: str, occurrence: int = 1) -> dict:
+def find_timed_phrase(timing: dict, phrase: str, occurrence: int = 1) -> dict:
+    """Resolve a cue using the same pronunciation rules as the measured words."""
+    lexicon = timing.get("pronunciations")
+    if lexicon is None:
+        return find_phrase(timing["words"], phrase, occurrence)
+    # The timing words already contain the spoken forms. Expand only the cue.
+    found = find_phrase(
+        timing["words"], pronunciations.to_spoken(phrase, lexicon), occurrence, lexicon={}
+    )
+    found["phrase"] = phrase
+    return found
+
+
+def find_phrase(
+    words: list[dict], phrase: str, occurrence: int = 1,
+    lexicon: dict[str, dict[str, str]] | None = None,
+) -> dict:
     """Start and end of the Nth spoken occurrence of `phrase`."""
+    active_lexicon = pronunciations.load_lexicon() if lexicon is None else lexicon
     expanded = []
     for word in words:
-        tokens = normalize_tokens(word['word'])
+        tokens = normalize_tokens(pronunciations.to_spoken(word['word'], active_lexicon))
         for index, token in enumerate(tokens):
             step = (word['end']-word['start'])/len(tokens)
             expanded.append({**word, 'word': token, 'start': word['start']+index*step, 'end': word['start']+(index+1)*step})
     words = expanded
-    target = normalize_tokens(phrase)
+    target = normalize_tokens(pronunciations.to_spoken(phrase, active_lexicon))
     if not target:
         raise ValueError(f"Cue phrase has no words: {phrase!r}")
     tokens = [word["word"] for word in words]

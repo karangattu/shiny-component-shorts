@@ -22,6 +22,7 @@ shots:
       vertical:
         code_theme: dark
         code_wrap: false
+        overlay_card: true
         font_size: 24
         panels:
           - {kind: code, file: app.py, lines: [62, 64], highlight: 64}

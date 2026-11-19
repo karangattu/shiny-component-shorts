@@ -1,4 +1,4 @@
-"""Plan each episode's look, so a long series does not repeat one video.
+"""Plan each episode's look, so a long series stays cohesive without repeating one video.
 
 A look is planned, not random at render time: it is stored in episodes.yaml, so a rerender gives
 the same video. Episodes that already have a look keep it.
@@ -9,7 +9,9 @@ the same video. Episodes that already have a look keep it.
 
 Delete an episode's `look:` line and run `assign` to draw that look again.
 """
-import argparse, random, sys
+import argparse
+import random
+import sys
 from collections import Counter
 from pathlib import Path
 
@@ -17,9 +19,10 @@ import yaml
 
 HERE = Path(__file__).resolve().parent
 OPTIONS = {
-    "captions": ["clean", "pill", "karaoke", "outline", "card", "bar"],
+    "captions": ["series"],
+    "accent": ["#03C7E8", "#00BF7F", "#F9B928", "#66B2FF", "#F45100", "#E879F9"],
+    "hook_style": ["outcome-first", "scale-lead", "two-way", "direct-action"],
     "code_theme": ["dark", "light"],
-    # The two middle orders: the libraries then the code line, or the code line then the libraries.
     "order": ["integration-code", "code-integration"],
     "code_side": ["left", "right"],
 }
@@ -37,8 +40,12 @@ def clash(looks: list, index: int, look: dict) -> str | None:
             near = looks[other] if 0 <= other < len(looks) else None
             if not near:
                 continue
-            if near["captions"] == look["captions"]:
+            if len(OPTIONS["captions"]) > 1 and near["captions"] == look["captions"]:
                 return f"caption style {look['captions']} repeats within two episodes"
+            if near.get("accent") == look.get("accent"):
+                return f"accent {look['accent']} repeats within two episodes"
+            if distance == 1 and near.get("hook_style") == look.get("hook_style"):
+                return f"hook style {look['hook_style']} repeats on adjacent episodes"
             if distance == 1 and (near["order"], near["code_theme"]) == (look["order"], look["code_theme"]):
                 return "the order and the code theme both repeat"
     return None
@@ -62,13 +69,11 @@ def assign(episodes: list, seed) -> list:
     for index, episode in enumerate(episodes):
         if looks[index]:
             continue
-        # The seed and the id decide the draw, so a new episode never changes an older one.
         rng = random.Random(f"{seed}:{episode['id']}")
-        used = {key: Counter(look[key] for look in looks if look) for key in OPTIONS}
+        used = {key: Counter(look[key] for look in looks if look and key in look) for key in OPTIONS}
         for attempt in range(400):
             look = {}
             for key, values in OPTIONS.items():
-                # Prefer the values used least so far; relax that when it leaves no free choice.
                 low = min(used[key][value] for value in values)
                 look[key] = rng.choice([v for v in values if attempt >= 200 or used[key][v] == low])
             if not clash(looks, index, look):
@@ -103,18 +108,28 @@ def rewrite(path: Path, change) -> None:
 
 def apply(project: Path, episode: dict) -> None:
     look = episode["look"]
+    accent = look.get("accent", "#03C7E8")
 
     def stills(data):
         for shot in data["shots"]:
             for name, view in shot["views"].items():
                 view["code_theme"] = look["code_theme"]
+                view["accent"] = accent
+                if name == "vertical":
+                    view["overlay_card"] = True
                 if name == "horizontal" and len(view.get("panels", [])) == 2:
                     view["panels"].sort(key=lambda panel: (panel["kind"] == "code") != (look["code_side"] == "left"))
 
     rewrite(project / "source-shots.yaml", stills)
-    rewrite(project / "reel.yaml", lambda data: data["outro"].update(widget=episode["integration"][0]))
+    rewrite(
+        project / "reel.yaml",
+        lambda data: (
+            data.update(bed="default"),
+            data["outro"].update(widget=episode["integration"][0]),
+        ),
+    )
     (project / "look.yaml").write_text(
-        "# Written by look.py apply. assemble.py reads `order`; burn captions with --style <captions>.\n"
+        "# Written by look.py apply. assemble.py reads `order` and `accent`; burn captions with --style <captions> --accent <accent>.\n"
         + yaml.safe_dump({"episode": episode["id"], **look}, sort_keys=False), encoding="utf-8")
     print(yaml.safe_dump(look, sort_keys=False).strip())
 

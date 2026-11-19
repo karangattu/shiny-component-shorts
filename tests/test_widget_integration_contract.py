@@ -1,5 +1,8 @@
 """Gallery integration episodes: the catalog and the guidance stay usable in both skill copies."""
 
+import os
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -80,14 +83,14 @@ class WidgetIntegrationContractTest(unittest.TestCase):
                     self.assertIn(phrase, guide)
 
     def test_every_episode_has_a_planned_look_unlike_its_neighbours(self) -> None:
-        import copy, sys
+        import copy
         look = load_look()
         catalog = yaml.safe_load((SKILLS[0] / STARTER / 'episodes.yaml').read_text(encoding='utf-8'))
         episodes = catalog['episodes']
         self.assertEqual(look.problems(episodes), [])
         # The stored looks are what the seed draws, so the catalog can be rebuilt.
         self.assertEqual(look.assign(episodes, catalog['look_seed']), [e['look'] for e in episodes])
-        for key in ('captions', 'code_theme', 'order', 'code_side'):
+        for key in ('captions', 'accent', 'hook_style', 'code_theme', 'order', 'code_side'):
             self.assertEqual({e['look'][key] for e in episodes}, set(look.OPTIONS[key]))
         # A new episode draws a look that fits, and the older looks stay.
         more = copy.deepcopy(episodes) + [{'id': f'extra-{n}'} for n in range(17)]
@@ -99,19 +102,56 @@ class WidgetIntegrationContractTest(unittest.TestCase):
         self.assertTrue(look.problems(twin))
 
     def test_a_look_is_applied_to_the_production_files(self) -> None:
-        import shutil, sys, tempfile
+        import shutil
+        import tempfile
+
         look = load_look()
         with tempfile.TemporaryDirectory() as tmp:
             for name in ('source-shots.yaml', 'reel.yaml'):
                 shutil.copy(SKILLS[0] / STARTER / name, tmp)
-            wanted = {'captions': 'bar', 'code_theme': 'light', 'order': 'code-integration',
-                      'code_side': 'right'}
+            wanted = {'captions': 'series', 'accent': '#00BF7F', 'hook_style': 'two-way',
+                      'code_theme': 'light', 'order': 'code-integration', 'code_side': 'right'}
             look.apply(Path(tmp), {'id': 'x', 'look': wanted, 'integration': ['K3D', 'NumPy']})
             views = yaml.safe_load((Path(tmp) / 'source-shots.yaml').read_text())['shots'][0]['views']
             self.assertEqual({v['code_theme'] for v in views.values()}, {'light'})
+            self.assertEqual({v['accent'] for v in views.values()}, {'#00BF7F'})
+            self.assertTrue(views['vertical']['overlay_card'])
             self.assertEqual([p['kind'] for p in views['horizontal']['panels']], ['image', 'code'])
-            self.assertEqual(yaml.safe_load((Path(tmp) / 'reel.yaml').read_text())['outro']['widget'], 'K3D')
-            self.assertEqual(yaml.safe_load((Path(tmp) / 'look.yaml').read_text())['order'], 'code-integration')
+            reel = yaml.safe_load((Path(tmp) / 'reel.yaml').read_text())
+            self.assertEqual(reel['outro']['widget'], 'K3D')
+            self.assertEqual(reel['bed'], 'default')
+            look_yaml = yaml.safe_load((Path(tmp) / 'look.yaml').read_text())
+            self.assertEqual(look_yaml['order'], 'code-integration')
+            self.assertEqual(look_yaml['accent'], '#00BF7F')
+
+    def test_assembly_keeps_landscape_code_at_the_portrait_overlay_cue(self) -> None:
+        for skill in SKILLS:
+            with self.subTest(skill=skill), tempfile.TemporaryDirectory() as tmp:
+                project = Path(tmp)
+                editorial = project / 'editorial.yaml'
+                editorial.write_text(yaml.safe_dump({
+                    'generated_by': 'prepare_editorial.py',
+                    'context': {'title': 'Test'},
+                    'shots': [{'cue': 'Read the code', 'views': {
+                        'vertical': {'file': 'portrait.png', 'fit': 'contain', 'card_file': 'card.png'},
+                        'horizontal': {'file': 'landscape.png', 'fit': 'contain', 'highlight': [0.5, 0.3, 0.3, 0.1]},
+                    }}],
+                }))
+                (project / 'capture.yaml').write_text(yaml.safe_dump({'clips': [
+                    {'name': 'hook', 'cue': 'Start here', 'chapter': 'Hook', 'end': 'Read the code'},
+                    {'name': 'code', 'cue': 'Read the code', 'chapter': 'Code', 'end': 'See the result'},
+                    {'name': 'result', 'cue': 'See the result', 'chapter': 'Result'},
+                ]}))
+                (project / 'reel.yaml').write_text('outro: false\n')
+                subprocess.run(
+                    [sys.executable, str(skill / STARTER / 'assemble.py'), str(project)],
+                    env={**os.environ, 'PYTHONPATH': str(skill / 'scripts')}, check=True,
+                )
+                shots = yaml.safe_load(editorial.read_text())['shots']
+                self.assertEqual([shot['cue'] for shot in shots], ['Start here', 'Read the code', 'See the result'])
+                self.assertEqual(shots[1]['views']['vertical']['code_overlay'], 'card.png')
+                self.assertEqual(shots[1]['views']['horizontal']['file'], 'landscape.png')
+                self.assertEqual(shots[1]['views']['horizontal']['highlight'], [0.5, 0.3, 0.3, 0.1])
 
 
 class SpokenEndCardTest(unittest.TestCase):
@@ -126,7 +166,8 @@ class SpokenEndCardTest(unittest.TestCase):
             burn_captions.words_before(words, 'not spoken')
 
     def test_the_last_caption_stops_on_the_first_word_of_the_closing_line(self) -> None:
-        import sys, tempfile
+        import sys
+        import tempfile
         sys.path.insert(0, str(SKILLS[0] / 'scripts'))
         import burn_captions
         words = [{'word': 'I', 'start': 0.0, 'end': 0.2},

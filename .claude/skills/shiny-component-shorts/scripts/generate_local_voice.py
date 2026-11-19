@@ -23,7 +23,9 @@ import uuid
 import wave
 from pathlib import Path
 
-from generate_tts import validate_narration_prompt
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import pronunciations  # noqa: E402
+from generate_tts import validate_narration_prompt  # noqa: E402
 
 
 TAG_RE = re.compile(r"\[[^\]]+\]")
@@ -392,6 +394,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--max-wpm", type=_max_wpm_type, default=DEFAULT_MAX_WPM,
                         help="Reject narration faster than this words-per-minute "
                              f"(default {DEFAULT_MAX_WPM:g}); 0 disables the gate")
+    parser.add_argument("--lexicon", type=Path, help="Optional project dir or pronunciations.yaml for spoken forms")
+    parser.add_argument("--no-lexicon", action="store_true", help="Disable shared pronunciations.yaml substitutions")
     return parser.parse_args(argv)
 
 
@@ -435,17 +439,29 @@ def main(argv: list[str] | None = None) -> int:
     except ValueError as exc:
         print(f"Invalid narration prompt in {args.input}: {exc}", file=sys.stderr)
         return 2
-    script = "\n".join(part for part in parts if isinstance(part, str))
+    lexicon = None
+    if not args.no_lexicon:
+        if args.lexicon:
+            lex_dir = args.lexicon.parent if args.lexicon.is_file() else args.lexicon
+        else:
+            lex_dir = pronunciations.project_for_artifact(args.input)
+        lexicon = pronunciations.load_lexicon(lex_dir)
+
+    script_parts = [
+        pronunciations.to_spoken(part, lexicon) if (isinstance(part, str) and lexicon is not None) else part
+        for part in parts
+    ]
+    script = "\n".join(part for part in script_parts if isinstance(part, str))
     if not script:
         print("Narration transcript is empty after removing tags.", file=sys.stderr)
         return 2
-    if isinstance(parts[0], float):
+    if isinstance(script_parts[0], float):
         print("A leading [pause Ns] has no audio to follow; start with spoken text.", file=sys.stderr)
         return 2
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    texts = [part for part in parts if isinstance(part, str)]
-    exact_pauses = len(texts) != len(parts)
+    texts = [part for part in script_parts if isinstance(part, str)]
+    exact_pauses = len(texts) != len(script_parts)
     try:
         uv = None
         if not args.api_url:
@@ -477,7 +493,7 @@ def main(argv: list[str] | None = None) -> int:
         else:
             with tempfile.TemporaryDirectory() as directory:
                 joined: list[Path | float] = []
-                for index, part in enumerate(parts):
+                for index, part in enumerate(script_parts):
                     if isinstance(part, float):
                         joined.append(part)
                         continue

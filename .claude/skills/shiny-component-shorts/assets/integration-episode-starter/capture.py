@@ -3,20 +3,26 @@
 Copy this file and assemble.py beside the production's .video-skill directory, and put a
 capture.yaml in the episode directory. Run `preflight` after every change to the app layout.
 """
-import argparse, json, math, sys, tempfile, time
+import argparse
+import json
+import math
+import sys
+import tempfile
+import time
 from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 import yaml
 
-ROOT = Path(__file__).resolve().parent
+HERE = Path(__file__).resolve().parent
+ROOT = next((p for p in (HERE, *HERE.parents) if (p / ".video-skill/scripts").is_dir()), HERE)
 sys.path.insert(0, str(ROOT / ".video-skill/scripts"))
-import align_narration
-import record_demo
-from stitch_reel import CUT_LEAD_SECONDS
+import align_narration  # noqa: E402
+import record_demo  # noqa: E402
+from stitch_reel import CUT_LEAD_SECONDS  # noqa: E402
 
 FPS = 30
-LONG_HOLD_SECONDS = 7.0  # flag a wait this long with no visible action
+LONG_HOLD_SECONDS = 5.0  # flag a wait this long with no visible action
 
 
 def open_app(browser, view, config):
@@ -73,11 +79,16 @@ def glide(page, point, seconds=None):
 
 
 def press(page):
-    page.mouse.down(); page.wait_for_timeout(90); page.mouse.up()
+    page.mouse.down()
+    page.wait_for_timeout(90)
+    page.mouse.up()
 
 
 def act(page, step, points, press_at=None, started=False):
     """Run one step. `press_at` is the monotonic time of its decisive press."""
+    before_change = None
+    if step.get("expect_change"):
+        before_change = json.dumps(page.evaluate(f"(() => ({step['expect_change']}))()"))
     if "click" in step:
         pressed = record_demo.human_click(page, step["click"], press_at)
     elif "point" in step:
@@ -85,7 +96,8 @@ def act(page, step, points, press_at=None, started=False):
             record_demo.wait_until(page, press_at - 1.0)
         glide(page, points[step["point"]], 0.7 if press_at else None)
         record_demo.wait_until(page, press_at)
-        pressed = time.monotonic(); press(page)
+        pressed = time.monotonic()
+        press(page)
     elif "drag" in step:
         # Hold the button along the path and release at the end: a lasso, an orbit, or a pan.
         path = [points[name] for name in step["drag"]]
@@ -94,30 +106,70 @@ def act(page, step, points, press_at=None, started=False):
             if press_at is not None:
                 record_demo.wait_until(page, press_at - seconds - 0.95)
             glide(page, path[0], 0.6 if press_at else None)
-            page.wait_for_timeout(120); page.mouse.down(); page.wait_for_timeout(120)
+            page.wait_for_timeout(120)
+            page.mouse.down()
+            page.wait_for_timeout(120)
         elif press_at is not None:
             record_demo.wait_until(page, press_at - seconds - 0.1)
         for point in path[1:]:
             glide(page, point, seconds / (len(path) - 1))
         record_demo.wait_until(page, press_at)
-        pressed = time.monotonic(); page.mouse.up()
+        pressed = time.monotonic()
+        page.mouse.up()
     else:
         a, b = (points[name] for name in step["box"])
         if not started:
             if press_at is not None:
                 record_demo.wait_until(page, press_at - 1.75)
             glide(page, a, 0.6 if press_at else None)
-            page.wait_for_timeout(120); press(page); page.wait_for_timeout(120)
+            page.wait_for_timeout(120)
+            press(page)
+            page.wait_for_timeout(120)
         elif press_at is not None:
             record_demo.wait_until(page, press_at - 0.8)
         glide(page, b, 0.65)
         record_demo.wait_until(page, press_at)
-        pressed = time.monotonic(); press(page)
+        pressed = time.monotonic()
+        press(page)
+    if step.get("dismiss_hover"):
+        dismiss = step["dismiss_hover"]
+        rest_pt = points[dismiss] if isinstance(dismiss, str) else (dismiss if isinstance(dismiss, list) else points.get("rest", [8, 8]))
+        glide(page, rest_pt, 0.15)
     record_demo.assert_one_cursor(page)
     shown = None
     if step.get("expect"):
         page.wait_for_function(step["expect"], timeout=15000)
         shown = time.monotonic()
+    if before_change is not None:
+        page.wait_for_function(
+            "([expr, prev]) => JSON.stringify(new Function('return (' + expr + ')')()) !== prev",
+            arg=[step["expect_change"], before_change],
+            timeout=8000,
+        )
+        shown = shown or time.monotonic()
+    if step.get("scroll_visible"):
+        visible = page.evaluate(
+            """sel => {
+ const nodes = [...document.querySelectorAll(sel)];
+ const el = nodes.at(-1);
+ if (!el) return false;
+ const r = el.getBoundingClientRect();
+ if (r.width <= 0 || r.height <= 0 || r.top < 0 || r.bottom > innerHeight) return false;
+ let p = el.parentElement;
+ while (p && p !== document.body) {
+   const s = getComputedStyle(p);
+   if (/(auto|scroll)/.test(s.overflowY)) {
+     const pr = p.getBoundingClientRect();
+     if (r.top < pr.top - 2 || r.bottom > pr.bottom + 2) return false;
+   }
+   p = p.parentElement;
+ }
+ return true;
+}""",
+            step["scroll_visible"],
+        )
+        if not visible:
+            raise RuntimeError(f"Element {step['scroll_visible']!r} is scrolled out of view")
     return pressed, shown
 
 
@@ -181,7 +233,7 @@ def record(browser, project, config, view, only=None):
     points = config["points"][view]
 
     def spoken(phrase):
-        return align_narration.find_phrase(timing["words"], phrase)["start"] + align_narration.NARRATION_OFFSET_SECONDS
+        return align_narration.find_timed_phrase(timing, phrase)["start"] + align_narration.NARRATION_OFFSET_SECONDS
 
     def cut(phrase):
         return math.ceil((spoken(phrase) - CUT_LEAD_SECONDS) * FPS) / FPS
@@ -254,7 +306,8 @@ def main():
     parser.add_argument("--view", choices=("vertical", "horizontal"), required=True)
     parser.add_argument("--clip")
     args = parser.parse_args()
-    project = ROOT / args.project
+    raw_project = Path(args.project)
+    project = raw_project if raw_project.is_absolute() or (raw_project / "capture.yaml").is_file() else ROOT / args.project
     config = yaml.safe_load((project / "capture.yaml").read_text())
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(args=[

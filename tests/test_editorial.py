@@ -81,6 +81,26 @@ def test_phrase_cues_include_audio_offset_and_one_second_tail(segment):
     assert plan["shots"][1]["end"] == 95 / 30
 
 
+def test_cue_uses_the_project_pronunciation_recorded_with_the_audio(segment, monkeypatch):
+    lexicon = segment / "pronunciations.yaml"
+    lexicon.write_text("spoken:\n  Zyphix: zie fix\n")
+    heard = [
+        {"word": "first", "start": 0.0, "end": 0.4},
+        {"word": "zie", "start": 1.0, "end": 1.2},
+        {"word": "fix", "start": 1.2, "end": 1.4},
+    ]
+    monkeypatch.setattr(reel.align_narration, "recognize", lambda *_: (heard, "first zie fix"))
+    artifacts = segment / "artifacts"
+    report = reel.align_narration.measure(artifacts / "narration.wav", "Transcript:\nFirst. Zyphix.")
+    assert report["transcript_check"]["word_error_rate"] == 0
+    (artifacts / "narration-timing.json").write_text(json.dumps(report))
+    change(segment, lambda config: config["shots"][1].update(cue="Zyphix"))
+    lexicon.write_text("spoken:\n  Zyphix: zip ticks\n")
+
+    plan = reel.editorial_plan(segment, "vertical")
+    assert plan["shots"][1]["start"] == 35 / 30
+
+
 @pytest.mark.parametrize(
     "edit, message",
     [

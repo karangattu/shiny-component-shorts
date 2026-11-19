@@ -118,7 +118,7 @@ def bed_filters(bed_gain_db: float, video_duration: float) -> str:
     return (
         f"aloop=loop=-1:size=2147483647,atrim=0:{video_duration:.3f},"
         f"volume={bed_gain_db:.3f}dB,afade=t=in:d={BED_FADE_SECONDS},"
-        f"afade=t=out:st={fade_out:.3f}:d={BED_FADE_SECONDS}"
+        f"afade=t=out:st={fade_out:.3f}:d={BED_FADE_SECONDS},apad"
     )
 
 

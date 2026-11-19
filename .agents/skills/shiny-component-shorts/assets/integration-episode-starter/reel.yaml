@@ -1,6 +1,7 @@
 style: editorial
 orientation: vertical
 title: Filter a table from a map
+bed: default
 features:
   - title: Filter a table from a map
     dir: .

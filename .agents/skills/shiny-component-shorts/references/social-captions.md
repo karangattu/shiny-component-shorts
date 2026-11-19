@@ -9,21 +9,25 @@ Use this guide for every vertical (9:16) video meant for social media. Many view
 - Write the SRT sidecar too. Platforms that accept uploaded captions can use it instead of the burned-in copy.
 - Captions stay in the lower band of the frame, above the bottom 18–20% that social apps overlay with their own controls. Never cover code, a control, or a key app state. Check each caption frame at phone size.
 - Use short phrases: two lines maximum, seven words or fewer per caption, broken at punctuation and long pauses. The script does this automatically.
-- Do not caption the end card. Captions follow the narration, and the card has none. When a gallery episode speaks its closing line over the card, pass `--stop-at` with the first words of that line. The last cue ends on the first word of the closing line, so no caption appears on the card.
+- Do not caption the end card. Captions follow the narration, and the card has none. When a gallery episode speaks its closing line over the card, pass `--stop-at` with the first words of that line plus `--reel-json artifacts/reel.json` (and `--cut-lead 0.2`), so the last cue ends strictly before the end card cuts in.
+- Preserve exact technical names (`shinywidgets`, `RDKit`, `MDTraj`, `rioxarray`, `py-shinywidgets`) and cardinal numbers (`1,797`, `183`) by normalizing tokens with `align_narration.normalize_tokens` and `assets/pronunciations.yaml`.
 
 ```bash
 python3 .claude/skills/shiny-component-shorts/scripts/burn_captions.py \
   --video artifacts/series/<name>/reel.mp4 \
   --timing <feature>/artifacts/narration-timing.json \
-  --style karaoke \
+  --style series \
+  --accent "#03C7E8" \
+  --reel-json artifacts/series/<name>/reel.json \
   --out-video artifacts/series/<name>/reel-captioned.mp4 \
   --out-srt artifacts/series/<name>/reel.srt
 ```
 
-## Six caption styles
+## Caption styles
 
 | Style | Look | Best with |
 | --- | --- | --- |
+| `series` | Dark-glass translucent box with white words highlighting in `--accent` | Cohesive multi-episode series branding |
 | `clean` | White text on a translucent black box | Dense explanations |
 | `pill` | White text on a Shiny-blue pill | Short, punchy narration |
 | `karaoke` | Outlined text; each spoken word fills yellow as it is said | Interactive demos, where the word and the click line up |
@@ -31,15 +35,15 @@ python3 .claude/skills/shiny-component-shorts/scripts/burn_captions.py \
 | `card` | Dark text on a white card | Light code cards |
 | `bar` | Two-line caption bar across the lower frame | Longer sentences |
 
-## Rotate the styles across a series
+## Keep caption branding cohesive across a series
 
-A series must not repeat one structure. For every series:
+For a multi-episode series (such as showcase integration episodes), keep ONE cohesive caption container (`series`) across every episode and vary the Shiny `--accent`, `hook_style`, `code_theme`, and beat `order` via `look.py`:
 
-1. Choose a different caption style for each video, from the six above. Do not reuse a style until all six have been used, and do not use one style for more than two videos in a five-video series.
-2. Vary the opening. Some videos open on the app result, others on the code, others on a short line of result text. Never open every video with the same phrase or the same title card.
+1. Keep captions unified in `series` dark glass for integration series, or rotate `clean`/`pill`/`karaoke`/`outline`/`card`/`bar` when a standalone ad-hoc series needs distinct caption containers.
+2. Vary the opening (`outcome-first`, `scale-lead`, `two-way`, `direct-action`). Never open every video with `"I <verb> ..."` or the same title card.
 3. Vary the code card theme (`code_theme: dark` or `light`) so the series does not look like one template.
-4. Vary the pacing: some videos hold on code longer, others cut to the app faster.
-5. Record the chosen style, order, and theme for each video in the production index so a later edit can keep them distinct.
+4. Vary the beat order (`integration-code` vs `code-integration`) and Shiny accent color.
+5. Record the chosen style, accent, hook style, order, and theme for each video in `look.yaml` and the production index.
 
 Visual variety should come from these choices, not from decorative motion, animated backgrounds, or interstitial cards. The rules in [editorial production](editorial-production.md) still apply.
 

@@ -29,7 +29,7 @@ def sentence_lines(timing: dict) -> list[str]:
 
 
 def phrase_line(timing: dict, phrase: str, occurrence: int) -> str:
-    found = align_narration.find_phrase(timing["words"], phrase, occurrence)
+    found = align_narration.find_timed_phrase(timing, phrase, occurrence)
     video = found["start"] + align_narration.NARRATION_OFFSET_SECONDS
     return (
         f"{phrase!r} (occurrence {occurrence}): narration "

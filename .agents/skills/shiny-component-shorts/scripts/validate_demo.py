@@ -311,7 +311,7 @@ def resolve_cue_times(actions: list[dict], timing: dict | None) -> dict[int, dic
                     "cue actions need word timing for the current narration.wav: run "
                     "align_narration.py --project-dir <demo> (or batch --phase narration)"
                 )
-            found = align_narration.find_phrase(timing["words"], spec["phrase"], spec["occurrence"])
+            found = align_narration.find_timed_phrase(timing, spec["phrase"], spec["occurrence"])
             resolved[index] = {"phrase": spec["phrase"], "narration": found["start"]}
         resolved[index]["target"] = round(resolved[index]["narration"] + NARRATION_OFFSET_SECONDS, 2)
     return resolved
