@@ -17,7 +17,7 @@ Existing productions with audio/video under `artifacts/` keep a snapshot of thei
 
 ## Vertical social shorts
 
-Every vertical video for social media gets burned-in captions from measured word timing (`scripts/burn_captions.py`, see [social captions](references/social-captions.md)). Use one of the six caption styles, and rotate styles, opening order, and code-card theme across a series so the videos do not share one structure. Do not add an install walkthrough unless the user asks for one: open on the code or the app and show the integration directly, naming the package and shinywidgets in the first sentence.
+Every vertical video for social media gets burned-in captions from measured word timing (`scripts/burn_captions.py`, see [social captions](references/social-captions.md)). Use `--style series` for showcase episodes. Set the whole phrase in steady white type on one translucent charcoal panel, including when it wraps to two lines. Vary the opening order and code-card theme across the series. Do not add an install walkthrough unless the user asks for one: open on the code or the app and show the integration directly, naming the package and shinywidgets in the first sentence.
 
 Open every vertical short on an integration poster, before any footage (a [gallery integration episode](references/widget-integration-episodes.md) opens on its hook footage instead and keeps the cover as the thumbnail): the title is the integration's name from its page under `website/widgets/` plus "in Shiny", with a clean app frame as evidence and the poster cued to the first narration sentence (see [social captions](references/social-captions.md#open-on-an-integration-poster)).
 

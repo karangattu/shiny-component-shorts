@@ -32,16 +32,15 @@ import pronunciations  # noqa: E402
 WHITE = "&H00FFFFFF"
 INK = "&H001D1F21"        # Shiny text colour on light surfaces
 SHINY_BLUE = "&H00C27B00"  # #007BC2
-SHINY_CYAN = "&H00E8C703"  # #03C7E8
 BLACK_TRANS = "&H66000000"
-DARK_GLASS = "&H44211F1D"  # Translucent obsidian #1D1F21
+DARK_GLASS = "&H35211F1D"  # Translucent obsidian #1D1F21
 YELLOW = "&H0040C9FF"      # #FFC940, karaoke highlight
 WHITE_CARD = "&H00FFFFFF"
 
 FONT = "Avenir Next"
 
-# Each style: ASS style fields. BorderStyle 1 = outline + shadow, 3 = opaque box.
-# With BorderStyle 3 the box takes the outline colour, so a transparent outline leaves no box.
+# BorderStyle 1 draws an outline and shadow. Style 3 uses OutlineColour per text run.
+# libass's style 4 draws one box per cue using BackColour and Shadow as padding.
 STYLES = {
     "clean": dict(
         desc="White text on a translucent black box",
@@ -74,9 +73,9 @@ STYLES = {
         back=BLACK_TRANS, border_style=3, outline_w=34, shadow=0, karaoke=False,
     ),
     "series": dict(
-        desc="Dark-glass karaoke box with per-episode Shiny accent highlight",
-        size=58, bold=-1, primary=SHINY_CYAN, secondary=WHITE, outline=DARK_GLASS,
-        back=DARK_GLASS, border_style=3, outline_w=18, shadow=0, karaoke=True,
+        desc="Steady white text on one translucent charcoal panel per cue",
+        size=62, bold=-1, primary=WHITE, secondary=WHITE, outline=INK,
+        back=DARK_GLASS, border_style=4, outline_w=0, shadow=20, karaoke=False,
     ),
 }
 
@@ -350,7 +349,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--stop-at", help="Narration phrase where captions end, such as the line spoken over the end card")
     parser.add_argument("--cut-lead", type=float, default=0.2, help="Cut lead seconds before --stop-at (default: 0.2)")
     parser.add_argument("--reel-json", type=Path, help="Optional reel.json to clamp captions before end card start")
-    parser.add_argument("--accent", help="Optional #RRGGBB accent color for series/karaoke/pill styles")
+    parser.add_argument("--accent", help="Optional #RRGGBB accent color for karaoke and pill styles")
     parser.add_argument("--out-srt", type=Path, help="SRT sidecar path (default: beside the output)")
     parser.add_argument("--out-ass", type=Path, help="ASS path (default: beside the output)")
     args = parser.parse_args(argv)
@@ -377,9 +376,7 @@ def main(argv: list[str] | None = None) -> int:
     style = dict(STYLES[args.style])
     if args.accent:
         ass_accent = hex_to_ass_color(args.accent)
-        if args.style == "series":
-            style["primary"] = ass_accent
-        elif style["karaoke"]:
+        if style["karaoke"]:
             style["secondary"] = ass_accent
         elif args.style == "pill":
             style["outline"] = ass_accent

@@ -93,7 +93,7 @@ A long series should feel cohesive without repeating one template. Each catalog 
 | Key | Values | Where it shows |
 | --- | --- | --- |
 | `captions` | `series` | Unified dark-glass karaoke caption bar across the series |
-| `accent` | `#03C7E8`, `#00BF7F`, `#F9B928`, `#66B2FF`, `#F45100`, `#E879F9` | Highlighted karaoke words, badge dot, and code-card accent |
+| `accent` | `#03C7E8`, `#00BF7F`, `#F9B928`, `#66B2FF`, `#F45100`, `#E879F9` | Badge dot and code-card accent |
 | `hook_style` | `outcome-first`, `scale-lead`, `two-way`, `direct-action` | Opening hook sentence pattern |
 | `code_theme` | `dark`, `light` | The floating code card |
 | `order` | `integration-code`, `code-integration` | Order of the middle beats |
@@ -101,7 +101,7 @@ A long series should feel cohesive without repeating one template. Each catalog 
 
 Do not choose these values yourself, and do not draw them at render time. `look.py assign` draws each look from the catalog's `look_seed` and the episode id, and stores it in `episodes.yaml`. A rerender then gives the same video, and a new episode never changes an older one. The script keeps neighbours apart: an `accent` never repeats within two episodes, and adjacent episodes never share the same `hook_style` or both `order` and `code_theme`. `look.py check` reports a catalog that breaks these rules.
 
-`look.py apply <project> <episode>` writes the look into the production: the `code_theme`, `accent`, and `overlay_card: true` in `source-shots.yaml`, `bed: default` and `outro.widget` in `reel.yaml`, and `look.yaml` for `assemble.py` and `burn_captions.py`. Pass `--style series --accent <accent> --reel-json artifacts/reel.json` to `burn_captions.py`.
+`look.py apply <project> <episode>` writes the look into the production: the `code_theme`, `accent`, and `overlay_card: true` in `source-shots.yaml`, `bed: default` and `outro.widget` in `reel.yaml`, and `look.yaml` for `assemble.py` and `burn_captions.py`. Pass `--style series --reel-json artifacts/reel.json` to `burn_captions.py`.
 
 The look does not cover words. Write a different opening sentence and conclusion for each episode, and run `check_narration_voice.py --series --portrait` across the series to catch shared openers or portrait layout mismatches.
 
@@ -158,7 +158,7 @@ When a gallery line is too long for the card but splits a name under `code_wrap:
 
 For a floating portrait code card, name the clip `code` or set `code_overlay: true` on that clip in `capture.yaml`. Use the same narration cue for the recorded clip and the code shot. Landscape uses the prepared side-by-side view at that cue.
 
-Work in this order: apply the look, preflight both orientations, build the stills and floating code card (`overlay_card: true`), write the narration from the values the preflight printed using the assigned `hook_style`, generate and pin one continuous take from `--phase takes`, record with `capture.py`, assemble, render, burn captions with `--style series --accent <accent> --stop-at ... --reel-json artifacts/reel.json`, and validate with `validate_editorial.py --max-static-hold 6.0 --srt ...`. The end card shows its own text, so captions stop strictly before it.
+Work in this order: apply the look, preflight both orientations, build the stills and floating code card (`overlay_card: true`), write the narration from the values the preflight printed using the assigned `hook_style`, generate and pin one continuous take from `--phase takes`, record with `capture.py`, assemble, render, burn captions with `--style series --stop-at ... --reel-json artifacts/reel.json`, and validate with `validate_editorial.py --max-static-hold 6.0 --srt ...`. The end card shows its own text, so captions stop strictly before it.
 
 Then follow the capture, narration, alignment, and validation steps in [widget showcases](widget-showcases.md#capture-and-assemble). Ship both orientations from the same actions and narration. In the horizontal video, show the code beside the app. Burn captions into the vertical video as [social captions](social-captions.md) describes, with the caption style from the episode's look.
 

@@ -170,7 +170,11 @@ class PronunciationsAndCaptionsTest(unittest.TestCase):
             self.assertTrue(cues)
             self.assertLessEqual(cues[-1][1], 1.904)
             ass = (artifacts / "captioned.ass").read_text(encoding="utf-8")
-            self.assertIn("&H007FBF00", ass)
+            style = next(line for line in ass.splitlines() if line.startswith("Style: Caption,"))
+            fields = style.split(",")
+            self.assertEqual(fields[3:5], ["&H00FFFFFF", "&H00FFFFFF"])
+            self.assertEqual(fields[15], "4")  # A single panel behind the whole cue.
+            self.assertNotIn(r"{\k", ass)
 
 
 class CodeCardAndOverlayTest(unittest.TestCase):

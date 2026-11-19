@@ -17,7 +17,6 @@ python3 .claude/skills/shiny-component-shorts/scripts/burn_captions.py \
   --video artifacts/series/<name>/reel.mp4 \
   --timing <feature>/artifacts/narration-timing.json \
   --style series \
-  --accent "#03C7E8" \
   --reel-json artifacts/series/<name>/reel.json \
   --out-video artifacts/series/<name>/reel-captioned.mp4 \
   --out-srt artifacts/series/<name>/reel.srt
@@ -27,7 +26,7 @@ python3 .claude/skills/shiny-component-shorts/scripts/burn_captions.py \
 
 | Style | Look | Best with |
 | --- | --- | --- |
-| `series` | Dark-glass translucent box with white words highlighting in `--accent` | Cohesive multi-episode series branding |
+| `series` | Steady white type on one translucent charcoal panel for the entire cue | Showcase episodes |
 | `clean` | White text on a translucent black box | Dense explanations |
 | `pill` | White text on a Shiny-blue pill | Short, punchy narration |
 | `karaoke` | Outlined text; each spoken word fills yellow as it is said | Interactive demos, where the word and the click line up |
@@ -37,9 +36,9 @@ python3 .claude/skills/shiny-component-shorts/scripts/burn_captions.py \
 
 ## Keep caption branding cohesive across a series
 
-For a multi-episode series (such as showcase integration episodes), keep ONE cohesive caption container (`series`) across every episode and vary the Shiny `--accent`, `hook_style`, `code_theme`, and beat `order` via `look.py`:
+For a multi-episode series, use `series` across every episode. The panel spans both lines of a two-line cue. Check that it reads as a single surface at phone size and that the text stays white throughout the cue. Use the episode accent on the opening badge and code card.
 
-1. Keep captions unified in `series` dark glass for integration series, or rotate `clean`/`pill`/`karaoke`/`outline`/`card`/`bar` when a standalone ad-hoc series needs distinct caption containers.
+1. Use the same caption style across showcase episodes. Choose another preset when a standalone video calls for it.
 2. Vary the opening (`outcome-first`, `scale-lead`, `two-way`, `direct-action`). Never open every video with `"I <verb> ..."` or the same title card.
 3. Vary the code card theme (`code_theme: dark` or `light`) so the series does not look like one template.
 4. Vary the beat order (`integration-code` vs `code-integration`) and Shiny accent color.

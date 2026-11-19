@@ -129,7 +129,7 @@ def apply(project: Path, episode: dict) -> None:
         ),
     )
     (project / "look.yaml").write_text(
-        "# Written by look.py apply. assemble.py reads `order` and `accent`; burn captions with --style <captions> --accent <accent>.\n"
+        "# Written by look.py apply. assemble.py reads `order` and `accent`; burn captions with --style <captions>.\n"
         + yaml.safe_dump({"episode": episode["id"], **look}, sort_keys=False), encoding="utf-8")
     print(yaml.safe_dump(look, sort_keys=False).strip())
 
