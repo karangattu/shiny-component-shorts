@@ -4,7 +4,7 @@ Use this workflow for a short video about one [shinywidgets](https://github.com/
 
 For an app from the [shinywidgets gallery](https://posit-dev.github.io/py-shinywidgets/gallery/), or a video about how a widget drives other outputs, use [widget integration episodes](widget-integration-episodes.md). That guide sets the story and the beats, and this guide still covers installation, capture, and assembly.
 
-Choose one widget and one useful task. If the user names several widgets, make one independently understandable video for each, unless they request a comparison. If none is named, Plotly is a useful starting point: a Shiny input changes a chart, and the chart retains its own hover and legend controls. Other candidates include a linked Altair selection, an ipyleaflet map control, or a Bokeh chart update. Verify the specific behavior before writing narration.
+Choose one widget, one useful task, and one hidden behavior. If the user names several widgets, make one independently understandable video for each, unless they request a comparison. If none is named, Plotly is a useful starting point. Prove that a Shiny input updates the existing widget while its hover and legend controls stay alive. Other candidates include a linked Altair selection, an ipyleaflet map control, or a Bokeh chart update. Verify the specific behavior before you write narration.
 
 Give each video a `context` label, specific title, and short outcome sentence in `source-shots.yaml`.
 Use `context.layout: showcase` for a cover built from one strong piece of app evidence. Supply a dedicated capture of the result, such as a chart or map with its labels and attribution. Use a short title that fits in two lines on a phone. The cover stays out of playback so the app can fill the opening frame. See [context posters and opening titles](editorial-production.md#context-posters-and-opening-titles).
@@ -22,7 +22,30 @@ Use editorial framing, hard cuts, readable source, and about 5% margins. The 45-
 | One short code beat | A single excerpt of a few whole lines | What connects the widget to the result |
 | Closing beat | The actual outcome, followed by the silent end card | What the viewer can now see or decide |
 
-Aim for 40–60 seconds for a portrait showcase with one simple story. Allow more time when the app interaction needs it. Cut on measured narration. Keep the app visible for most of the runtime and finish the story before the end card.
+Aim for 40–60 seconds for a portrait showcase with one simple story. Allow more time when the app interaction needs it. Cut on measured narration. Keep the app visible for most of the runtime and finish the story before the end card. The Plotly starter targets about 45 seconds.
+
+## Make it feel made by a person
+
+A widget video is a short developer story, not a package tour.
+
+- Open on the visible consequence. Show the first action and result in the first three seconds.
+- Prove one hidden behavior. Do not combine reactivity, installation, hover, legend controls, and performance into one tutorial.
+- Speak like a coworker. Describe what you do and what changes. Use contractions, fragments, and normal pauses.
+- Keep the app moving while you explain the libraries or the result. Do not hold a static frame for a lecture.
+- Show one short source excerpt. Highlight the line that causes the visible behavior, then return to the live app.
+- Record natural pointer travel, the real response, and a short hold on the result. Do not jump between changed-state stills.
+- Remove unrelated default chrome. Hide a widget modebar unless the video demonstrates it.
+- Listen to the finished take. Rewrite rushed, sterile, or mispronounced lines and regenerate the audio.
+
+Weak:
+
+> This is a Plotly chart running inside a Shiny app. You need three packages.
+
+Strong:
+
+> I switch this chart from new accounts to churn, and the bars update in place. No reload. Plotly's hover still works.
+
+For a gallery episode, follow [widget integration episodes](widget-integration-episodes.md). That workflow keeps the app moving through all four beats and shows one accessor line.
 
 For portrait-only requests, declare `orientations: [vertical]` in `source-shots.yaml` or `editorial.yaml`. Use `--orientation vertical` for both export and validation. Keep both views for other requests.
 

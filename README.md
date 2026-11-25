@@ -53,7 +53,7 @@ In OpenCode, start with `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1 opencode` to prev
 | Ideas only | `Give me 5 video ideas for Shiny's data grid.` |
 | A runnable app | `Create a runnable mini-app for toolbar-select in Python.` |
 | A finished video | `Make a narrated video about bslib value boxes in R.` |
-| A widget showcase | `Make a 75-second narrated Plotly showcase with shinywidgets. Show installation, imports, a reactive chart, and hover interaction.` |
+| A widget showcase | `Make a 45-second Plotly showcase. Prove that a Shiny input updates the existing widget in place, so hover and legend controls keep working.` |
 | An existing app | `Make a video about the best behavior in ~/apps/sales-dashboard.` The agent does not modify your app. |
 | A pull request or commit | `Make a video about https://github.com/posit-dev/py-shiny/pull/2051` |
 | A changelog reel | `Make a changelog reel of the unreleased features in https://github.com/posit-dev/py-shiny/blob/main/CHANGELOG.md` |
@@ -82,9 +82,10 @@ Set `outro.title`, `outro.command`, `outro.link`, and `outro.seconds` in `reel.y
 To make a video with [py-shinywidgets](https://github.com/posit-dev/py-shinywidgets), ask:
 
 ```text
-/shiny-component-shorts Make a 75-second narrated Plotly showcase with shinywidgets.
-Show installation, imports, and a small Shiny Express app.
-Record real hover and legend clicks. Export portrait and landscape videos.
+/shiny-component-shorts Make a 45-second narrated Plotly showcase with shinywidgets.
+Prove that a Shiny input updates the existing widget in place, so hover and legend controls keep working.
+Open on that result. Keep the app moving and show one short source excerpt.
+Export portrait and landscape videos.
 ```
 
 To make an episode about an app in the [shinywidgets gallery](https://posit-dev.github.io/py-shinywidgets/gallery/), ask:

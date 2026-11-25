@@ -1,17 +1,17 @@
-# Place the setup still after the opening clip and the code still before the payoff.
-# Use measured words for the cuts. Keep real interactions at original speed.
+# Split one continuous recording into these clips.
+# Keep the pointer approach, the real response, and a short hold on the result.
 shots:
-  - cue: This forecast changes with the scenario
-    chapter: The forecast
+  - cue: I switch this chart from new accounts to churn
+    chapter: Change the metric
     views:
       vertical: {file: sources/opening-vertical.mp4, fit: contain, in: 0}
       horizontal: {file: sources/opening-horizontal.mp4, fit: contain, in: 0}
-  - cue: I switch to the second forecast
-    chapter: Compare scenarios
+  - cue: Plotly's hover still works
+    chapter: Keep Plotly's controls
     views:
       vertical: {file: sources/interaction-vertical.mp4, fit: contain, in: 0}
       horizontal: {file: sources/interaction-horizontal.mp4, fit: contain, in: 0}
-  - cue: The gap closes here
+  - cue: the legend still toggles the series
     chapter: Read the result
     views:
       vertical: {file: sources/payoff-vertical.mp4, fit: contain, in: 0}

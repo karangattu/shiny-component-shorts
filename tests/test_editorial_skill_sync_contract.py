@@ -15,7 +15,17 @@ def normalized(path: Path) -> str:
 class EditorialSkillSyncTest(unittest.TestCase):
     def test_context_scripts_and_starters_match(self) -> None:
         for name in ('scripts/context_cards.py', 'scripts/prepare_editorial.py',
-                     'scripts/stitch_reel.py', 'scripts/end_card.py', 'assets/widget-starter/source-shots.yaml',
+                     'scripts/stitch_reel.py', 'scripts/end_card.py',
+                     'assets/widget-starter/source-shots.yaml',
+                     'assets/widget-starter/interaction-shot.yaml',
+                     'assets/widget-starter/reel.yaml',
+                     'assets/widget-starter/app.py',
+                     'assets/widget-starter/app.css',
+                     'assets/widget-starter/setup.sh',
+                     'assets/widget-starter/actions.yaml',
+                     'assets/widget-starter/tts-settings.json',
+                     'assets/widget-starter/narration.txt',
+                     'assets/widget-starter/README.md',
                      'assets/editorial-starter/source-shots.yaml'):
             with self.subTest(file=name):
                 self.assertEqual(normalized(AGENTS / name), normalized(CLAUDE / name))

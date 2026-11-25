@@ -1,21 +1,21 @@
 # Set orientations: [vertical] here and pass --orientation vertical for portrait-only exports.
-# Build the stills, then assemble them around the live clips in interaction-shot.yaml.
+# Keep setup brief. Show one source excerpt, then return to the live result.
 context:
   layout: showcase
   label: Shiny for Python · Plotly
-  title: Compare two forecasts
-  summary: See the forecast change as you switch scenarios.
+  title: Update a chart in place
+  summary: Switch metrics without rebuilding Plotly's widget.
   captures:
     vertical: sources/result-vertical.png
     horizontal: sources/result-horizontal.png
 shots:
-  - cue: I install Shiny and the widget packages
+  - cue: Two commands get the app running
     chapter: Run the app
     views:
       vertical:
         code_theme: dark
         code_wrap: false
-        font_size: 30
+        font_size: 32
         panels:
           - {kind: code, file: setup.sh, language: bash, label: ""}
       horizontal:
@@ -25,19 +25,20 @@ shots:
         panels:
           - {kind: code, file: setup.sh, language: bash, label: ""}
           - {kind: image, file: sources/app-horizontal-code.png}
-  - cue: The render function reads the selected value
-    chapter: Connect the forecast
+  - cue: The render function builds the widget once
+    chapter: Update the same traces
     views:
       vertical:
         code_theme: dark
         code_wrap: false
-        font_size: 32
+        font_size: 28
         panels:
-          - {kind: code, file: app.py, lines: [5, 8]}
+          - {kind: code, file: app.py, lines: [50, 58], label: app.py, highlight: 58}
       horizontal:
         layout: columns
         code_theme: dark
         code_wrap: false
+        font_size: 24
         panels:
-          - {kind: code, file: app.py, lines: [5, 8]}
+          - {kind: code, file: app.py, lines: [50, 58], label: app.py, highlight: 58}
           - {kind: image, file: sources/app-horizontal-code.png}

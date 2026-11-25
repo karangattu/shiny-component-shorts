@@ -1,0 +1,16 @@
+title: Update a Plotly chart in place
+
+actions:
+  - wait_for: ".js-plotly-plot .barlayer g.point"
+  - wait_stream: {selector: ".js-plotly-plot", quiet_ms: 1200, timeout: 20000}
+  - cue: "I switch this chart from new accounts to churn"
+  - click: 'input[name="metric"][value="Churn rate"]'
+  - wait_stream: {selector: ".js-plotly-plot", quiet_ms: 1200, timeout: 20000}
+  - cue: "Plotly's hover still works"
+  - hover: ".js-plotly-plot .barlayer g.trace.bars:nth-of-type(1) g.point:nth-of-type(5) path"
+  - wait: 1800
+  - cue: "the legend still toggles the series"
+  - click: ".js-plotly-plot .legend g.traces:nth-of-type(2) rect.legendtoggle"
+  - wait_stream: {selector: ".js-plotly-plot", quiet_ms: 1200, timeout: 20000}
+  - wait: 2500
+  - screenshot: {path: "artifacts/final.png"}

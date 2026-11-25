@@ -1,0 +1,15 @@
+Synthesize this as a natural, curious tech explainer for a 45-second Shiny widget showcase video.
+
+Audio profile:
+A clear developer voice. Conversational, precise, and warm. Speak to one coworker.
+
+Scene:
+A Shiny input changes a Plotly bar chart in place. Plotly keeps its hover and legend controls.
+
+Director's notes:
+Speak at a natural pace. Let the result land before you explain it. Use normal pauses. Do not add non-speech sounds or sound like a corporate tutorial. Read only the transcript below.
+
+Transcript:
+I switch this chart from new accounts to churn, and the bars update in place. No reload. Plotly's hover still works, and the legend still toggles the series. [medium pause] Two commands get the app running. Shiny builds the page, shinywidgets renders the Plotly widget, and Plotly draws the chart.
+
+The useful part is here. [short pause] The render function builds the widget once. A reactive effect reads the metric and writes new values into the same traces. [slightly firmer] That's why the widget keeps its own controls. If your Shiny input changes a Plotly chart, update the existing figure instead of returning a new one.

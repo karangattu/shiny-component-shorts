@@ -1,10 +1,9 @@
 style: editorial
 orientation: vertical
-title: Plotly in Shiny
+title: Update a Plotly chart in place
 features:
-  - title: Plotly in Shiny
+  - title: Update a Plotly chart in place
     dir: .
-# Set widget to the featured integration name.
 outro:
   widget: Plotly
   command: pip install shiny shinywidgets plotly

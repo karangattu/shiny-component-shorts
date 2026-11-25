@@ -1,0 +1,17 @@
+html, body { height: 100%; background: #F8F8F8; }
+body {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 5vh 4vw;
+  color: #1D1F21;
+  font-family: 'Open Sans', sans-serif;
+}
+.bslib-page-fill, body > .container-fluid {
+  background: #FFFFFF;
+  border: 1px solid #CDD4DA;
+  border-radius: 10px;
+  padding: 18px 20px;
+}
+.control-label { font-weight: 600; margin-bottom: 6px; }
+.shiny-input-container { margin-bottom: 12px; }
+.js-plotly-plot .modebar { display: none !important; }

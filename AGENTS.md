@@ -12,6 +12,7 @@ This repo generates short Shiny component demo apps and 30-second video concepts
 - A pull request, commit URL, or commit SHA is a valid request: demo one user-facing change from it.
 - Keep demo apps small enough to understand in one screen.
 - Every video idea must focus on one hidden behavior, not a full component tutorial.
+- For widget videos, prove one behavior in one concrete task. Open on the result, keep the app moving, and show one short source excerpt.
 - For standalone component recordings, reserve the top 20% and bottom 20% of each video frame for branding; fill the middle band's horizontal space with the app.
 - Do not add a Shiny wordmark to videos by default. Branding can be added in later editing; add a logo only on explicit request.
 - Use only the official Shiny preset palette, with accessible light- or dark-mode text colors.

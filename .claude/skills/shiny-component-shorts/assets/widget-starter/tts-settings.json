@@ -1,0 +1,7 @@
+{
+  "provider": "local-voice-cloning",
+  "saved_voice": "karan",
+  "engine": "qwen",
+  "quality": "high",
+  "language": "English"
+}
