@@ -37,7 +37,7 @@ COMMANDS = {"python": "pip install shiny --upgrade", "r": 'install.packages("shi
 KEYS = ("title", "command", "link", "seconds", "spoken", "widget")
 LOGO_PATH = Path(__file__).resolve().parent.parent / "assets" / "shiny-logo.png"
 WIDGET_LOGO_PATH = LOGO_PATH.with_name("shinywidgets-logo.png")
-WIDGET_LINK = "posit-dev.github.io/py-shinywidgets"
+WIDGET_LINK = "shinywidgets.org"
 VERSION_RE = re.compile(r"(?:shiny\s+)?v?(\d+(?:\.\d+)*)", re.IGNORECASE)
 
 

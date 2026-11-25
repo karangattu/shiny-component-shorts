@@ -66,7 +66,8 @@ class WidgetIntegrationContractTest(unittest.TestCase):
         self.assertEqual(set(clips['points']), {'vertical', 'horizontal'})
         catalog = yaml.safe_load((SKILLS[0] / STARTER / 'episodes.yaml').read_text(encoding='utf-8'))
         outro = yaml.safe_load((SKILLS[0] / STARTER / 'reel.yaml').read_text(encoding='utf-8'))['outro']
-        self.assertIn('py-shinywidgets', outro['link'])
+        self.assertEqual(outro['link'], 'shinywidgets.org')
+        self.assertEqual(catalog['site'], 'shinywidgets.org')
         self.assertTrue(catalog['closing_line'].startswith(outro['spoken']))
         if not catalog['released']:
             self.assertEqual(outro['command'], '')
@@ -119,6 +120,7 @@ class WidgetIntegrationContractTest(unittest.TestCase):
             self.assertEqual([p['kind'] for p in views['horizontal']['panels']], ['image', 'code'])
             reel = yaml.safe_load((Path(tmp) / 'reel.yaml').read_text())
             self.assertEqual(reel['outro']['widget'], 'K3D')
+            self.assertEqual(reel['outro']['link'], 'shinywidgets.org')
             self.assertEqual(reel['bed'], 'default')
             look_yaml = yaml.safe_load((Path(tmp) / 'look.yaml').read_text())
             self.assertEqual(look_yaml['order'], 'code-integration')
@@ -324,6 +326,7 @@ class MakeEpisodeTest(unittest.TestCase):
         self.assertIn("index.md", entry["notes"])
         outro = yaml.safe_load((project / "reel.yaml").read_text())["outro"]
         self.assertEqual(outro["widget"], "Embedding Atlas")
+        self.assertEqual(outro["link"], "shinywidgets.org")
         views = yaml.safe_load((project / "source-shots.yaml").read_text())["shots"][0]["views"]
         panel = views["vertical"]["panels"][0]
         self.assertEqual(panel["highlight"], 9)

@@ -415,7 +415,7 @@ class ValidationAndVoiceChecksTest(unittest.TestCase):
                     "style": "editorial",
                     "orientation": "vertical",
                     "title": "Test",
-                    "outro": {"widget": "K3D", "command": "", "link": "posit-dev.github.io/py-shinywidgets", "spoken": "to try this"},
+                    "outro": {"widget": "K3D", "command": "", "link": "shinywidgets.org", "spoken": "to try this"},
                     "features": [{"title": "Test", "dir": "."}],
                 })
             )

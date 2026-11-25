@@ -11,5 +11,5 @@ features:
 outro:
   widget: Lonboard
   command: ""
-  link: posit-dev.github.io/py-shinywidgets
+  link: shinywidgets.org
   spoken: To try this integration

@@ -20,7 +20,7 @@
 #          word "integration" to "widget" when the episode shows one library.
 series: You Can Build This with Shiny
 closing_line: To try this integration, go to the py-shinywidgets website.
-site: posit-dev.github.io/py-shinywidgets
+site: shinywidgets.org
 released: false
 # look_seed: look.py draws each episode's look from this number and the episode id.
 look_seed: 2026
